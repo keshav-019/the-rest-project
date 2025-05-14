@@ -6,36 +6,45 @@ import Link from "next/link";
 
 export default function TeamManagement() {
   const fontFamily = useGoogleFont('Inter');
-  const [activeTab, setActiveTab] = useState('myTeams');
+  const [activeTab, setActiveTab] = useState<'myTeams' | 'invitations'>('myTeams');
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showInviteMembersModal, setShowInviteMembersModal] = useState(false);
   const [showTeamDetailsModal, setShowTeamDetailsModal] = useState(false);
   const [selectedTeamName, setSelectedTeamName] = useState('');
   
-  // Refs for focus management
-  const createTeamModalRef = useRef(null);
-  const inviteMembersModalRef = useRef(null);
-  const teamDetailsModalRef = useRef(null);
+  // Refs for modal focus management
+  const createTeamModalRef = useRef<HTMLDivElement>(null);
+  const inviteMembersModalRef = useRef<HTMLDivElement>(null);
+  const teamDetailsModalRef = useRef<HTMLDivElement>(null);
   
   // Focus trap for modals
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showCreateTeamModal) setShowCreateTeamModal(false);
+        if (showInviteMembersModal) setShowInviteMembersModal(false);
+        if (showTeamDetailsModal) setShowTeamDetailsModal(false);
+      }
+    };
+
     if (showCreateTeamModal || showInviteMembersModal || showTeamDetailsModal) {
       document.body.style.overflow = 'hidden';
+      document.addEventListener('keydown', handleKeyDown);
       
       // Focus the modal when it opens
-      if (showCreateTeamModal && createTeamModalRef.current) {
-        createTeamModalRef.current.focus();
-      } else if (showInviteMembersModal && inviteMembersModalRef.current) {
-        inviteMembersModalRef.current.focus();
-      } else if (showTeamDetailsModal && teamDetailsModalRef.current) {
-        teamDetailsModalRef.current.focus();
-      }
+      const currentModalRef = 
+        showCreateTeamModal ? createTeamModalRef.current :
+        showInviteMembersModal ? inviteMembersModalRef.current :
+        teamDetailsModalRef.current;
+      
+      currentModalRef?.focus();
     } else {
       document.body.style.overflow = 'auto';
     }
     
     return () => {
       document.body.style.overflow = 'auto';
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [showCreateTeamModal, showInviteMembersModal, showTeamDetailsModal]);
   
@@ -47,21 +56,24 @@ export default function TeamManagement() {
     setShowInviteMembersModal(false);
   };
   
-  const handleViewTeamDetails = (teamName) => {
+  const handleViewTeamDetails = (teamName: string) => {
     setSelectedTeamName(teamName);
     setShowTeamDetailsModal(true);
   };
 
-  const ModalBackdrop = ({ children, onClose }) => (
+  interface ModalBackdropProps {
+    children: React.ReactNode;
+    onClose: () => void;
+  }
+
+  const ModalBackdrop = ({ children, onClose }: ModalBackdropProps) => (
     <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div 
+        className="fixed inset-0 bg-gray-500 dark:bg-gray-900 opacity-75 transition-opacity"
+        onClick={onClose}
+        aria-hidden="true"
+      ></div>
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div 
-          className="fixed inset-0 transition-opacity" 
-          aria-hidden="true"
-          onClick={onClose}
-        >
-          <div className="absolute inset-0 bg-gray-500 dark:bg-gray-900 opacity-75"></div>
-        </div>
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
         {children}
       </div>
@@ -140,7 +152,7 @@ export default function TeamManagement() {
             <nav className="flex space-x-4">
               <button 
                 className={`px-3 py-2 text-sm font-medium rounded-md ${activeTab === 'myTeams' 
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' 
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' 
                   : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}
                 onClick={() => setActiveTab('myTeams')}
               >
@@ -148,7 +160,7 @@ export default function TeamManagement() {
               </button>
               <button 
                 className={`px-3 py-2 text-sm font-medium rounded-md ${activeTab === 'invitations' 
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' 
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' 
                   : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}
                 onClick={() => setActiveTab('invitations')}
               >
@@ -372,10 +384,11 @@ export default function TeamManagement() {
         <ModalBackdrop onClose={() => setShowCreateTeamModal(false)}>
           <div 
             ref={createTeamModalRef}
-            className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+            className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full relative z-50"
             role="dialog" 
             aria-modal="true" 
             aria-labelledby="modal-headline"
+            tabIndex={-1}
           >
             <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="sm:flex sm:items-start">
@@ -474,10 +487,11 @@ export default function TeamManagement() {
         <ModalBackdrop onClose={() => setShowInviteMembersModal(false)}>
           <div 
             ref={inviteMembersModalRef}
-            className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+            className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full relative z-50"
             role="dialog" 
             aria-modal="true" 
             aria-labelledby="modal-headline"
+            tabIndex={-1}
           >
             <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="sm:flex sm:items-start">
@@ -564,10 +578,11 @@ export default function TeamManagement() {
         <ModalBackdrop onClose={() => setShowTeamDetailsModal(false)}>
           <div 
             ref={teamDetailsModalRef}
-            className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full"
+            className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full relative z-50"
             role="dialog" 
             aria-modal="true" 
             aria-labelledby="modal-headline"
+            tabIndex={-1}
           >
             <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="sm:flex sm:items-start">
