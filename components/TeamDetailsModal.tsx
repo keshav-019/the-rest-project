@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useGoogleFont } from '../utils/fonts'
 import React from "react"
 
@@ -16,7 +17,7 @@ export default function TeamDetailsModal({
   onInviteMembers,
   onRemoveMember,
   onLeaveTeam,
-  onUpdateTeam
+  // onUpdateTeam
 }: {
   isOpen: boolean
   onClose: () => void
@@ -38,7 +39,7 @@ export default function TeamDetailsModal({
   onInviteMembers?: () => void
   onRemoveMember?: (memberId: string) => void
   onLeaveTeam?: () => void
-  onUpdateTeam?: (team: { name: string, description: string, privacy: 'public' | 'private' }) => void
+  // onUpdateTeam?: (team: { name: string, description: string, privacy: 'public' | 'private' }) => void
 }) {
   const fontFamily = useGoogleFont('Inter')
   
@@ -90,13 +91,13 @@ export default function TeamDetailsModal({
                 <div className="mt-6">
                   <div className="border-b border-gray-200 dark:border-gray-700">
                     <nav className="-mb-px flex space-x-8">
-                      <a href="#" className="border-blue-500 text-blue-600 dark:text-blue-400 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                      <Link href="#" className="border-blue-500 text-blue-600 dark:text-blue-400 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                         Members
-                      </a>
+                      </Link>
                       {isOwnerOrAdmin && (
-                        <a href="#" className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                        <Link href="#" className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                           Settings
-                        </a>
+                        </Link>
                       )}
                     </nav>
                   </div>

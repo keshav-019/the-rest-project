@@ -160,9 +160,9 @@ export default function Authentication() {
           </div>
 
           <div className="text-sm">
-            <a href="#" className="font-medium text-blue-600 hover:text-blue-500 cursor-pointer">
+            <Link href="#" className="font-medium text-blue-600 hover:text-blue-500 cursor-pointer">
               Forgot your password?
-            </a>
+            </Link>
           </div>
         </div>
         
@@ -170,9 +170,9 @@ export default function Authentication() {
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-600">
             Don&apos;t have an account?{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
+            <Link href="#" className="text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
               Sign up
-            </a>
+            </Link>
           </p>
         </div>
       </div>
