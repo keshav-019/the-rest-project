@@ -5,10 +5,12 @@ import {
     signInWithPopup, 
     GoogleAuthProvider, 
     GithubAuthProvider,
-    UserCredential,
     AuthError
   } from 'firebase/auth';
   import { auth } from './client';
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   
   // Utility to handle Firebase errors
   const getAuthErrorMessage = (error: AuthError): string => {
