@@ -160,8 +160,7 @@ const AddItemDropdown: React.FC<AddItemDropdownProps> = ({ type, onAddRequest, o
 const CollectionsTree: React.FC<CollectionsTreeProps> = ({ 
   collections, 
   onAddRequest, 
-  onAddFolder,
-  onSelectCollection 
+  onAddFolder
 }) => {
   return (
     <div className="w-80 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto">

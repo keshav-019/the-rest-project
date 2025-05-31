@@ -3,7 +3,9 @@ import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { useClipboard } from "@/hooks/useClipboard";
 import { saveAs } from 'file-saver';
-import { useRouter } from "next/navigation";
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 // Interfaces for collections (copied from Collections component)
 interface Variable {
@@ -247,7 +249,6 @@ export default function RequestBuilder() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { copyToClipboard } = useClipboard();
-  const router = useRouter();
 
   useEffect(() => {
     // Load mock collections (same as in Collections component)

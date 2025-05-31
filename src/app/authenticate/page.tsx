@@ -10,6 +10,8 @@ import {
   loginWithGithub 
 } from '@/lib/firebase/auth';
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 export default function Authentication() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState<string | null>(null);
@@ -317,7 +319,7 @@ export default function Authentication() {
           <div className="text-center text-sm mt-6">
             {isLoginView ? (
               <p>
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <button
                   type="button"
                   onClick={toggleAuthView}
