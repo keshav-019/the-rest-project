@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useGoogleFont } from '../src/utils/fonts';
+import { useGoogleFont } from '../../utils/fonts';
 import React from "react"
 /* eslint-disable @next/next/no-img-element */
 

@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
@@ -40,4 +40,4 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export { app, auth, db, storage };
+export { app, auth, db, storage, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove };
