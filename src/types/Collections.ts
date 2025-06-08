@@ -141,3 +141,6 @@ export type ErrorType = {
     confirm: string | null | undefined,
     message: string | null | undefined
 }
+
+
+export type InviteTabTeam = "myTeams" | "invitations";

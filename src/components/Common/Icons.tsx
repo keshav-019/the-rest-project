@@ -1,3 +1,4 @@
+'use client'
 // components/Icons.tsx
 import React from 'react';
 

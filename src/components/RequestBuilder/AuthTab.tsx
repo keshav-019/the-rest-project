@@ -1,3 +1,4 @@
+'use client'
 import { Auth } from "@/types/Collections";
 import { AuthType } from "@/types/User";
 

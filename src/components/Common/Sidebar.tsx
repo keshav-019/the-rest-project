@@ -1,10 +1,11 @@
+'use client'
 import React from 'react';
 import SidebarItem from "./SidebarItem";
 import { SidebarItemType, SidebarProps } from '@/types/Collections';
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab }) => {
     const items: SidebarItemType[] = [
-        { href: "/", iconName: "dashboard", label: "Dashboard" },
+        { href: "/dashboard", iconName: "dashboard", label: "Dashboard" },
         { href: "/collections", iconName: "collections", label: "Collections" },
         { href: "/", iconName: "requestBuilder", label: "Request Builder" },
         { href: "/environments", iconName: "environments", label: "Environments" },

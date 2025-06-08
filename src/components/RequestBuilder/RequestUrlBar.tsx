@@ -1,4 +1,15 @@
+'use client'
 import { RequestType } from "@/types/Collections";
+
+const methodColors: Record<RequestType, string> = {
+    GET: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    POST: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+    PUT: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+    PATCH: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+    DELETE: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+    HEAD: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+    OPTIONS: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300'
+};
 
 export default function RequestURLBar({method, setMethod, url, setUrl, handleSendRequest, isLoading, setIsStarred, isStarred, handleShareRequest}: {method: string, setMethod: (value: RequestType) => void, url: string, setUrl: (value: string) => void, handleSendRequest: () => void, isLoading: boolean | undefined, setIsStarred: (value:boolean) => void, isStarred: boolean | undefined, handleShareRequest: () => void}) {
     return (
@@ -7,18 +18,18 @@ export default function RequestURLBar({method, setMethod, url, setUrl, handleSen
             <div className="bg-white dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-2">
                     <div className="w-28">
-                        <select 
-                        className="w-full h-10 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                    <select 
+                        className={`w-full h-10 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer ${methodColors[method as RequestType]}`}
                         value={method}
                         onChange={(e) => setMethod(e.target.value as RequestType)}
-                        >
-                        <option className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">GET</option>
-                        <option className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">POST</option>
-                        <option className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">PUT</option>
-                        <option className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300">PATCH</option>
-                        <option className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">DELETE</option>
-                        <option className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">HEAD</option>
-                        <option className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300">OPTIONS</option>
+                    >
+                            <option className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">GET</option>
+                            <option className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">POST</option>
+                            <option className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">PUT</option>
+                            <option className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300">PATCH</option>
+                            <option className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">DELETE</option>
+                            <option className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">HEAD</option>
+                            <option className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300">OPTIONS</option>
                         </select>
                     </div>
                     <div className="flex-1">

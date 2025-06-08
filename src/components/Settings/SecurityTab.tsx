@@ -1,3 +1,4 @@
+'use client'
 import { useState } from "react";
 import PasswordChangeModal from "./PasswordChangeModal";
 import TwoFactorModal from "./TwoFactorModal";

@@ -1,7 +1,4 @@
-
-
-
-
+'use client'
 export default function BodyTab({body, setBody}: {body: string, setBody: (value: React.SetStateAction<string>) => void}) {
     return (
         <div className="space-y-4">

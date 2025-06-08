@@ -1,3 +1,4 @@
+'use client'
 import { ChevronDownIcon } from "../Common/Icons";
 
 export default function EnvironmentSelector() {

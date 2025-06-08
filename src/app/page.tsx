@@ -5,75 +5,14 @@ import { useClipboard } from "@/hooks/useClipboard";
 import { saveAs } from 'file-saver';
 import { Auth, Collection, Folder, Header, Param, RequestType, ResponseData, TabType } from "@/types/Collections";
 import { Request } from "@/types/Collections";
-import CollectionsTree from "@/components/RequestBuilder/CollectionsTree";
-import RequestURLBar from "@/components/RequestBuilder/RequestUrlBar";
-import RequestsNavBar from "@/components/RequestBuilder/RequestsNavbar";
-import ResponseTab from "@/components/RequestBuilder/ResponseTab";
-import ReturnedResponseTab from "@/components/RequestBuilder/ReturnedResponseTab";
 import UserDropdown from "@/components/Common/UserDropdown";
-import RequestTabContent from "@/components/RequestBuilder/RequestTabContent";
-import { getCurrentUser, getInitials } from "@/lib/firebase/auth";
+import { getCurrentUser, getInitials, getUserDetails, savePersonalCollections } from "@/lib/firebase/auth";
 import { useRouter } from "next/navigation";
+import MainContent from "@/components/RequestBuilder/MainContent";
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-// Sample collections data
-const sampleCollections: Collection[] = [
-    {
-        id: "col-1",
-        name: "Sample Collection",
-        description: "A sample collection for testing",
-        variables: [],
-        folders: [
-            {
-                id: "folder-1",
-                name: "User Endpoints",
-                requests: [
-                    {
-                        id: "req-1",
-                        method: "GET",
-                        name: "Get User",
-                        description: "Get user details",
-                        url: "https://jsonplaceholder.typicode.com/users/1"
-                    },
-                    {
-                        id: "req-2",
-                        method: "POST",
-                        name: "Create User",
-                        description: "Create a new user",
-                        url: "https://jsonplaceholder.typicode.com/users"
-                    }
-                ]
-            }
-        ],
-        requests: [
-            {
-                id: "req-3",
-                method: "GET",
-                name: "Get Posts",
-                description: "Get all posts",
-                url: "https://jsonplaceholder.typicode.com/posts"
-            }
-        ]
-    },
-    {
-        id: "col-2",
-        name: "Another Collection",
-        description: "Another sample collection",
-        variables: [],
-        folders: [],
-        requests: [
-            {
-                id: "req-4",
-                method: "GET",
-                name: "Get Comments",
-                description: "Get all comments",
-                url: "https://jsonplaceholder.typicode.com/comments"
-            }
-        ]
-    }
-];
+/* eslint-disable  @typescript-eslint/no-unused-expressions */
 
 export default function RequestBuilder() {
     const [activeRequestTab, setActiveRequestTab] = useState<TabType>('Params');
@@ -82,7 +21,7 @@ export default function RequestBuilder() {
     const [url, setUrl] = useState('https://jsonplaceholder.typicode.com/posts/1');
     const [activeTabs, setActiveTabs] = useState<{ id: string; request: Request }[]>([]);
     const [isStarred, setIsStarred] = useState(false);
-    const [collections, setCollections] = useState<Collection[]>(sampleCollections);
+    const [collections, setCollections] = useState<Collection[]>();
     const [params, setParams] = useState<Param[]>([
         { enabled: false, key: '', value: '' }
     ]);
@@ -107,6 +46,7 @@ export default function RequestBuilder() {
     const [username, setUsername] = useState<string>('');
     const [email, setEmail] = useState<string>('');
     const [displayName, setDisplayName] = useState<string>('');
+    const [userId, setUserId] = useState<string>('');
     const router = useRouter();
 
     // Load active tab request when activeTabId changes
@@ -122,10 +62,18 @@ export default function RequestBuilder() {
         }
 
         const user = getCurrentUser();
-        console.log("The user is: ", user);
+
+        const populateCollections = async () => {
+            const userDetails = await getUserDetails();
+            setCollections(userDetails.userData?.personalCollections);
+        }
+
+        populateCollections();
+        
         if (user === null) {
             router.push('/login')
         }
+        setUserId(user?.uid || '');
         setInitials(getInitials(user?.displayName));
         setUsername(user?.username || '');
         setEmail(user?.email || '');
@@ -143,7 +91,7 @@ export default function RequestBuilder() {
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 try {
                     const importedData = JSON.parse(event.target?.result as string);
 
@@ -151,6 +99,7 @@ export default function RequestBuilder() {
                     if (Array.isArray(importedData) && importedData.every(isValidCollection)) {
                         // Replace current collections with imported ones
                         setCollections(importedData);
+                        collections !== undefined ? await savePersonalCollections(userId, collections) : null;
                         alert('Collections imported successfully!');
                     } else {
                         throw new Error('Invalid collections format');
@@ -188,16 +137,24 @@ export default function RequestBuilder() {
         linkElement.click();
     };
 
-    const handleAddCollection = (name: string) => {
+    const handleAddCollection = async (name: string) => {
+        if (!collections) {
+            console.error('Collections is undefined');
+            return;
+        }
+        
         const newCollection: Collection = {
-            id: `${Date.now()}`, // Use timestamp for unique ID
+            id: `${Date.now()}`,
             name,
             description: '',
             variables: [],
             folders: [],
             requests: []
         };
-        setCollections([...collections, newCollection]);
+        const updatedCollections = [...collections, newCollection]
+
+        setCollections(updatedCollections);
+        savePersonalCollections(userId, updatedCollections);
     };
 
     const handleSendRequest = async () => {
@@ -387,73 +344,99 @@ export default function RequestBuilder() {
             url: ''
         };
 
-        setCollections(prev => prev.map(collection => {
-            if (collection.id === collectionId) {
-                if (folderId) {
-                    // Add to folder
-                    return {
-                        ...collection,
-                        folders: collection.folders.map(folder => {
-                            if (folder.id === folderId) {
-                                return {
-                                    ...folder,
-                                    requests: [...folder.requests, newRequest]
-                                };
-                            }
-                            return folder;
-                        })
-                    };
-                } else {
-                    // Add directly to collection
-                    return {
-                        ...collection,
-                        requests: [...collection.requests, newRequest]
-                    };
-                }
+        if(collections === undefined) throw new Error('Collections is undefined');
+
+        setCollections(prev => {
+            if (!prev) {
+                console.error('Previous collections state is undefined');
+                return [];
             }
-            return collection;
-        }));
+            
+            return prev.map(collection => {
+                if (collection.id === collectionId) {
+                    if (folderId) {
+                        // Add to folder
+                        return {
+                            ...collection,
+                            folders: collection.folders.map(folder => {
+                                if (folder.id === folderId) {
+                                    return {
+                                        ...folder,
+                                        requests: [...folder.requests, newRequest]
+                                    };
+                                }
+                                return folder;
+                            })
+                        };
+                    } else {
+                        // Add directly to collection
+                        return {
+                            ...collection,
+                            requests: [...collection.requests, newRequest]
+                        };
+                    }
+                }
+                return collection;
+            });
+        });
 
         // Open the new request in a tab
         openRequestInTab(newRequest);
     };
 
     const handleAddFolder = (collectionId: string) => {
-        setCollections(prev => prev.map(collection => {
-            if (collection.id === collectionId) {
-                const newFolder: Folder = {
-                    id: `${collectionId}-${Date.now()}`, // collectionId-timestamp
-                    name: `New Folder ${collection.folders.length + 1}`,
-                    requests: []
-                };
-                return {
-                    ...collection,
-                    folders: [...collection.folders, newFolder]
-                };
+        setCollections(prev => {
+            if (!prev) {
+                console.error('Previous collections state is undefined');
+                return [];
             }
-            return collection;
-        }));
+            
+            prev.map(collection => {
+                if (collection.id === collectionId) {
+                    const newFolder: Folder = {
+                        id: `${collectionId}-${Date.now()}`, // collectionId-timestamp
+                        name: `New Folder ${collection.folders.length + 1}`,
+                        requests: []
+                    };
+                    return {
+                        ...collection,
+                        folders: [...collection.folders, newFolder]
+                    };
+                }
+                return collection;
+            }
+        )});
     };
 
     const renameItem = (id: string, newName: string) => {
-        setCollections(prev => prev.map(collection => {
-            if (collection.id === id) {
-                return { ...collection, name: newName };
+        setCollections(prev => {
+            if (!prev) {
+                console.error('Previous collections state is undefined');
+                return [];
             }
-            return {
-                ...collection,
-                folders: collection.folders.map(folder =>
-                    folder.id === id ? { ...folder, name: newName } : folder
-                ),
-                requests: collection.requests.map(request =>
-                    request.id === id ? { ...request, name: newName } : request
-                )
-            };
-        }));
+            prev.map(collection => {
+                if (collection.id === id) {
+                    return { ...collection, name: newName };
+                }
+                return {
+                    ...collection,
+                    folders: collection.folders.map(folder =>
+                        folder.id === id ? { ...folder, name: newName } : folder
+                    ),
+                    requests: collection.requests.map(request =>
+                        request.id === id ? { ...request, name: newName } : request
+                    )
+                };
+            }
+        )});
     };
 
     const deleteItem = (id: string) => {
-        setCollections(prev =>
+        setCollections(prev =>{
+            if (!prev) {
+                console.error('Previous collections state is undefined');
+                return [];
+            }
             prev
                 // Remove collection if it matches ID
                 .filter(collection => collection.id !== id)
@@ -463,7 +446,7 @@ export default function RequestBuilder() {
                     folders: collection.folders.filter(folder => folder.id !== id),
                     requests: collection.requests.filter(request => request.id !== id)
                 }))
-        );
+        });
 
         // Close tab if the deleted item was open
         closeTab(id);
@@ -541,140 +524,7 @@ export default function RequestBuilder() {
             </header>
 
             {/* Main Content Area */}
-            <div className="flex flex-1 overflow-hidden">
-                {/* Collections Tree Sidebar */}
-                <CollectionsTree
-                    collections={collections} // Make sure this is your state variable
-                    onAddRequest={handleAddRequest}
-                    onAddFolder={handleAddFolder}
-                    onRenameItem={renameItem}
-                    onDeleteItem={deleteItem}
-                    onDuplicateRequest={(request) => {
-                        const [collectionId, folderId] = request.id.split('-');
-                        handleAddRequest(collectionId, folderId === 'root' ? undefined : folderId);
-                    }}
-                    onSelectRequest={openRequestInTab}
-                    onAddCollection={handleAddCollection}
-                    onExportCollections={handleExportCollections}
-                    onImportCollections={handleImportCollections}
-                />
-
-                {/* Main Content */}
-                <div className="flex-1 flex flex-col overflow-hidden">
-                    {/* Tabs Bar */}
-                    <div className="flex items-center bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-                        {activeTabs.map(tab => (
-                            <div
-                                key={tab.id}
-                                className={`flex items-center px-4 py-2 border-r border-gray-200 dark:border-gray-700 cursor-pointer ${activeTabId === tab.id ? 'bg-blue-50 dark:bg-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-                                onClick={() => setActiveTabId(tab.id)}
-                            >
-                                <span className="mr-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    {tab.request.name}
-                                </span>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        closeTab(tab.id);
-                                    }}
-                                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Request Builder Content */}
-                    <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-                        {activeTabId ? (
-                            <>
-                                <RequestURLBar
-                                    handleShareRequest={handleShareRequest}
-                                    handleSendRequest={handleSendRequest}
-                                    isLoading={isLoading}
-                                    isStarred={isStarred ?? false}
-                                    method={method}
-                                    setIsStarred={setIsStarred}
-                                    setMethod={setMethod}
-                                    setUrl={setUrl}
-                                    url={url}
-                                />
-
-                                <div className="flex flex-col md:flex-row h-[calc(100%-4rem)]">
-                                    {/* Request Configuration */}
-                                    <div className="w-full md:w-1/2 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-                                        <div className="bg-white dark:bg-gray-800">
-                                            <RequestsNavBar
-                                                activeRequestTab={activeRequestTab}
-                                                setActiveRequestTab={setActiveRequestTab}
-                                            />
-
-                                            <RequestTabContent
-                                                activeRequestTab={activeRequestTab}
-                                                auth={auth}
-                                                body={body}
-                                                handleAddHeader={handleAddHeader}
-                                                handleAddParam={handleAddParam}
-                                                handleRemoveHeader={handleRemoveHeader}
-                                                handleRemoveParam={handleRemoveParam}
-                                                handleUpdateHeader={handleUpdateHeader}
-                                                handleUpdateParam={handleUpdateParam}
-                                                headers={headers}
-                                                params={params}
-                                                preRequestScript={preRequestScript}
-                                                setActiveRequestTab={setActiveRequestTab}
-                                                setAuth={setAuth}
-                                                setBody={setBody}
-                                                setPreRequestScript={setPreRequestScript}
-                                                setTests={setTests}
-                                                tests={tests}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Response Viewer */}
-                                    <div className="w-full md:w-1/2 overflow-y-auto">
-                                        <div className="bg-white dark:bg-gray-800 h-full">
-                                            <ResponseTab
-                                                activeResponseTab={activeResponseTab}
-                                                setActiveResponseTab={setActiveResponseTab}
-                                            />
-
-                                            <ReturnedResponseTab
-                                                activeResponseTab={activeResponseTab}
-                                                cookies={cookies}
-                                                copyToClipboard={copyToClipboard}
-                                                error={error}
-                                                handleCopyResponse={handleCopyResponse}
-                                                handleDownloadResponse={handleDownloadResponse}
-                                                isLoading={isLoading}
-                                                response={response}
-                                                responseHeaders={responseHeaders}
-                                                timeline={timeline}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="flex items-center justify-center h-full">
-                                <div className="text-center p-6 max-w-md">
-                                    <svg className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                    </svg>
-                                    <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">No Request Selected</h3>
-                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                        Select a request from the sidebar or create a new one to get started.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </main>
-                </div>
-            </div>
+            {collections !== undefined ? <MainContent activeRequestTab={activeRequestTab} activeResponseTab={activeResponseTab} activeTabId={activeTabId} activeTabs={activeTabs} auth={auth} body={body} closeTab={closeTab} collections={collections} cookies={cookies} copyToClipboard={copyToClipboard} deleteItem={deleteItem} error={error} handleAddCollection={handleAddCollection} handleAddFolder={handleAddFolder} handleAddHeader={handleAddHeader} handleAddParam={handleAddParam} handleAddRequest={handleAddRequest} handleCopyResponse={handleCopyResponse} handleDownloadResponse={handleDownloadResponse} handleExportCollections={handleExportCollections} handleImportCollections={handleImportCollections} handleRemoveHeader={handleRemoveHeader} handleRemoveParam={handleRemoveParam} handleSendRequest={handleSendRequest} handleShareRequest={handleShareRequest} handleUpdateHeader={handleUpdateHeader} handleUpdateParam={handleUpdateParam} headers={headers} isLoading={isLoading} isStarred={isStarred} method={method} openRequestInTab={openRequestInTab} params={params} preRequestScript={preRequestScript} renameItem={renameItem} response={response} responseHeaders={responseHeaders} setActiveRequestTab={setActiveRequestTab} setActiveResponseTab={setActiveResponseTab} setActiveTabId={setActiveTabId} setAuth={setAuth} setBody={setBody} setIsStarred={setIsStarred} setMethod={setMethod} setPreRequestScript={setPreRequestScript} setTests={setTests} setUrl={setUrl} tests={tests} timeline={timeline} url={url} /> : null}
         </div>
     );
 }

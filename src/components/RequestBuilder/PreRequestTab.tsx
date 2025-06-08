@@ -1,3 +1,4 @@
+'use client'
 export default function PreRequestTab({preRequestScript, setPreRequestScript}: {preRequestScript: string, setPreRequestScript: (value: string) => void}) {
     return (
         <div className="space-y-4">

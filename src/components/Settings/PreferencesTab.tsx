@@ -1,6 +1,4 @@
-
-
-
+'use client'
 export default function PreferencesTab({setDarkMode, darkMode} : {setDarkMode: (value: React.SetStateAction<boolean>) => void, darkMode: boolean}) {
     return (
         <div className="space-y-8">

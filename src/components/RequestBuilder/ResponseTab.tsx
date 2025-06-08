@@ -1,3 +1,4 @@
+'use client'
 import { ActiveResponseTab } from "@/types/Collections";
 
 export default function ResponseTab({activeResponseTab, setActiveResponseTab}: {activeResponseTab: ActiveResponseTab, setActiveResponseTab: (value: ActiveResponseTab) => void}) {

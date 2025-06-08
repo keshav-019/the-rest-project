@@ -1,3 +1,4 @@
+'use client'
 import { ActiveResponseTab, CookiesType, ResponseData, ResponseHeaders, TimelineType } from "@/types/Collections";
 
 export default function ReturnedResponseTab({error, isLoading, response, activeResponseTab, handleCopyResponse, handleDownloadResponse, responseHeaders, copyToClipboard, cookies, timeline}: {error: string | null, isLoading: boolean, response: ResponseData | null, activeResponseTab: ActiveResponseTab, handleCopyResponse: () => void, handleDownloadResponse: () => void, responseHeaders: ResponseHeaders, copyToClipboard: (text: string) => void, cookies: CookiesType, timeline: TimelineType}) {

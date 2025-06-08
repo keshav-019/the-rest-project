@@ -1,3 +1,4 @@
+'use client'
 import AuthTab from "./AuthTab";
 import BodyTab from "./BodyTab";
 import HeadersTab from "./HeadersTab";

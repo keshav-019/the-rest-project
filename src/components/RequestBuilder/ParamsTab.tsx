@@ -1,6 +1,5 @@
+'use client'
 import { Param } from "@/types/Collections";
-
-
 
 export default function ParamsTab({handleAddParam, params, handleUpdateParam, handleRemoveParam} : {handleAddParam : () => void, params: Param[], handleUpdateParam: (index: number, field: keyof Param, value: string | boolean) => void, handleRemoveParam: (index: number) => void}) {
     return (

@@ -1,3 +1,4 @@
+'use client'
 import { ErrorType } from "@/types/Collections";
 import { useState } from "react";
 

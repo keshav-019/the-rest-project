@@ -1,3 +1,4 @@
+'use client'
 import { TabType } from "@/types/Collections";
 
 export default function RequestsNavBar({activeRequestTab, setActiveRequestTab}: {activeRequestTab: string, setActiveRequestTab: (value: TabType) => void}) {

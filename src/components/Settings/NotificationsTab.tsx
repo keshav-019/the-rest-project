@@ -1,7 +1,4 @@
-
-
-
-
+'use client'
 export default function NotificationsTab({setNotifications, notifications}: {setNotifications: (value: React.SetStateAction<boolean>) => void, notifications: boolean}) {
     return (
         <div className="space-y-8">

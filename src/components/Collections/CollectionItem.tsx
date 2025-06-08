@@ -1,9 +1,8 @@
-// components/CollectionItem.tsx
 'use client';
 import React, { useState } from 'react';
 import { Collection, Request } from '@/types/Collections';
 import FolderItem from './FolderItem';
-import RequestItem from '../RequestBuilder/RequestItem'; // Add this import
+import RequestItem from '../RequestBuilder/RequestItem';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { EllipsisHorizontalIcon } from '@heroicons/react/24/outline';
 import { ChevronIcon } from '../Common/Icons';
@@ -28,6 +27,15 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
     onDuplicateRequest,
 }) => {
     const [isExpanded, setIsExpanded] = useState(true);
+    const [isRenaming, setIsRenaming] = useState(false);
+    const [renameInput, setRenameInput] = useState(collection.name);
+
+    const handleRename = () => {
+        if (renameInput.trim() && renameInput !== collection.name) {
+            onRenameItem(collection.id, renameInput.trim());
+        }
+        setIsRenaming(false);
+    };
 
     return (
         <div className="relative">
@@ -37,11 +45,31 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
                     onClick={() => setIsExpanded(!isExpanded)}
                 >
                     <ChevronIcon expanded={isExpanded} />
-                    <span className="ml-2 text-gray-800 dark:text-white font-medium truncate flex-1">
-                        {collection.name}
-                    </span>
+                    {isRenaming ? (
+                        <input
+                            type="text"
+                            value={renameInput}
+                            onChange={(e) => setRenameInput(e.target.value)}
+                            onBlur={handleRename}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleRename();
+                                if (e.key === 'Escape') {
+                                    setRenameInput(collection.name);
+                                    setIsRenaming(false);
+                                }
+                            }}
+                            className="ml-2 px-2 py-1 text-sm rounded bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            autoFocus
+                        />
+                    ) : (
+                        <span
+                            className="ml-2 text-gray-800 dark:text-white font-medium truncate flex-1"
+                        >
+                            {collection.name}
+                        </span>
+                    )}
                 </div>
-                
+
                 <Menu as="div" className="relative">
                     <MenuButton
                         onClick={(e) => e.stopPropagation()}
@@ -49,57 +77,68 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
                     >
                         <EllipsisHorizontalIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                     </MenuButton>
+
                     <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                        <MenuItem>
-                            {({ active }) => (
-                                <button
-                                    onClick={() => onAddFolder(collection.id)}
-                                    className={`${active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center px-2 py-2 text-sm`}
-                                >
-                                    Add Folder
-                                </button>
-                            )}
-                        </MenuItem>
-                        <MenuItem>
-                            {({ active }) => (
-                                <button
-                                    onClick={() => onAddRequest(collection.id)}
-                                    className={`${active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center px-2 py-2 text-sm`}
-                                >
-                                    Add Request
-                                </button>
-                            )}
-                        </MenuItem>
-                        <MenuItem>
-                            {({ active }) => (
-                                <button
-                                    onClick={() => {
-                                        const newName = prompt('Enter new name:', collection.name);
-                                        if (newName) onRenameItem(collection.id, newName);
-                                    }}
-                                    className={`${active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center px-2 py-2 text-sm`}
-                                >
-                                    Rename
-                                </button>
-                            )}
-                        </MenuItem>
-                        <MenuItem>
-                            {({ active }) => (
-                                <button
-                                    onClick={() => onDeleteItem(collection.id)}
-                                    className={`${active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center px-2 py-2 text-sm text-red-600 dark:text-red-400`}
-                                >
-                                    Delete
-                                </button>
-                            )}
-                        </MenuItem>
+                        <div className="py-1">
+                            <MenuItem>
+                                {({ active }) => (
+                                    <button
+                                        onClick={() => onAddFolder(collection.id)}
+                                        className={`${
+                                            active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'
+                                        } group flex w-full items-center px-4 py-2 text-sm`}
+                                    >
+                                        Add Folder
+                                    </button>
+                                )}
+                            </MenuItem>
+                            <MenuItem>
+                                {({ active }) => (
+                                    <button
+                                        onClick={() => onAddRequest(collection.id)}
+                                        className={`${
+                                            active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'
+                                        } group flex w-full items-center px-4 py-2 text-sm`}
+                                    >
+                                        Add Request
+                                    </button>
+                                )}
+                            </MenuItem>
+                            <MenuItem>
+                                {({ active }) => (
+                                    <button
+                                        onClick={() => {
+                                            setIsRenaming(true);
+                                            setRenameInput(collection.name);
+                                        }}
+                                        className={`${
+                                            active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'
+                                        } group flex w-full items-center px-4 py-2 text-sm`}
+                                    >
+                                        Rename
+                                    </button>
+                                )}
+                            </MenuItem>
+                            <MenuItem>
+                                {({ active }) => (
+                                    <button
+                                        onClick={() => onDeleteItem(collection.id)}
+                                        className={`${
+                                            active ? 'bg-red-600 text-white' : 'text-red-600 dark:text-red-400'
+                                        } group flex w-full items-center px-4 py-2 text-sm`}
+                                    >
+                                        Delete
+                                    </button>
+                                )}
+                            </MenuItem>
+                        </div>
                     </MenuItems>
                 </Menu>
             </div>
 
             {isExpanded && (
                 <div className="ml-4 space-y-1">
-                    {/* Render folders first */}
+                    {/* Render folders */}
                     {collection.folders.map((folder) => (
                         <FolderItem
                             key={folder.id}
@@ -113,10 +152,10 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
                             onDuplicateRequest={onDuplicateRequest}
                         />
                     ))}
-                    
-                    {/* Then render direct requests */}
+
+                    {/* Render direct requests */}
                     {collection.requests.map((request) => (
-                        <RequestItem 
+                        <RequestItem
                             key={request.id}
                             request={request}
                             onSelectRequest={onSelectRequest}

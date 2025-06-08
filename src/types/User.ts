@@ -1,4 +1,4 @@
-import { Collection } from "./Collections";
+import { Collection, Variable } from "./Collections";
 
 // types/User.ts
 export interface UserData {
@@ -7,6 +7,7 @@ export interface UserData {
     createdAt?: Date,
     isNewUser?: boolean,
     personalCollections: Collection[];
+    personalEnvironments: Environment[];
     teams: {
         [teamId: string]: {
             collections: Collection[];
@@ -29,10 +30,9 @@ export interface UserData {
 export interface Environment {
     id: string;
     name: string;
-    variables: {
-      name: string;
-      value: string;
-    }[];
+    description: string;
+    variables: Variable[];
+    color: string;
     isShared: boolean;
 }
 

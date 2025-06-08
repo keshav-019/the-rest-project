@@ -8,8 +8,8 @@ import RequestTabs from '@/components/RequestBuilder/RequestTabs';
 import NewCollectionModal from '@/components/Collections/NewCollectionModal';
 import { getUserData, cleanOldActivity } from '@/services/userService';
 import { Collection, Request, Folder } from '@/types/Collections';
-import { UserData } from '@/types/User';
-import { getUserDetails } from '@/lib/firebase/auth';
+import { User, UserData } from '@/types/User';
+import { getUserDetails, savePersonalCollections } from '@/lib/firebase/auth';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
@@ -17,18 +17,22 @@ const Collections: React.FC = () => {
     const [collections, setCollections] = useState<Collection[]>([]);
     const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
     const [showNewCollectionModal, setShowNewCollectionModal] = useState(false);
-    const [user, setUserData] = useState<UserData | null>(null);
+    const [user, setUser] = useState<User | null>(null);
+    const [userData, setUserData] = useState<UserData | null>(null);
     const [activeTabs, setActiveTabs] = useState<{ id: string; request: Request }[]>([]);
     const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
     // Fetch user data
     useEffect(() => {
         const fetchUserData = async () => {
-            const { user } = await getUserDetails();
-            if (user) {
-                const data = await getUserData(user.uid);
+            const userData = (await getUserDetails()).user;
+            setUser(userData);
+            if (userData) {
+                console.log("It went inside of this");
+                const data = await getUserData(userData.uid);
                 if (data) {
                     setUserData(data);
+                    console.log("The personal collections is: ", data.personalCollections);
                     const allCollections = [
                         ...(data.personalCollections || []),
                         ...Object.values(data.teams || {}).flatMap(team => team.collections || [])
@@ -38,7 +42,7 @@ const Collections: React.FC = () => {
                         setSelectedCollection(allCollections[0]);
                     }
                 }
-                await cleanOldActivity(user.uid);
+                await cleanOldActivity(userData.uid);
             }
         };
         fetchUserData();
@@ -46,16 +50,25 @@ const Collections: React.FC = () => {
 
     const handleAddCollection = (name: string) => {
         const newCollection: Collection = {
-            id: `${Date.now()}`, // Use timestamp for unique ID
+            id: `${Date.now()}`,
             name,
             description: '',
             variables: [],
             folders: [],
             requests: []
         };
-        setCollections([...collections, newCollection]);
+    
+        const updatedCollections = [...collections, newCollection];
+    
+        setCollections(updatedCollections);
         setSelectedCollection(newCollection);
-    };
+    
+        console.log("The new collection is: ", newCollection, " and the user is: ", user, " and the collections is: ", updatedCollections);
+    
+        if (!user?.uid) throw new Error('No users logged in right now');
+    
+        savePersonalCollections(user.uid, updatedCollections); // ✅ now correct
+    };    
 
     const handleAddFolder = (collectionId: string) => {
         setCollections(prev => prev.map(collection => {
@@ -72,45 +85,13 @@ const Collections: React.FC = () => {
             }
             return collection;
         }));
+        if(user?.uid === undefined) throw new Error('No users logged in right now');
+        savePersonalCollections(user?.uid, collections);
     };
 
     const handleAddRequest = (collectionId: string, folderId?: string) => {
-        setCollections(prev => prev.map(collection => {
-            if (collection.id === collectionId) {
-                const newRequest: Request = {
-                    id: `${folderId || collectionId}-${Date.now()}`, // folderId/collectionId-timestamp
-                    method: 'GET',
-                    name: 'New Request',
-                    description: '',
-                    url: ''
-                };
-
-                if (folderId) {
-                    // Add to folder
-                    return {
-                        ...collection,
-                        folders: collection.folders.map(folder => {
-                            if (folder.id === folderId) {
-                                return {
-                                    ...folder,
-                                    requests: [...folder.requests, newRequest]
-                                };
-                            }
-                            return folder;
-                        })
-                    };
-                } else {
-                    // Add directly to collection
-                    return {
-                        ...collection,
-                        requests: [...collection.requests, newRequest]
-                    };
-                }
-            }
-            return collection;
-        }));
-
-        // Open the new request in a tab
+        if (!user?.uid) throw new Error('No users logged in right now');
+    
         const newRequest: Request = {
             id: `${folderId || collectionId}-${Date.now()}`,
             method: 'GET',
@@ -118,8 +99,34 @@ const Collections: React.FC = () => {
             description: '',
             url: ''
         };
+    
+        const updatedCollections = collections.map(collection => {
+            if (collection.id !== collectionId) return collection;
+    
+            if (folderId) {
+                // Add to a folder
+                return {
+                    ...collection,
+                    folders: collection.folders.map(folder =>
+                        folder.id === folderId
+                            ? { ...folder, requests: [...folder.requests, newRequest] }
+                            : folder
+                    )
+                };
+            } else {
+                // Add directly to collection
+                return {
+                    ...collection,
+                    requests: [...collection.requests, newRequest]
+                };
+            }
+        });
+    
+        setCollections(updatedCollections);
         openRequestInTab(newRequest);
+        savePersonalCollections(user.uid, updatedCollections); // ✅ Save the right state
     };
+    
 
     const openRequestInTab = (request: Request) => {
         setActiveTabs(prev => {
@@ -156,6 +163,8 @@ const Collections: React.FC = () => {
         setActiveTabs(prev => prev.map(tab =>
             tab.id === id ? { ...tab, request: updatedRequest } : tab
         ));
+        if(user?.uid === undefined) throw new Error('No users logged in right now');
+        savePersonalCollections(user?.uid, collections);
     };
 
     const renameItem = (id: string, newName: string) => {
@@ -173,6 +182,8 @@ const Collections: React.FC = () => {
                 )
             };
         }));
+        if(user?.uid === undefined) throw new Error('No users logged in right now');
+        savePersonalCollections(user?.uid, collections);
     };
 
     const deleteItem = (id: string) => {
@@ -187,6 +198,8 @@ const Collections: React.FC = () => {
                     requests: collection.requests.filter(request => request.id !== id)
                 }))
         );
+        if(user?.uid === undefined) throw new Error('No users logged in right now');
+        savePersonalCollections(user?.uid, collections);
 
         // Close tab if the deleted item was open
         closeTab(id);
@@ -224,7 +237,8 @@ const Collections: React.FC = () => {
                     if (Array.isArray(importedData) && importedData.every(isValidCollection)) {
                         // Replace current collections with imported ones
                         setCollections(importedData);
-                        alert('Collections imported successfully!');
+                        if(user?.uid === undefined) throw new Error('No users logged in right now');
+                        savePersonalCollections(user?.uid, collections);
                     } else {
                         throw new Error('Invalid collections format');
                     }
@@ -251,7 +265,11 @@ const Collections: React.FC = () => {
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
             <div className="flex-1 flex flex-col overflow-hidden">
-                <Header onNewCollection={() => setShowNewCollectionModal(true)} />
+                <Header
+                    onAddCollection={() => handleAddCollection('New Collection')}
+                    toSearch={true}
+                    parentComponent="Collections"
+                />
 
                 <div className="flex-1 flex overflow-hidden">
                     <CollectionsTree

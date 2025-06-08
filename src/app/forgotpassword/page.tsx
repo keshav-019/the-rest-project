@@ -5,7 +5,6 @@ import Logo from '@/components/Common/Logo';
 import Link from 'next/link';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 
 export default function ForgotPassword() {
     const [email, setEmail] = useState('');

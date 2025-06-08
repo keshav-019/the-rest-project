@@ -10,10 +10,12 @@ import {
     sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { User } from '@/types/User';
+import { Environment, User } from '@/types/User';
 import { auth, db } from './client';
 import { generateRandomString } from '@/lib/utils/utils';
 import { UserData } from '@/types/User';
+import { updatePersonalCollections, updatePersonalEnvironments, updateTeamEnvironments } from './userDataHelpers';
+import { Collection } from '@/types/Collections';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -41,24 +43,24 @@ const getAuthErrorMessage = (error: AuthError): string => {
 const validateUsername = (username: string): { isValid: boolean; error?: string } => {
     // Remove @ if user includes it
     const cleanUsername = username.startsWith('@') ? username.slice(1) : username;
-    
+
     // Check length (3-20 characters)
     if (cleanUsername.length < 3 || cleanUsername.length > 20) {
         return { isValid: false, error: 'Username must be between 3-20 characters' };
     }
-    
+
     // Check format: only letters, numbers, underscores, dots
     const usernameRegex = /^[a-zA-Z0-9._]+$/;
     if (!usernameRegex.test(cleanUsername)) {
         return { isValid: false, error: 'Username can only contain letters, numbers, dots, and underscores' };
     }
-    
+
     // Check if starts/ends with dot or underscore
-    if (cleanUsername.startsWith('.') || cleanUsername.startsWith('_') || 
+    if (cleanUsername.startsWith('.') || cleanUsername.startsWith('_') ||
         cleanUsername.endsWith('.') || cleanUsername.endsWith('_')) {
         return { isValid: false, error: 'Username cannot start or end with dots or underscores' };
     }
-    
+
     return { isValid: true };
 };
 
@@ -69,17 +71,17 @@ export const checkUsernameAvailability = async (username: string): Promise<{ isA
         if (!validation.isValid) {
             return { isAvailable: false, error: validation.error };
         }
-        
+
         const cleanUsername = username.startsWith('@') ? username.slice(1) : username;
         const lowercaseUsername = cleanUsername.toLowerCase();
-        
+
         // Check in usernames collection
         const usernameDoc = await getDoc(doc(db, 'usernames', lowercaseUsername));
-        
+
         if (usernameDoc.exists()) {
             return { isAvailable: false, error: 'Username is already taken' };
         }
-        
+
         return { isAvailable: true };
     } catch (error) {
         console.error('Error checking username availability:', error);
@@ -92,14 +94,14 @@ const reserveUsername = async (username: string, uid: string): Promise<boolean> 
     try {
         const cleanUsername = username.startsWith('@') ? username.slice(1) : username;
         const lowercaseUsername = cleanUsername.toLowerCase();
-        
+
         // Store username mapping
         await setDoc(doc(db, 'usernames', lowercaseUsername), {
             uid: uid,
             username: cleanUsername, // Store original case
             createdAt: new Date()
         });
-        
+
         return true;
     } catch (error) {
         console.error('Error reserving username:', error);
@@ -112,23 +114,23 @@ export const getUserByUsername = async (username: string): Promise<{ user: UserD
     try {
         const cleanUsername = username.startsWith('@') ? username.slice(1) : username;
         const lowercaseUsername = cleanUsername.toLowerCase();
-        
+
         // Get UID from username mapping
         const usernameDoc = await getDoc(doc(db, 'usernames', lowercaseUsername));
-        
+
         if (!usernameDoc.exists()) {
             return { user: null, error: 'User not found' };
         }
-        
+
         const { uid } = usernameDoc.data();
-        
+
         // Get user data
         const userDoc = await getDoc(doc(db, 'users', uid));
-        
+
         if (!userDoc.exists()) {
             return { user: null, error: 'User data not found' };
         }
-        
+
         return { user: userDoc.data() as UserData };
     } catch (error) {
         console.error('Error getting user by username:', error);
@@ -199,7 +201,7 @@ export const loginWithEmail = async (email: string, password: string) => {
     try {
         await setAuthPersistence(true);
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        
+
         // Get existing user data to preserve username
         const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
         const existingUserData = userDoc.exists() ? userDoc.data() : {};
@@ -212,14 +214,14 @@ export const loginWithEmail = async (email: string, password: string) => {
             username: existingUserData.username || null
             // add other user properties you need
         }));
-        
+
         // Store user data with existing username
         await storeUserData(userCredential.user, {
             username: existingUserData.username || null
         });
 
-        return { 
-            success: true, 
+        return {
+            success: true,
             user: userCredential.user,
             userId: userCredential.user.uid,
             username: existingUserData.username || null
@@ -280,8 +282,8 @@ export const signUpWithEmail = async (email: string, password: string, name: str
             // add other user properties you need
         }));
 
-        return { 
-            success: true, 
+        return {
+            success: true,
             user: user,
             userId: user.uid,
             username: finalUsername
@@ -348,7 +350,7 @@ export const setUsername = async (username: string): Promise<{ success: boolean;
 export const logout = async () => {
     try {
         await signOut(auth);
-        
+
         // Clear localStorage
         try {
             localStorage.removeItem('currentUser');
@@ -357,7 +359,7 @@ export const logout = async () => {
         } catch (storageError) {
             console.warn('Could not clear localStorage:', storageError);
         }
-        
+
         return { success: true };
     } catch (error) {
         return { success: false, error: 'Failed to logout' };
@@ -446,6 +448,11 @@ export const resetPasswordWithToken = async (email: string, token: string, newPa
 // Get current user from localStorage
 export const getCurrentUser = (): User | null => {
     try {
+        // Check if we're in a browser environment
+        if (typeof window === 'undefined') {
+            return null;
+        }
+
         const userJson = localStorage.getItem('currentUser');
         return userJson ? JSON.parse(userJson) : null;
     } catch (error) {
@@ -500,3 +507,60 @@ export const getInitials = (name: string | undefined): string => {
 
     return (words[0][0] + words[1][0] + words[words.length - 1][0]).toUpperCase();
 };
+
+
+// Example: Update personal collections
+export async function savePersonalCollections(userId: string, newCollections: Collection[]) {
+    console.log("The save personal collections function is called");
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+        console.log("Ran into an error");
+        throw new Error('User document not found');
+    }
+
+    const currentUserData = userDoc.data() as UserData;
+    const updatedData = updatePersonalCollections(currentUserData, newCollections);
+
+    console.log("The output of user details is: ", await getUserDetails());
+    
+    console.log("Before setting the doc the user reference is: ", userRef, " and the userDoc is: ", userDoc, " and updatedData is: ", updatedData);
+    // Use setDoc with merge to preserve other fields
+    await setDoc(userRef, updatedData, { merge: true });
+}
+
+// Example: Update team environments
+export async function saveTeamEnvironments(userId: string, teamId: string, newEnvironments: Environment[]) {
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+        throw new Error('User document not found');
+    }
+    
+    const currentUserData = userDoc.data() as UserData;
+    const updatedData = updateTeamEnvironments(currentUserData, teamId, newEnvironments);
+    
+    // Use setDoc with merge to preserve other fields
+    await setDoc(userRef, updatedData, { merge: true });
+}
+
+// Example: Update team environments
+export async function savePersonalEnvironments(userId: string, newEnvironments: Environment[]) {
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+        throw new Error('User document not found');
+    }
+    
+    const currentUserData = userDoc.data() as UserData;
+    const updatedData = updatePersonalEnvironments(currentUserData, newEnvironments);
+
+    console.log("The new environments are: ", newEnvironments);
+    
+    // Use setDoc with merge to preserve other fields
+    await setDoc(userRef, updatedData, { merge: true });
+}
+

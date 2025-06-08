@@ -1,6 +1,6 @@
+'use client'
 import { ActiveTab } from "@/types/Collections";
 import { BellIcon, CogIcon, LockClosedIcon, UserIcon } from "@heroicons/react/16/solid";
-
 
 export default function ActiveTabComponent({activeTab, setActiveTab}: {activeTab: ActiveTab, setActiveTab: (value: React.SetStateAction<ActiveTab>) => void}) {
     return (

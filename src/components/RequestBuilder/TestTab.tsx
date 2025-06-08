@@ -1,3 +1,4 @@
+'use client'
 export default function TestTab({tests, setTests}: {tests: string, setTests: (value: string) => void}) {
     return (
         <div className="space-y-4">

@@ -7,6 +7,7 @@ import NotificationsTab from '@/components/Settings/NotificationsTab';
 import PreferencesTab from '@/components/Settings/PreferencesTab';
 import { ActiveTab } from '@/types/Collections';
 import ActiveTabComponent from '@/components/Settings/ActiveTab';
+import Header from '@/components/Common/Header';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
@@ -17,37 +18,43 @@ export default function SettingsPage() {
     const [notifications, setNotifications] = useState(true);
 
     return (
-        <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-            {/* Sidebar Navigation */}
-            <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
-                <div className="p-6">
-                    <h1 className="text-xl font-bold text-gray-800 dark:text-white">Settings</h1>
+        <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
+            {/* Header at the top */}
+            <Header toSearch={false} parentComponent={'Settings'} onAddCollection={() => {}} />
+            
+            {/* Main content area with sidebar and content */}
+            <div className="flex flex-1 overflow-hidden">
+                {/* Sidebar Navigation */}
+                <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+                    <div className="p-6">
+                        <h1 className="text-xl font-bold text-gray-800 dark:text-white">Settings</h1>
+                    </div>
+                    <ActiveTabComponent activeTab={activeTab} setActiveTab={setActiveTab} />
                 </div>
-                <ActiveTabComponent activeTab={activeTab} setActiveTab={setActiveTab} />
-            </div>
 
-            {/* Main Content */}
-            <div className="flex-1 overflow-y-auto p-8">
-                <div className="max-w-3xl mx-auto">
-                    {/* Profile Tab */}
-                    {activeTab === 'profile' && (
-                        <ProfileTab setName={setName}/>
-                    )}
+                {/* Main Content */}
+                <div className="flex-1 overflow-y-auto p-8">
+                    <div className="max-w-3xl mx-auto">
+                        {/* Profile Tab */}
+                        {activeTab === 'profile' && (
+                            <ProfileTab setName={setName}/>
+                        )}
 
-                    {/* Security Tab */}
-                    {activeTab === 'security' && (
-                        <SecurityTab />
-                    )}
+                        {/* Security Tab */}
+                        {activeTab === 'security' && (
+                            <SecurityTab />
+                        )}
 
-                    {/* Notifications Tab */}
-                    {activeTab === 'notifications' && (
-                        <NotificationsTab notifications={notifications} setNotifications={setNotifications} />
-                    )}
+                        {/* Notifications Tab */}
+                        {activeTab === 'notifications' && (
+                            <NotificationsTab notifications={notifications} setNotifications={setNotifications} />
+                        )}
 
-                    {/* Preferences Tab */}
-                    {activeTab === 'preferences' && (
-                        <PreferencesTab darkMode={darkMode} setDarkMode={setDarkMode} />
-                    )}
+                        {/* Preferences Tab */}
+                        {activeTab === 'preferences' && (
+                            <PreferencesTab darkMode={darkMode} setDarkMode={setDarkMode} />
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

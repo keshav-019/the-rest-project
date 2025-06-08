@@ -1,3 +1,4 @@
+'use client'
 import { Header } from "@/types/Collections";
 
 export default function HeadersTab({handleAddHeader, headers, handleUpdateHeader, handleRemoveHeader} : {handleAddHeader: () => void, headers: Header[], handleUpdateHeader: (index: number, field: keyof Header, value: string | boolean) => void, handleRemoveHeader: (index: number) => void}) {
