@@ -1,5 +1,5 @@
 // Updated RequestItem.tsx
-'use client';
+'use client'
 import { useState } from 'react';
 import { Request } from '@/types/Collections';
 import { Menu } from '@headlessui/react';

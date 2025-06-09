@@ -1,19 +1,21 @@
 // components/Header.tsx
-'use client';
+'use client'
 import React, { useEffect, useState } from 'react';
 import LogoDisplay from './LogoDisplay';
 import UserDropdown from './UserDropdown';
 import { PlusIcon, SearchIcon } from './Icons';
 import { getInitials } from '@/lib/firebase/auth';
-import { User } from '@/types/User';
+import { Environment, User } from '@/types/User';
+import EnvironmentSelector from '../Environment/EnvironmentSelector';
 
 interface HeaderProps {
     onAddCollection: (value: string) => void,
     toSearch: boolean,
-    parentComponent: string
+    parentComponent: string,
+    environments: Environment[] | undefined
 }
 
-const Header = ({ toSearch, parentComponent, onAddCollection }: HeaderProps) => {
+const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environments }: HeaderProps) => {
     const [user, setUser] = useState<User | null>(null);
     const [initials, setInitials] = useState<string>('');
     const [email, setEmail] = useState<string>('');
@@ -77,10 +79,14 @@ const Header = ({ toSearch, parentComponent, onAddCollection }: HeaderProps) => 
                     </button>
                 }
 
+                {parentComponent === 'Request Builder' && 
+                    <EnvironmentSelector environments={environments} />
+                }
+
                 <UserDropdown username={username} displayName={displayName} email={email} initials={initials} />
             </div>
         </header>
     );
 };
 
-export default Header;
+export default HeaderComponent;

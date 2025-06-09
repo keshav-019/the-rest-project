@@ -1,5 +1,5 @@
 // components/CollectionsTree.tsx
-'use client';
+'use client'
 import React from 'react';
 import { Collection, Request } from '@/types/Collections';
 import CollectionItem from '../Collections/CollectionItem';

@@ -1,84 +1,15 @@
-export default function TeamTiles({handleViewTeamDetails, setSelectedTeamName, setShowInviteMembersModal, setShowCreateTeamModal}: {handleViewTeamDetails: (value: string) => void, setSelectedTeamName: (value: string) => void, setShowInviteMembersModal: (value: boolean) => void, setShowCreateTeamModal: (value: boolean) => void}) {
+import TeamTile from "./TeamTile";
+import { Team } from "@/types/User";
+
+export default function TeamTiles({handleViewTeamDetails, setSelectedTeamName, setShowInviteMembersModal, setShowCreateTeamModal, teams}: {handleViewTeamDetails: (team: Team) => void, setSelectedTeamName: (value: string) => void, setShowInviteMembersModal: (value: boolean) => void, setShowCreateTeamModal: (value: boolean) => void, teams: Team[]}) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Team Cards */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
-                <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">API Development</h3>
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                            Owner
-                        </span>
-                    </div>
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Team for developing and testing our core API services
-                    </p>
-                </div>
-                <div className="p-5">
-                    <div className="flex items-center mb-4">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">Members:</span>
-                        <div className="flex -space-x-2">
-                            <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium border-2 border-white dark:border-gray-800">JD</div>
-                            <div className="w-7 h-7 rounded-full bg-purple-500 flex items-center justify-center text-white text-xs font-medium border-2 border-white dark:border-gray-800">AS</div>
-                            <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-medium border-2 border-white dark:border-gray-800">TK</div>
-                            <div className="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-gray-700 dark:text-gray-300 text-xs font-medium border-2 border-white dark:border-gray-800">+2</div>
-                        </div>
-                    </div>
-                    <div className="flex space-x-2">
-                        <button
-                            className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/30 cursor-pointer"
-                            onClick={() => handleViewTeamDetails('API Development')}
-                        >
-                            Manage
-                        </button>
-                        <button
-                            className="flex-1 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer"
-                            onClick={() => {
-                                setSelectedTeamName('API Development')
-                                setShowInviteMembersModal(true)
-                            }}
-                        >
-                            Invite
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
-                <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Frontend Team</h3>
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                            Member
-                        </span>
-                    </div>
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Team responsible for frontend application development
-                    </p>
-                </div>
-                <div className="p-5">
-                    <div className="flex items-center mb-4">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">Members:</span>
-                        <div className="flex -space-x-2">
-                            <div className="w-7 h-7 rounded-full bg-red-500 flex items-center justify-center text-white text-xs font-medium border-2 border-white dark:border-gray-800">MJ</div>
-                            <div className="w-7 h-7 rounded-full bg-yellow-500 flex items-center justify-center text-white text-xs font-medium border-2 border-white dark:border-gray-800">KL</div>
-                            <div className="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-medium border-2 border-white dark:border-gray-800">RW</div>
-                            <div className="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-gray-700 dark:text-gray-300 text-xs font-medium border-2 border-white dark:border-gray-800">+4</div>
-                        </div>
-                    </div>
-                    <div className="flex space-x-2">
-                        <button
-                            className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/30 cursor-pointer"
-                            onClick={() => handleViewTeamDetails('Frontend Team')}
-                        >
-                            View
-                        </button>
-                        <button className="flex-1 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 cursor-pointer">
-                            Leave
-                        </button>
-                    </div>
-                </div>
-            </div>
+            {teams.map((team, index) => {
+                console.log("The team is: ", team);
+                return (
+                    <TeamTile key={index} handleViewTeamDetails={handleViewTeamDetails} setSelectedTeamName={setSelectedTeamName} setShowInviteMembersModal={setShowInviteMembersModal} teamDescription={team.description} teamTitle={team.name} team={team} />
+                );
+            })}
 
             {/* Create New Team Card */}
             <div

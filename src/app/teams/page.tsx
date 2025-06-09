@@ -1,7 +1,6 @@
-'use client';
+'use client'
 import { useState, useEffect, useRef } from "react";
 import React from "react";
-import Header from "@/components/Common/Header";
 import TeamsHeader from "@/components/Teams/TeamsHeader";
 import TeamsHeading from "@/components/Teams/TeamsHeading";
 import TeamTiles from "@/components/Teams/TeamTiles";
@@ -9,14 +8,26 @@ import InvitationsHeading from "@/components/Teams/InvitationsHeading";
 import CreateTeamModal from "@/components/Teams/CreateTeamModal";
 import InviteMembersModal from "@/components/Teams/InviteMembersModal";
 import TeamDetailsModal from "@/components/Teams/TeamDetailsModal";
+import { Team, User } from "@/types/User";
+import { getCurrentUser } from "@/lib/firebase/auth";
+import { acceptTeamInvitation, createTeam, declineTeamInvitation, getUserTeams } from "@/lib/firebase/teams";
+// Update the imports at the top
+import { getUserInvitations } from "@/lib/firebase/teams";
+import HeaderComponent from "@/components/Common/Header";
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function TeamManagement() {
     const [activeTab, setActiveTab] = useState<'myTeams' | 'invitations'>('myTeams');
     const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
     const [showInviteMembersModal, setShowInviteMembersModal] = useState(false);
     const [showTeamDetailsModal, setShowTeamDetailsModal] = useState(false);
-    const [selectedTeamName, setSelectedTeamName] = useState('');
-
+    const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+    const [user, setUser] = useState<User | null>(getCurrentUser());
+    const [teams, setTeams] = useState<Team[]>([]);
+    // Update the state in TeamManagement component
+    const [invitations, setInvitations] = useState<any[]>([]);
     // Refs for modal focus management
     const createTeamModalRef = useRef<HTMLDivElement>(null);
     const inviteMembersModalRef = useRef<HTMLDivElement>(null);
@@ -47,30 +58,92 @@ export default function TeamManagement() {
             document.body.style.overflow = 'auto';
         }
 
+        const setTeamsFromDatabase = async () => {
+            if(!user?.uid) throw new Error('No user is logged in');
+            const teams = await getUserTeams(user?.uid);
+            console.log("The teams are: ", teams);
+            setTeams(teams);
+        }
+
+        setTeamsFromDatabase();
+
+        const fetchInvitations = async () => {
+            if (user?.uid) {
+                try {
+                    const { invitations } = await getUserInvitations(user.uid);
+                    console.log("The invitations are: ", invitations, " and date of invitation is: ", 
+                        invitations[0]?.date, " and the new Date value would be: ", 
+                        invitations[0]?.date instanceof Date ? invitations[0].date : 'Invalid date'
+                    );
+                    setInvitations(invitations || []);
+                } catch (error) {
+                    console.error('Error fetching invitations:', error);
+                }
+            }
+        };
+    
+        // if (activeTab === 'invitations') {
+            fetchInvitations();
+        // }
+
         return () => {
             document.body.style.overflow = 'auto';
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [showCreateTeamModal, showInviteMembersModal, showTeamDetailsModal]);
+    }, [showCreateTeamModal, showInviteMembersModal, showTeamDetailsModal, activeTab, user?.uid]);
 
-    const handleCreateTeam = () => {
+    const handleCreateTeam = (newTeam: Team) => {
+        setTeams([...teams, newTeam]);
         setShowCreateTeamModal(false);
+        if(user?.uid === undefined) throw new Error('No logged in User Found');
+        createTeam(newTeam, user?.uid);
     };
 
     const handleInviteMembers = () => {
         setShowInviteMembersModal(false);
     };
 
-    const handleViewTeamDetails = (teamName: string) => {
-        setSelectedTeamName(teamName);
+    const handleViewTeamDetails = (team: Team) => {
+        setSelectedTeam(team);
         setShowTeamDetailsModal(true);
+    };
+
+    // Add these handler functions
+    const handleAcceptInvitation = async (invitationId: string) => {
+        try {
+            if (!user?.uid) return;
+            
+            const { success, team } = await acceptTeamInvitation(user.uid, invitationId);
+            if (success && team) {
+                // Update teams list if invitation was accepted
+                setTeams(prev => [...prev, team]);
+                // Remove the invitation from local state
+                setInvitations(prev => prev.filter(inv => inv.invitationId !== invitationId));
+            }
+        } catch (error) {
+            console.error('Error accepting invitation:', error);
+        }
+    };
+
+    const handleDeclineInvitation = async (invitationId: string) => {
+        try {
+            if (!user?.uid) return;
+            
+            const { success } = await declineTeamInvitation(user.uid, invitationId);
+            if (success) {
+                // Remove the invitation from local state
+                setInvitations(prev => prev.filter(inv => inv.invitationId !== invitationId));
+            }
+        } catch (error) {
+            console.error('Error declining invitation:', error);
+        }
     };
 
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
             {/* Main Content */}
             <div className="flex-1 overflow-auto">
-                <Header parentComponent={"Teams"} toSearch={false} onAddCollection={() => {}} />
+                <HeaderComponent parentComponent={"Teams"} toSearch={false} onAddCollection={() => {}} environments={[]} />
 
                 <TeamsHeader activeTab={activeTab} setActiveTab={setActiveTab} />
 
@@ -78,28 +151,50 @@ export default function TeamManagement() {
                     <TeamsHeading activeTab={activeTab} setShowCreateTeamModal={setShowCreateTeamModal} />
 
                     {activeTab === 'myTeams' && (
-                        <TeamTiles handleViewTeamDetails={handleViewTeamDetails} setSelectedTeamName={setSelectedTeamName} setShowCreateTeamModal={setShowCreateTeamModal} setShowInviteMembersModal={setShowInviteMembersModal} />
+                        <TeamTiles 
+                            teams={teams}
+                            handleViewTeamDetails={handleViewTeamDetails}
+                            setSelectedTeamName={(name) => setSelectedTeam(teams.find(t => t.name === name) || null)}
+                            setShowCreateTeamModal={setShowCreateTeamModal}
+                            setShowInviteMembersModal={setShowInviteMembersModal}
+                        />
                     )}
 
                     {activeTab === 'invitations' && (
-                        <InvitationsHeading />
+                        <InvitationsHeading 
+                            invitations={invitations}
+                            onAccept={handleAcceptInvitation}
+                            onDecline={handleDeclineInvitation}
+                        />
                     )}
                 </main>
             </div>
 
             {/* Create Team Modal */}
             {showCreateTeamModal && (
-                <CreateTeamModal createTeamModalRef={createTeamModalRef} handleCreateTeam={handleCreateTeam} isOpen={true} setShowCreateTeamModal={setShowCreateTeamModal} />
+                <CreateTeamModal 
+                    createTeamModalRef={createTeamModalRef} 
+                    handleCreateTeam={handleCreateTeam} 
+                    isOpen={true} 
+                    setShowCreateTeamModal={setShowCreateTeamModal} 
+                />
             )}
 
             {/* Invite Members Modal */}
             {showInviteMembersModal && (
-                <InviteMembersModal handleInviteMembers={handleInviteMembers} inviteMembersModalRef={inviteMembersModalRef} isOpen={true} selectedTeamName={selectedTeamName} setShowInviteMembersModal={setShowInviteMembersModal} />
+                selectedTeam?.name && <InviteMembersModal
+                    isOpen={true}
+                    setShowInviteMembersModal={setShowInviteMembersModal}
+                    inviteMembersModalRef={inviteMembersModalRef}
+                    selectedTeamName={selectedTeam?.name}
+                    selectedTeamId={selectedTeam?.teamId || ''}
+                    currentUserId={user?.uid || ''}
+                />
             )}
 
             {/* Team Details Modal */}
             {showTeamDetailsModal && (
-                <TeamDetailsModal isOpen={true} selectedTeamName={selectedTeamName} setShowInviteMembersModal={setShowInviteMembersModal} setShowTeamDetailsModal={setShowTeamDetailsModal} teamDetailsModalRef={teamDetailsModalRef} />
+                selectedTeam?.name && <TeamDetailsModal isOpen={true} selectedTeamName={selectedTeam?.name} setShowInviteMembersModal={setShowInviteMembersModal} setShowTeamDetailsModal={setShowTeamDetailsModal} teamDetailsModalRef={teamDetailsModalRef} />
             )}
         </div>
     );

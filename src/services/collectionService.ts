@@ -35,9 +35,7 @@ export const removeCollection = async (collectionId: string, teamId?: string) =>
     if (!userData) throw new Error('User data not found');
 
     const fieldPath = teamId ? `teams.${teamId}.collections` : 'personalCollections';
-    const collections = teamId 
-        ? userData.teams?.[teamId]?.collections || []
-        : userData.personalCollections || [];
+    const collections = userData.personalCollections || [];
 
     const collectionToRemove = collections.find(c => c.id === collectionId);
     if (!collectionToRemove) throw new Error('Collection not found');
@@ -53,9 +51,7 @@ export const addFolder = async (collectionId: string, folder: Folder, teamId?: s
     if (!userData) throw new Error('User data not found');
 
     const fieldPath = teamId ? `teams.${teamId}.collections` : 'personalCollections';
-    const collections = teamId 
-        ? userData.teams?.[teamId]?.collections || []
-        : userData.personalCollections || [];
+    const collections = userData.personalCollections || [];
 
     const collectionIndex = collections.findIndex(c => c.id === collectionId);
     if (collectionIndex === -1) throw new Error('Collection not found');
@@ -84,9 +80,7 @@ export const removeFolder = async (collectionId: string, folderId: string, teamI
     if (!userData) throw new Error('User data not found');
 
     const fieldPath = teamId ? `teams.${teamId}.collections` : 'personalCollections';
-    const collections = teamId 
-        ? userData.teams?.[teamId]?.collections || []
-        : userData.personalCollections || [];
+    const collections = userData.personalCollections || [];
 
     const collectionIndex = collections.findIndex(c => c.id === collectionId);
     if (collectionIndex === -1) throw new Error('Collection not found');
@@ -110,7 +104,7 @@ export const addRequest = async (collectionId: string, folderId: string, request
     if(!userData) throw new Error('User Data Not Found');
 
     const fieldPath = teamId ? `teams.${teamId}.collections` : 'personalCollections';
-    const collections = teamId ? userData.teams?.[teamId]?.collections || [] : userData.personalCollections || [];
+    const collections = userData.personalCollections || [];
 
     const collectionIndex = collections.findIndex(c => c.id === collectionId);
     if(collectionIndex === -1) throw new Error('Collection not found');
@@ -137,7 +131,7 @@ export const removeRequest = async (collectionId: string, folderId: string, requ
     if(!userData) throw new Error('User Data Not Found');
 
     const fieldPath = teamId ? `teams.${teamId}.collections` : 'personalCollections';
-    const collections = teamId ? userData.teams?.[teamId]?.collections || [] : userData.personalCollections || [];
+    const collections = userData.personalCollections || [];
 
     const collectionIndex = collections.findIndex(c => c.id === collectionId);
     if(collectionIndex === -1) throw new Error('Collection not found');
@@ -161,9 +155,7 @@ export const updateCollection = async (collectionId: string, collection: Collect
     if (!userData) throw new Error('User data not found');
 
     const fieldPath = teamId ? `teams.${teamId}.collections` : 'personalCollections';
-    const collections = teamId 
-        ? userData.teams?.[teamId]?.collections || []
-        : userData.personalCollections || [];
+    const collections = userData.personalCollections || [];
 
     const collectionToUpdateIndex = collections.findIndex(c => c.id === collectionId);
     if (!collectionToUpdateIndex) throw new Error('Collection not found');
@@ -181,9 +173,7 @@ export const updateFolder = async (collectionId: string, folder: Folder, folderI
     if (!userData) throw new Error('User data not found');
 
     const fieldPath = teamId ? `teams.${teamId}.collections` : 'personalCollections';
-    const collections = teamId 
-        ? userData.teams?.[teamId]?.collections || []
-        : userData.personalCollections || [];
+    const collections = userData.personalCollections || [];
 
     const collectionIndex = collections.findIndex(c => c.id === collectionId);
     if (collectionIndex === -1) throw new Error('Collection not found');
@@ -213,7 +203,7 @@ export const updateRequest = async (collectionId: string, folderId: string, requ
     if(!userData) throw new Error('User Data Not Found');
 
     const fieldPath = teamId ? `teams.${teamId}.collections` : 'personalCollections';
-    const collections = teamId ? userData.teams?.[teamId]?.collections || [] : userData.personalCollections || [];
+    const collections = userData.personalCollections || [];
 
     const collectionIndex = collections.findIndex(c => c.id === collectionId);
     if(collectionIndex === -1) throw new Error('Collection not found');

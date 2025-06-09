@@ -1,7 +1,6 @@
 // components/Collections.tsx
-'use client';
+'use client'
 import React, { useState, useEffect } from 'react';
-import Header from '@/components/Common/Header';
 import CollectionsTree from '@/components/RequestBuilder/CollectionsTree';
 import CollectionDetails from '@/components/Collections/CollectionDetails';
 import RequestTabs from '@/components/RequestBuilder/RequestTabs';
@@ -9,7 +8,9 @@ import NewCollectionModal from '@/components/Collections/NewCollectionModal';
 import { getUserData, cleanOldActivity } from '@/services/userService';
 import { Collection, Request, Folder } from '@/types/Collections';
 import { User, UserData } from '@/types/User';
-import { getUserDetails, savePersonalCollections } from '@/lib/firebase/auth';
+import { getUserDetails } from '@/lib/firebase/auth';
+import HeaderComponent from '@/components/Common/Header';
+import { savePersonalCollections } from '@/lib/firebase/collections';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
@@ -34,8 +35,7 @@ const Collections: React.FC = () => {
                     setUserData(data);
                     console.log("The personal collections is: ", data.personalCollections);
                     const allCollections = [
-                        ...(data.personalCollections || []),
-                        ...Object.values(data.teams || {}).flatMap(team => team.collections || [])
+                        ...(data.personalCollections || [])
                     ];
                     setCollections(allCollections);
                     if (allCollections.length > 0) {
@@ -265,10 +265,11 @@ const Collections: React.FC = () => {
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
             <div className="flex-1 flex flex-col overflow-hidden">
-                <Header
+                <HeaderComponent
                     onAddCollection={() => handleAddCollection('New Collection')}
                     toSearch={true}
                     parentComponent="Collections"
+                    environments={[]}
                 />
 
                 <div className="flex-1 flex overflow-hidden">

@@ -1,5 +1,26 @@
 import { Collection, Variable } from "./Collections";
 
+export interface Invitations {
+    teamName: string, 
+    teamDescription: string, 
+    teamId: string, 
+    invitedBy: string, 
+    invitedByName: string,
+    date: Date, 
+    invitationId: string, 
+    invitedByEmail: string
+}
+
+export interface Invited {
+    teamName: string, 
+    teamDescription: string, 
+    teamId: string, 
+    date: Date, 
+    userid: string, 
+    invitationId: string, 
+    userEmail: string
+}
+
 // types/User.ts
 export interface UserData {
     name: string | undefined | null,
@@ -8,13 +29,6 @@ export interface UserData {
     isNewUser?: boolean,
     personalCollections: Collection[];
     personalEnvironments: Environment[];
-    teams: {
-        [teamId: string]: {
-            collections: Collection[];
-            environments: Environment[];
-            lastSynced: Date;
-        }
-    };
     recentActivity: {
         type: 'collection_created' | 'request_created' | 'folder_created';
         id: string;
@@ -25,6 +39,28 @@ export interface UserData {
     settings: {
         defaultEnvironment?: string;
     };
+    invitations: Invitations[],
+    invited: Invited[]
+}
+
+export interface Team {
+    name: string,
+    description: string,
+    teamId: string,
+    createdAt: Date,
+    createdBy: string,
+    users: User[],
+    collections: Collection[],
+    environments: Environment[],
+    userids: string[],
+    isPrivate: boolean,
+    isOwner: boolean,
+    recentActivity: {
+        type: 'collection_created' | 'request_created' | 'folder_created';
+        id: string;
+        name: string;
+        timestamp: Date;
+    }[]
 }
   
 export interface Environment {
@@ -53,7 +89,8 @@ export interface User {
     emailVerified: boolean,
     username: string,
     isAnonymous: boolean,
-    providerData: ProviderData
+    providerData: ProviderData,
+    name?: string
 }
 
 export type AuthType = "none" | "bearer" | "basic" | "apiKey" | "oauth2"

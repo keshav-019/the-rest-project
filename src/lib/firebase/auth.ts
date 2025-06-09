@@ -7,15 +7,11 @@ import {
     setPersistence,
     browserSessionPersistence,
     browserLocalPersistence,
-    sendPasswordResetEmail
-} from 'firebase/auth';
+    sendPasswordResetEmail} from 'firebase/auth';
 import { doc, setDoc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { Environment, User } from '@/types/User';
+import { User } from '@/types/User';
 import { auth, db } from './client';
-import { generateRandomString } from '@/lib/utils/utils';
 import { UserData } from '@/types/User';
-import { updatePersonalCollections, updatePersonalEnvironments, updateTeamEnvironments } from './userDataHelpers';
-import { Collection } from '@/types/Collections';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -36,6 +32,20 @@ const getAuthErrorMessage = (error: AuthError): string => {
             return 'Too many attempts. Try again later';
         default:
             return 'Authentication failed. Please try again';
+    }
+};
+
+export const sendPasswordResetOTP = async (email: string) => {
+    try {
+        await sendPasswordResetEmail(auth, email);
+        return { success: true };
+    } catch (error: any) {
+        return {
+            success: false,
+            error: error.code === 'auth/user-not-found'
+                ? 'No account found with this email'
+                : 'Failed to send password reset email'
+        };
     }
 };
 
@@ -366,85 +376,6 @@ export const logout = async () => {
     }
 };
 
-export const sendPasswordResetOTP = async (email: string) => {
-    try {
-        await sendPasswordResetEmail(auth, email);
-        return { success: true };
-    } catch (error: any) {
-        return {
-            success: false,
-            error: error.code === 'auth/user-not-found'
-                ? 'No account found with this email'
-                : 'Failed to send password reset email'
-        };
-    }
-};
-
-export const verifyPasswordResetOTP = async (email: string, otp: string) => {
-    try {
-        const otpDocRef = doc(db, 'passwordResetOTPs', email);
-        const otpDoc = await getDoc(otpDocRef);
-
-        if (!otpDoc.exists()) {
-            return { success: false, error: 'Invalid or expired OTP' };
-        }
-
-        const otpData = otpDoc.data();
-
-        if (otpData.expiry < Date.now()) {
-            await deleteDoc(otpDocRef);
-            return { success: false, error: 'OTP has expired' };
-        }
-
-        if (otpData.attempts >= 3) {
-            await deleteDoc(otpDocRef);
-            return { success: false, error: 'Too many attempts. Please request a new OTP.' };
-        }
-
-        await setDoc(otpDocRef, { attempts: otpData.attempts + 1 }, { merge: true });
-
-        if (otpData.otp !== otp) {
-            return { success: false, error: 'Invalid OTP' };
-        }
-
-        const resetToken = generateRandomString(32);
-        await setDoc(otpDocRef, {
-            verified: true,
-            resetToken,
-            tokenExpiry: Date.now() + 15 * 60 * 1000
-        }, { merge: true });
-
-        return { success: true, resetToken };
-    } catch (error) {
-        return { success: false, error: 'Failed to verify OTP' };
-    }
-};
-
-export const resetPasswordWithToken = async (email: string, token: string, newPassword: string) => {
-    try {
-        const otpDocRef = doc(db, 'passwordResetOTPs', email);
-        const otpDoc = await getDoc(otpDocRef);
-
-        if (!otpDoc.exists()) {
-            return { success: false, error: 'Invalid or expired token' };
-        }
-
-        const otpData = otpDoc.data();
-
-        if (!otpData.verified || otpData.resetToken !== token || otpData.tokenExpiry < Date.now()) {
-            await deleteDoc(otpDocRef);
-            return { success: false, error: 'Invalid or expired token' };
-        }
-
-        await sendPasswordResetEmail(auth, email);
-        await deleteDoc(otpDocRef);
-
-        return { success: true };
-    } catch (error) {
-        return { success: false, error: 'Failed to reset password' };
-    }
-};
-
 // Get current user from localStorage
 export const getCurrentUser = (): User | null => {
     try {
@@ -507,60 +438,3 @@ export const getInitials = (name: string | undefined): string => {
 
     return (words[0][0] + words[1][0] + words[words.length - 1][0]).toUpperCase();
 };
-
-
-// Example: Update personal collections
-export async function savePersonalCollections(userId: string, newCollections: Collection[]) {
-    console.log("The save personal collections function is called");
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-        console.log("Ran into an error");
-        throw new Error('User document not found');
-    }
-
-    const currentUserData = userDoc.data() as UserData;
-    const updatedData = updatePersonalCollections(currentUserData, newCollections);
-
-    console.log("The output of user details is: ", await getUserDetails());
-    
-    console.log("Before setting the doc the user reference is: ", userRef, " and the userDoc is: ", userDoc, " and updatedData is: ", updatedData);
-    // Use setDoc with merge to preserve other fields
-    await setDoc(userRef, updatedData, { merge: true });
-}
-
-// Example: Update team environments
-export async function saveTeamEnvironments(userId: string, teamId: string, newEnvironments: Environment[]) {
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-        throw new Error('User document not found');
-    }
-    
-    const currentUserData = userDoc.data() as UserData;
-    const updatedData = updateTeamEnvironments(currentUserData, teamId, newEnvironments);
-    
-    // Use setDoc with merge to preserve other fields
-    await setDoc(userRef, updatedData, { merge: true });
-}
-
-// Example: Update team environments
-export async function savePersonalEnvironments(userId: string, newEnvironments: Environment[]) {
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-        throw new Error('User document not found');
-    }
-    
-    const currentUserData = userDoc.data() as UserData;
-    const updatedData = updatePersonalEnvironments(currentUserData, newEnvironments);
-
-    console.log("The new environments are: ", newEnvironments);
-    
-    // Use setDoc with merge to preserve other fields
-    await setDoc(userRef, updatedData, { merge: true });
-}
-

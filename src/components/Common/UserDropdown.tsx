@@ -1,5 +1,5 @@
 // Updated UserDropdown.tsx with team dropdown and scrollable section
-'use client';
+'use client'
 import React, { useState } from 'react';
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from '@headlessui/react';
 import {

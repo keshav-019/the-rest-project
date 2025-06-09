@@ -1,5 +1,5 @@
 // Updated FolderItem.tsx
-'use client';
+'use client'
 import { useEffect, useState } from 'react';
 import { Folder, Request } from '@/types/Collections';
 import RequestItem from '../RequestBuilder/RequestItem';

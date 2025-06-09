@@ -1,4 +1,4 @@
-'use client';
+'use client'
 import React from 'react';
 import { Request } from '@/types/Collections';
 import RequestBuilder from './RequestBuilder';

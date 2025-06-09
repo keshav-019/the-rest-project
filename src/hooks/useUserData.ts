@@ -13,12 +13,6 @@ export const useUserData = () => {
         try {
             const { userData } = await getUserDetails()
             setUserData(userData)
-
-            // Set the first team as default if available
-            if (userData?.teams) {
-                const firstTeamId = Object.keys(userData.teams)[0]
-                setTeamId(firstTeamId || null)
-            }
         } catch (error) {
             console.error('Error fetching user data:', error)
         } finally {

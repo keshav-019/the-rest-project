@@ -1,4 +1,4 @@
-'use client';
+'use client'
 import React from "react"
 
 export default function Logo({ size = 'medium' }: { size?: 'small' | 'medium' | 'large' }) {

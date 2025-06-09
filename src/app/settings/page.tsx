@@ -1,5 +1,5 @@
 // components/SettingsPage.tsx
-'use client';
+'use client'
 import React, { useState } from 'react';
 import ProfileTab from '@/components/Settings/ProfileTab';
 import SecurityTab from '@/components/Settings/SecurityTab';
@@ -7,7 +7,7 @@ import NotificationsTab from '@/components/Settings/NotificationsTab';
 import PreferencesTab from '@/components/Settings/PreferencesTab';
 import { ActiveTab } from '@/types/Collections';
 import ActiveTabComponent from '@/components/Settings/ActiveTab';
-import Header from '@/components/Common/Header';
+import HeaderComponent from '@/components/Common/Header';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
@@ -20,7 +20,7 @@ export default function SettingsPage() {
     return (
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
             {/* Header at the top */}
-            <Header toSearch={false} parentComponent={'Settings'} onAddCollection={() => {}} />
+            <HeaderComponent toSearch={false} parentComponent={'Settings'} onAddCollection={() => {}} environments={[]} />
             
             {/* Main content area with sidebar and content */}
             <div className="flex flex-1 overflow-hidden">

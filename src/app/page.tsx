@@ -1,14 +1,16 @@
 // Updated RequestBuilder component with tab system
-'use client';
+'use client'
 import React, { useState, useEffect } from "react";
 import { useClipboard } from "@/hooks/useClipboard";
 import { saveAs } from 'file-saver';
 import { Auth, Collection, Folder, Header, Param, RequestType, ResponseData, TabType } from "@/types/Collections";
 import { Request } from "@/types/Collections";
-import UserDropdown from "@/components/Common/UserDropdown";
-import { getCurrentUser, getInitials, getUserDetails, savePersonalCollections } from "@/lib/firebase/auth";
+import { getCurrentUser, getInitials, getUserDetails } from "@/lib/firebase/auth";
 import { useRouter } from "next/navigation";
 import MainContent from "@/components/RequestBuilder/MainContent";
+import { savePersonalCollections } from "@/lib/firebase/collections";
+import HeaderComponent from "@/components/Common/Header";
+import { Environment } from "@/types/User";
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -47,6 +49,7 @@ export default function RequestBuilder() {
     const [email, setEmail] = useState<string>('');
     const [displayName, setDisplayName] = useState<string>('');
     const [userId, setUserId] = useState<string>('');
+    const [environments, setEnvironments] = useState<Environment[]>();
     const router = useRouter();
 
     // Load active tab request when activeTabId changes
@@ -66,6 +69,7 @@ export default function RequestBuilder() {
         const populateCollections = async () => {
             const userDetails = await getUserDetails();
             setCollections(userDetails.userData?.personalCollections);
+            setEnvironments(userDetails.userData?.personalEnvironments);
         }
 
         populateCollections();
@@ -492,39 +496,61 @@ export default function RequestBuilder() {
     return (
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
             {/* Top Header */}
-            <header className="w-full h-16 bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between h-full px-6">
-                    {/* Left side - Logo */}
-                    <div className="flex items-center space-x-8">
-                        <div className="w-50 items-center justify-center">
-                            <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">API Nexus</h1>
-                        </div>
-
-                        {/* Environment dropdown moved here */}
-                        <div className="relative">
-                            <select className="h-10 pl-3 pr-10 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer">
-                                <option>Default Environment</option>
-                                <option>Development</option>
-                                <option>Staging</option>
-                                <option>Production</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right side - Actions and user dropdown */}
-                    <div className="flex items-center space-x-4">
-                        <UserDropdown initials={initials} displayName={displayName} email={email} username={username} />
-                    </div>
-                </div>
-            </header>
+            <HeaderComponent toSearch={false} parentComponent={'Request Builder'} onAddCollection={handleAddCollection} environments={environments} />
 
             {/* Main Content Area */}
-            {collections !== undefined ? <MainContent activeRequestTab={activeRequestTab} activeResponseTab={activeResponseTab} activeTabId={activeTabId} activeTabs={activeTabs} auth={auth} body={body} closeTab={closeTab} collections={collections} cookies={cookies} copyToClipboard={copyToClipboard} deleteItem={deleteItem} error={error} handleAddCollection={handleAddCollection} handleAddFolder={handleAddFolder} handleAddHeader={handleAddHeader} handleAddParam={handleAddParam} handleAddRequest={handleAddRequest} handleCopyResponse={handleCopyResponse} handleDownloadResponse={handleDownloadResponse} handleExportCollections={handleExportCollections} handleImportCollections={handleImportCollections} handleRemoveHeader={handleRemoveHeader} handleRemoveParam={handleRemoveParam} handleSendRequest={handleSendRequest} handleShareRequest={handleShareRequest} handleUpdateHeader={handleUpdateHeader} handleUpdateParam={handleUpdateParam} headers={headers} isLoading={isLoading} isStarred={isStarred} method={method} openRequestInTab={openRequestInTab} params={params} preRequestScript={preRequestScript} renameItem={renameItem} response={response} responseHeaders={responseHeaders} setActiveRequestTab={setActiveRequestTab} setActiveResponseTab={setActiveResponseTab} setActiveTabId={setActiveTabId} setAuth={setAuth} setBody={setBody} setIsStarred={setIsStarred} setMethod={setMethod} setPreRequestScript={setPreRequestScript} setTests={setTests} setUrl={setUrl} tests={tests} timeline={timeline} url={url} /> : null}
+            {collections !== undefined ? <MainContent 
+                activeRequestTab={activeRequestTab} 
+                activeResponseTab={activeResponseTab} 
+                activeTabId={activeTabId} 
+                activeTabs={activeTabs} 
+                auth={auth} 
+                body={body} 
+                closeTab={closeTab} 
+                collections={collections} 
+                cookies={cookies} 
+                copyToClipboard={copyToClipboard} 
+                deleteItem={deleteItem} 
+                error={error} 
+                handleAddCollection={handleAddCollection} 
+                handleAddFolder={handleAddFolder} 
+                handleAddHeader={handleAddHeader} 
+                handleAddParam={handleAddParam} 
+                handleAddRequest={handleAddRequest} 
+                handleCopyResponse={handleCopyResponse} 
+                handleDownloadResponse={handleDownloadResponse} 
+                handleExportCollections={handleExportCollections} 
+                handleImportCollections={handleImportCollections} 
+                handleRemoveHeader={handleRemoveHeader} 
+                handleRemoveParam={handleRemoveParam} 
+                handleSendRequest={handleSendRequest} 
+                handleShareRequest={handleShareRequest} 
+                handleUpdateHeader={handleUpdateHeader} 
+                handleUpdateParam={handleUpdateParam} 
+                headers={headers} 
+                isLoading={isLoading} 
+                isStarred={isStarred} 
+                method={method} 
+                openRequestInTab={openRequestInTab} 
+                params={params} 
+                preRequestScript={preRequestScript} 
+                renameItem={renameItem} 
+                response={response} 
+                responseHeaders={responseHeaders} 
+                setActiveRequestTab={setActiveRequestTab} 
+                setActiveResponseTab={setActiveResponseTab} 
+                setActiveTabId={setActiveTabId} 
+                setAuth={setAuth} 
+                setBody={setBody} 
+                setIsStarred={setIsStarred} 
+                setMethod={setMethod} 
+                setPreRequestScript={setPreRequestScript} 
+                setTests={setTests} 
+                setUrl={setUrl} 
+                tests={tests} 
+                timeline={timeline} 
+                url={url} 
+            /> : null}
         </div>
     );
 }

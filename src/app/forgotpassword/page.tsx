@@ -1,4 +1,4 @@
-'use client';
+'use client'
 import React, { useState } from 'react';
 import { sendPasswordResetOTP } from '@/lib/firebase/auth';
 import Logo from '@/components/Common/Logo';

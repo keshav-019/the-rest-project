@@ -1,16 +1,18 @@
 'use client'
 import { useState, useEffect } from 'react'
-import Header from "@/components/Common/Header"
 import EnvironmentsList from "@/components/Environment/EnvironmentsList"
 import { Environment } from '@/types/User'
 import { useUserData } from '@/hooks/useUserData'
-import { updateTeamEnvironments } from '@/utils/userDataHelpers'
 import { Variable } from '@/types/Collections'
 import EnvironmentSettings from '@/components/Environment/EnvironmentSettings'
 import VariableTable from '@/components/Environment/VariableTable'
 import AddEnvironmentModal from '@/components/Environment/EnvironmentModal'
 import { updatePersonalEnvironments } from '@/lib/firebase/userDataHelpers'
-import { getUserDetails, savePersonalEnvironments } from '@/lib/firebase/auth'
+import { getUserDetails } from '@/lib/firebase/auth'
+import { savePersonalEnvironments } from '@/lib/firebase/environments'
+import HeaderComponent from '@/components/Common/Header'
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 const colorOptions = [
     { name: 'Blue', value: '#3b82f6' },
@@ -40,13 +42,6 @@ export default function Environments() {
             setUserid(user?.uid);
         }
         fetchUserData();
-        if (userData && teamId) {
-            const teamEnvs = userData.teams[teamId]?.environments || []
-            setEnvironments(teamEnvs)
-            if (teamEnvs.length > 0 && !activeEnvironment) {
-                setActiveEnvironment(teamEnvs[0])
-            }
-        }
         if(userData) {
             const personalEnvironments = userData.personalEnvironments || [];
             setEnvironments(personalEnvironments);
@@ -72,9 +67,7 @@ export default function Environments() {
         setActiveEnvironment(newEnv);
 
         if (userData) {
-            const updatedData = teamId
-                ? updateTeamEnvironments(userData, teamId, updatedEnvs)
-                : updatePersonalEnvironments(userData, updatedEnvs); // <- add this
+            const updatedData = updatePersonalEnvironments(userData, updatedEnvs); // <- add this
             updateUserData(updatedData);
         }
 
@@ -92,9 +85,7 @@ export default function Environments() {
     
         // Update Firebase
         if (userData) {
-            const updatedData = teamId
-                ? updateTeamEnvironments(userData, teamId, updatedEnvs)
-                : updatePersonalEnvironments(userData, updatedEnvs); // 🔧 fallback
+            const updatedData = updatePersonalEnvironments(userData, updatedEnvs); // 🔧 fallback
             updateUserData(updatedData);
         }
     
@@ -114,9 +105,7 @@ export default function Environments() {
         setActiveEnvironment(updatedEnv);
 
         if (userData) {
-            const updatedData = teamId
-                ? updateTeamEnvironments(userData, teamId, updatedEnvs)
-                : updatePersonalEnvironments(userData, updatedEnvs); // ✅ fix
+            const updatedData = updatePersonalEnvironments(userData, updatedEnvs); // ✅ fix
             updateUserData(updatedData);
         }
 
@@ -200,7 +189,7 @@ export default function Environments() {
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Top Header */}
-                <Header parentComponent="Environment" toSearch={true} onAddCollection={() => {}} />
+                <HeaderComponent parentComponent="Environment" toSearch={true} onAddCollection={() => {}} environments={[]} />
 
                 {/* Environments Content */}
                 <main className="flex-1 overflow-hidden flex">

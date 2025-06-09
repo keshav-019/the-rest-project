@@ -1,10 +1,47 @@
-'use client';
-import React from "react"
+'use client'
+import React, { useState } from "react";
 import ModalBackdrop from '../Common/ModalBackdrop';
+import { Team } from "@/types/User";
+import { getCurrentUser } from "@/lib/firebase/auth";
 
-export default function CreateTeamModal({isOpen = false, setShowCreateTeamModal, createTeamModalRef, handleCreateTeam}: {isOpen: boolean, setShowCreateTeamModal: (value: boolean) => void, createTeamModalRef: React.RefObject<HTMLDivElement | null>, handleCreateTeam: () => void }) {
+export default function CreateTeamModal({
+    isOpen = false, 
+    setShowCreateTeamModal, 
+    createTeamModalRef, 
+    handleCreateTeam
+}: {
+    isOpen: boolean, 
+    setShowCreateTeamModal: (value: boolean) => void, 
+    createTeamModalRef: React.RefObject<HTMLDivElement | null>, 
+    handleCreateTeam: (team: Team) => void 
+}) {
+    const [teamName, setTeamName] = useState('');
+    const [teamDescription, setTeamDescription] = useState('');
+    const [privacy, setPrivacy] = useState('public');
+
+    const handleSubmit = async () => {
+        if (!teamName.trim()) return;
+        
+        const newTeam: Team = {
+            name: teamName,
+            description: teamDescription,
+            teamId: Math.random().toString(36).substring(2, 11),
+            createdAt: new Date(),
+            createdBy: getCurrentUser()?.uid || '', // Replace with actual user ID
+            users: [],
+            collections: [],
+            environments: [],
+            isPrivate: false,
+            isOwner: true,
+            userids: [], // Replace with actual user ID
+            recentActivity: []
+        };
+        
+        handleCreateTeam(newTeam);
+    };
+
     const teamButtons = [
-        {name: 'Create Team', onClickFunction: handleCreateTeam},
+        {name: 'Create Team', onClickFunction: handleSubmit},
         {name: 'Cancel', onClickFunction: () => setShowCreateTeamModal(false)}
     ];
 
@@ -42,6 +79,8 @@ export default function CreateTeamModal({isOpen = false, setShowCreateTeamModal,
                                         id="team-name"
                                         className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                         placeholder="Enter team name"
+                                        value={teamName}
+                                        onChange={(e) => setTeamName(e.target.value)}
                                     />
                                 </div>
 
@@ -55,6 +94,8 @@ export default function CreateTeamModal({isOpen = false, setShowCreateTeamModal,
                                         rows={3}
                                         className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                         placeholder="Describe the purpose of this team"
+                                        value={teamDescription}
+                                        onChange={(e) => setTeamDescription(e.target.value)}
                                     ></textarea>
                                 </div>
 
@@ -68,7 +109,8 @@ export default function CreateTeamModal({isOpen = false, setShowCreateTeamModal,
                                                 id="privacy-public"
                                                 name="privacy"
                                                 type="radio"
-                                                defaultChecked
+                                                checked={privacy === 'public'}
+                                                onChange={() => setPrivacy('public')}
                                                 className="h-4 w-4 text-blue-600 dark:text-blue-500 border-gray-300 dark:border-gray-600 focus:ring-blue-500"
                                             />
                                             <label htmlFor="privacy-public" className="ml-3 block text-sm text-gray-700 dark:text-gray-300">
@@ -80,6 +122,8 @@ export default function CreateTeamModal({isOpen = false, setShowCreateTeamModal,
                                                 id="privacy-private"
                                                 name="privacy"
                                                 type="radio"
+                                                checked={privacy === 'private'}
+                                                onChange={() => setPrivacy('private')}
                                                 className="h-4 w-4 text-blue-600 dark:text-blue-500 border-gray-300 dark:border-gray-600 focus:ring-blue-500"
                                             />
                                             <label htmlFor="privacy-private" className="ml-3 block text-sm text-gray-700 dark:text-gray-300">
