@@ -28,7 +28,7 @@ export type MainContentProps = {
     method: RequestType, 
     setIsStarred: React.Dispatch<React.SetStateAction<boolean>>, 
     setMethod: React.Dispatch<React.SetStateAction<RequestType>>, 
-    setUrl: React.Dispatch<React.SetStateAction<string>>, 
+    setUrl: (value: string) => void, 
     url: string, 
     activeRequestTab: TabType, 
     setActiveRequestTab: React.Dispatch<React.SetStateAction<TabType>>, 

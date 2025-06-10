@@ -1,39 +1,25 @@
 // components/Header.tsx
 'use client'
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import LogoDisplay from './LogoDisplay';
 import UserDropdown from './UserDropdown';
 import { PlusIcon, SearchIcon } from './Icons';
-import { getInitials } from '@/lib/firebase/auth';
-import { Environment, User } from '@/types/User';
+import { Environment, Team } from '@/types/User';
 import EnvironmentSelector from '../Environment/EnvironmentSelector';
 
 interface HeaderProps {
     onAddCollection: (value: string) => void,
     toSearch: boolean,
     parentComponent: string,
-    environments: Environment[] | undefined
+    environments: Environment[] | undefined,
+    initials: string,
+    username: string,
+    email: string,
+    displayName: string,
+    teams?: Team[]
 }
 
-const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environments }: HeaderProps) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [initials, setInitials] = useState<string>('');
-    const [email, setEmail] = useState<string>('');
-    const [username, setUsername] = useState<string>('');
-    const [displayName, setDisplayName] = useState<string>('');
-
-    useEffect(() => {
-        const userData = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        setUser(userData);
-        console.log("The user value is: ", user); // Still null (old state)
-        console.log("The parsed user data is: ", userData); // This will show the actual data
-        
-        // Use userData directly instead of user
-        setInitials(getInitials(userData?.displayName));
-        setEmail(userData?.email || '');
-        setUsername(userData?.username || '');
-        setDisplayName(userData?.displayName || '');
-    }, []);
+const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environments, initials, username, email, displayName, teams}: HeaderProps) => {
 
     return (
         <header className="flex items-center justify-between h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6">
@@ -83,7 +69,7 @@ const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environme
                     <EnvironmentSelector environments={environments} />
                 }
 
-                <UserDropdown username={username} displayName={displayName} email={email} initials={initials} />
+                <UserDropdown username={username} displayName={displayName} email={email} initials={initials} teams={teams} />
             </div>
         </header>
     );

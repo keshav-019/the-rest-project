@@ -1,27 +1,35 @@
 // Updated UserDropdown.tsx with team dropdown and scrollable section
 'use client'
 import React, { useState } from 'react';
-import { Menu, MenuButton, MenuItem, MenuItems, Transition } from '@headlessui/react';
+import { Menu, MenuButton, MenuItems, Transition } from '@headlessui/react';
 import {
     DashboardIcon,
     CollectionsIcon,
     RequestBuilderIcon,
     EnvironmentsIcon,
     TeamIcon,
-    SettingsIcon,
-    LogoutIcon,
-    CheckIcon,
-    CogIcon,
-    ChevronDownIcon
+    SettingsIcon
 } from './Icons';
 import { useRouter } from 'next/navigation';
+import { Team } from '@/types/User';
+import UserProfile from './UserProfile';
+import TeamsDropdown from './TeamsDropdown';
+import AutoSaveMenuButton from './AutoSave';
+import LogoutMenuButton from './LogoutMenuButton';
+import NavigationMenuItems from './NavigationMenuItems';
 
-const UserDropdown = ({ initials, email, username, displayName }: { initials: string, email: string, username: string, displayName: string }) => {
+export interface UserDropdownProps {
+    initials: string,
+    email: string,
+    username: string,
+    displayName: string,
+    teams?: Team[]
+}
+
+const UserDropdown = ({ initials, email, username, displayName, teams }: UserDropdownProps) => {
     const [autoSave, setAutoSave] = useState(true);
     const [showTeams, setShowTeams] = useState(false);
     const router = useRouter();
-
-    const teams = ['Team Alpha', 'Team Beta']; // Dummy data, replace with dynamic later
 
     const menuItems = [
         { href: "/dashboard", icon: <DashboardIcon />, label: "Dashboard" },
@@ -54,106 +62,21 @@ const UserDropdown = ({ initials, email, username, displayName }: { initials: st
                 <MenuItems className="absolute right-0 mt-2 w-72 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none z-50 border border-gray-200 dark:border-gray-700">
 
                     {/* User Profile Section */}
-                    <div className="px-4 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800 rounded-t-lg">
-                        <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-lg shadow-md">
-                                {initials}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                    {displayName || 'Unknown User'}
-                                </div>
-                                <div className="text-xs text-blue-600 dark:text-blue-400 truncate">
-                                    @{username || 'no-username'}
-                                </div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                                    {email}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <UserProfile displayName={displayName} email={email} initials={initials} username={username} />
 
                     {/* Navigation Menu Items */}
-                    <div className="py-1">
-                        {menuItems.map((item, index) => (
-                            <MenuItem key={index}>
-                                <a
-                                    href={item.href}
-                                    className="group flex items-center px-4 py-3 text-sm font-medium transition-colors duration-150 text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700"
-                                >
-                                    <span className="mr-3 w-5 h-5 text-gray-400 dark:text-gray-500">
-                                        {item.icon}
-                                    </span>
-                                    {item.label}
-                                </a>
-                            </MenuItem>
-                        ))}
-                    </div>
+                    <NavigationMenuItems menuItems={menuItems} />
 
                     {/* Teams Dropdown */}
-                    <div className="py-1">
-                        <button
-                            className="w-full flex justify-between items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer"
-                            onClick={() => setShowTeams(!showTeams)}
-                        >
-                            <span className="flex items-center">
-                                <TeamIcon className="mr-3 w-5 h-5 text-gray-400 dark:text-gray-500" />
-                                Teams
-                            </span>
-                            <ChevronDownIcon className={`w-4 h-4 transform transition-transform ${showTeams ? 'rotate-180' : 'rotate-0'}`} />
-                        </button>
-                        {showTeams && (
-                            <div className={`max-h-36 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-blue-500 dark:scrollbar-thumb-gray-500`}> {/* 3 items max visible */}
-                                {teams.map((team, index) => (
-                                    <div
-                                        key={index}
-                                        className="px-8 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-100 dark:hover:bg-gray-700 cursor-pointer"
-                                    >
-                                        {team}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    {teams &&
+                        <TeamsDropdown setShowTeams={setShowTeams} showTeams={showTeams} teams={teams} />
+                    }
 
                     {/* Settings Section */}
-                    <div className="py-1">
-                        <MenuItem>
-                            {() => (
-                                <button
-                                    onClick={() => setAutoSave(!autoSave)}
-                                    className="group flex items-center justify-between w-full px-4 py-3 text-sm font-medium transition-colors duration-150 hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 cursor-pointer"
-                                >
-                                    <div className="flex items-center">
-                                        <span className="mr-3 w-5 h-5 text-gray-400 dark:text-gray-500">
-                                            <CogIcon />
-                                        </span>
-                                        Auto Save
-                                    </div>
-                                    <div className={`w-4 h-4 flex items-center justify-center ${autoSave ? 'text-green-500' : 'text-transparent'}`}>
-                                        <CheckIcon />
-                                    </div>
-                                </button>
-                            )}
-                        </MenuItem>
-                    </div>
+                    <AutoSaveMenuButton autoSave={autoSave} setAutoSave={setAutoSave} />
 
                     {/* Logout Section */}
-                    <div className="py-1">
-                        <MenuItem>
-                            {() => (
-                                <button
-                                    onClick={handleLogout}
-                                    className="group flex items-center w-full px-4 py-3 text-sm font-medium transition-colors duration-150 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 text-gray-700 dark:text-gray-200 cursor-pointer"
-                                >
-                                    <span className="mr-3 w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-red-500">
-                                        <LogoutIcon />
-                                    </span>
-                                    Logout
-                                </button>
-                            )}
-                        </MenuItem>
-                    </div>
+                    <LogoutMenuButton handleLogout={handleLogout} />
                 </MenuItems>
             </Transition>
         </Menu>

@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation";
 import MainContent from "@/components/RequestBuilder/MainContent";
 import { savePersonalCollections } from "@/lib/firebase/collections";
 import HeaderComponent from "@/components/Common/Header";
-import { Environment } from "@/types/User";
+import { Environment, Team } from "@/types/User";
+import { getUserTeams } from "@/lib/firebase/teams";
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -20,7 +21,7 @@ export default function RequestBuilder() {
     const [activeRequestTab, setActiveRequestTab] = useState<TabType>('Params');
     const [activeResponseTab, setActiveResponseTab] = useState<'Response' | 'Headers' | 'Cookies' | 'Timeline'>('Response');
     const [method, setMethod] = useState<RequestType>(RequestType.GET);
-    const [url, setUrl] = useState('https://jsonplaceholder.typicode.com/posts/1');
+    const [url, setUrl] = useState<string>();
     const [activeTabs, setActiveTabs] = useState<{ id: string; request: Request }[]>([]);
     const [isStarred, setIsStarred] = useState(false);
     const [collections, setCollections] = useState<Collection[]>();
@@ -44,12 +45,14 @@ export default function RequestBuilder() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { copyToClipboard } = useClipboard();
-    const [initials, setInitials] = useState<string>('');
+    const [user, setUser] = useState(getCurrentUser());
+    const [initials, setInitials] = useState<string>(getInitials(user?.displayName));
     const [username, setUsername] = useState<string>('');
     const [email, setEmail] = useState<string>('');
     const [displayName, setDisplayName] = useState<string>('');
     const [userId, setUserId] = useState<string>('');
     const [environments, setEnvironments] = useState<Environment[]>();
+    const [teams, setTeams] = useState<Team[]>();
     const router = useRouter();
 
     // Load active tab request when activeTabId changes
@@ -64,7 +67,14 @@ export default function RequestBuilder() {
             }
         }
 
-        const user = getCurrentUser();
+        const getActiveTeams = async () => {
+            const teams = await getUserTeams(user?.uid || '');
+            setTeams(teams);
+        }
+
+        getActiveTeams();
+
+        setUser(getCurrentUser());
 
         const populateCollections = async () => {
             const userDetails = await getUserDetails();
@@ -174,7 +184,7 @@ export default function RequestBuilder() {
                 const queryString = enabledParams
                     .map(p => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`)
                     .join('&');
-                requestUrl += (requestUrl.includes('?') ? '&' : '?') + queryString;
+                requestUrl += ((requestUrl || '').includes('?') ? '&' : '?') + queryString;
             }
 
             // Prepare headers
@@ -195,7 +205,7 @@ export default function RequestBuilder() {
                 if (auth.credentials.addTo === 'header') {
                     requestHeaders[auth.credentials.key || 'X-API-KEY'] = auth.credentials.value || '';
                 } else if (auth.credentials.addTo === 'query') {
-                    requestUrl += (requestUrl.includes('?') ? '&' : '?') +
+                    requestUrl += ((requestUrl || '').includes('?') ? '&' : '?') +
                         `${encodeURIComponent(auth.credentials.key || 'api_key')}=${encodeURIComponent(auth.credentials.value || '')}`;
                 }
             }
@@ -211,7 +221,7 @@ export default function RequestBuilder() {
             }
 
             // Execute request
-            const response = await fetch(requestUrl, {
+            const response = await fetch((requestUrl || ''), {
                 method,
                 headers: requestHeaders,
                 body: method !== 'GET' && method !== 'HEAD' ? JSON.stringify(requestBody) : undefined
@@ -496,12 +506,13 @@ export default function RequestBuilder() {
     return (
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
             {/* Top Header */}
-            <HeaderComponent toSearch={false} parentComponent={'Request Builder'} onAddCollection={handleAddCollection} environments={environments} />
+            <HeaderComponent toSearch={false} parentComponent={'Request Builder'} onAddCollection={handleAddCollection} environments={environments} initials={initials} username={username} email={email} displayName={displayName} teams={teams} />
 
             {/* Main Content Area */}
-            {collections !== undefined ? <MainContent 
+            {collections !== undefined ? 
+            <MainContent 
                 activeRequestTab={activeRequestTab} 
-                activeResponseTab={activeResponseTab} 
+                activeResponseTab={activeResponseTab}
                 activeTabId={activeTabId} 
                 activeTabs={activeTabs} 
                 auth={auth} 
@@ -549,8 +560,8 @@ export default function RequestBuilder() {
                 setUrl={setUrl} 
                 tests={tests} 
                 timeline={timeline} 
-                url={url} 
-            /> : null}
+                url={url || ''} 
+            /> : <></>}
         </div>
     );
 }
