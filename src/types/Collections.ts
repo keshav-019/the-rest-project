@@ -14,6 +14,12 @@ export interface Request {
     name: string;
     description: string;
     url: string;
+    params: Param[];
+    headers: Header[];
+    body: string;
+    auth: Auth;
+    preRequestScript: string;
+    tests: string;
 }
 
 export interface Folder {

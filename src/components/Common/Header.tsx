@@ -16,11 +16,12 @@ interface HeaderProps {
     username: string,
     email: string,
     displayName: string,
+    autoSave: boolean,
+    setAutoSave: (value: boolean) => void,
     teams?: Team[]
 }
 
-const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environments, initials, username, email, displayName, teams}: HeaderProps) => {
-
+const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environments, initials, username, email, displayName, autoSave, setAutoSave, teams}: HeaderProps) => {
     return (
         <header className="flex items-center justify-between h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6">
             <div className="flex items-center space-x-8 w-full">
@@ -69,7 +70,7 @@ const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environme
                     <EnvironmentSelector environments={environments} />
                 }
 
-                <UserDropdown username={username} displayName={displayName} email={email} initials={initials} teams={teams} />
+                <UserDropdown username={username} displayName={displayName} email={email} initials={initials} teams={teams} autoSave={autoSave} setAutoSave={setAutoSave} />
             </div>
         </header>
     );

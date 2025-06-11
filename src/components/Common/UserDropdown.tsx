@@ -23,11 +23,12 @@ export interface UserDropdownProps {
     email: string,
     username: string,
     displayName: string,
+    autoSave: boolean,
+    setAutoSave: (value: boolean) => void,
     teams?: Team[]
 }
 
-const UserDropdown = ({ initials, email, username, displayName, teams }: UserDropdownProps) => {
-    const [autoSave, setAutoSave] = useState(true);
+const UserDropdown = ({ initials, email, username, displayName, autoSave, setAutoSave, teams }: UserDropdownProps) => {
     const [showTeams, setShowTeams] = useState(false);
     const router = useRouter();
 

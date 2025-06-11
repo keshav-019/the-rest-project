@@ -1,6 +1,6 @@
 // Updated RequestBuilder component with tab system
 'use client'
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useClipboard } from "@/hooks/useClipboard";
 import { saveAs } from 'file-saver';
 import { Auth, Collection, Folder, Header, Param, RequestType, ResponseData, TabType } from "@/types/Collections";
@@ -53,6 +53,7 @@ export default function RequestBuilder() {
     const [userId, setUserId] = useState<string>('');
     const [environments, setEnvironments] = useState<Environment[]>();
     const [teams, setTeams] = useState<Team[]>();
+    const [autoSave, setAutoSave] = useState<boolean>(true);
     const router = useRouter();
 
     // Load active tab request when activeTabId changes
@@ -63,7 +64,16 @@ export default function RequestBuilder() {
                 const { request } = activeTab;
                 setMethod(request.method as RequestType);
                 setUrl(request.url);
-                // In a real app, you'd load all the saved params, headers, etc. for this request
+                setParams(request.params || [{ enabled: false, key: '', value: '' }]);
+                setHeaders(request.headers || [
+                    { enabled: true, key: 'Content-Type', value: 'application/json' },
+                    { enabled: true, key: 'Accept', value: 'application/json' },
+                    { enabled: false, key: '', value: '' }
+                ]);
+                setBody(request.body || '{\n  "key": "value"\n}');
+                setAuth(request.auth || { type: 'none', credentials: {} });
+                setPreRequestScript(request.preRequestScript || '// Add your pre-request script here');
+                setTests(request.tests || '// Add your tests here');
             }
         }
 
@@ -80,6 +90,7 @@ export default function RequestBuilder() {
             const userDetails = await getUserDetails();
             setCollections(userDetails.userData?.personalCollections);
             setEnvironments(userDetails.userData?.personalEnvironments);
+            setAutoSave(userDetails.userData?.autoSave || true);
         }
 
         populateCollections();
@@ -280,6 +291,79 @@ export default function RequestBuilder() {
         }
     };
 
+    // Save current request data to collections
+    const saveCurrentRequest = useCallback(async () => {
+        if (!activeTabId || !collections) return;
+    
+        // First find the current tab to get the name and description
+        const currentTab = activeTabs.find(tab => tab.id === activeTabId);
+        if (!currentTab) return;
+    
+        // Create the updated request object outside the map
+        const updatedRequest = {
+            id: activeTabId,
+            method,
+            url: url || '',
+            name: currentTab.request.name || 'New Request',
+            description: currentTab.request.description || '',
+            params,
+            headers,
+            body,
+            auth,
+            preRequestScript,
+            tests
+        };
+    
+        const updatedCollections = collections.map(collection => {
+            // Update request in collections
+            const updatedRequests = collection.requests.map(req => 
+                req.id === activeTabId ? updatedRequest : req
+            );
+    
+            // Update requests in folders
+            const updatedFolders = collection.folders.map(folder => ({
+                ...folder,
+                requests: folder.requests.map(req => 
+                    req.id === activeTabId ? updatedRequest : req
+                )
+            }));
+    
+            return {
+                ...collection,
+                requests: updatedRequests,
+                folders: updatedFolders
+            };
+        });
+    
+        setCollections(updatedCollections);
+        await savePersonalCollections(userId, updatedCollections);
+    
+        // Update active tabs to mark as saved
+        setActiveTabs(prev => prev.map(tab => 
+            tab.id === activeTabId ? { ...tab, request: updatedRequest, unsavedChanges: false } : tab
+        ));
+    }, [activeTabId, collections, method, url, params, headers, body, auth, preRequestScript, tests, userId, activeTabs]);
+
+    // Auto-save when changes occur
+    useEffect(() => {
+        if (!autoSave || !activeTabId) return;
+
+        const timer = setTimeout(() => {
+            saveCurrentRequest();
+        }, 1000); // Debounce for 1 second
+
+        return () => clearTimeout(timer);
+    }, [method, url, params, headers, body, auth, preRequestScript, tests, autoSave, activeTabId, saveCurrentRequest]);
+
+    // Mark tab as having unsaved changes when fields change
+    const markUnsavedChanges = useCallback(() => {
+        if (!autoSave && activeTabId) {
+            setActiveTabs(prev => prev.map(tab => 
+                tab.id === activeTabId ? { ...tab, unsavedChanges: true } : tab
+            ));
+        }
+    }, [autoSave, activeTabId]);
+
     const handleAddParam = () => {
         setParams([...params, { enabled: false, key: '', value: '' }]);
     };
@@ -355,7 +439,13 @@ export default function RequestBuilder() {
             method: 'GET',
             name: `New Request ${Date.now().toString().slice(-4)}`, // Add some uniqueness
             description: '',
-            url: ''
+            url: '',
+            auth: {type: 'none', credentials: {}},
+            body: '',
+            headers: [{enabled: false, key: '', value: ''}],
+            params: [{enabled: false, key: '', value: ''}],
+            preRequestScript: '',
+            tests: ''
         };
 
         if(collections === undefined) throw new Error('Collections is undefined');
@@ -501,67 +591,103 @@ export default function RequestBuilder() {
 
             return newTabs;
         });
+    };    
+
+    // Update method and mark as unsaved if needed
+    const updateMethod = (newMethod: RequestType) => {
+        setMethod(newMethod);
+        markUnsavedChanges();
+    };
+
+    // Update URL and mark as unsaved if needed
+    const updateUrl = (newUrl: string) => {
+        setUrl(newUrl);
+        markUnsavedChanges();
+    };
+
+    // Update body and mark as unsaved if needed
+    const updateBody = (newBody: string) => {
+        setBody(newBody);
+        markUnsavedChanges();
+    };
+
+    // Update auth and mark as unsaved if needed
+    const updateAuth = (newAuth: Auth) => {
+        setAuth(newAuth);
+        markUnsavedChanges();
+    };
+
+    // Update pre-request script and mark as unsaved if needed
+    const updatePreRequestScript = (newScript: string) => {
+        setPreRequestScript(newScript);
+        markUnsavedChanges();
+    };
+
+    // Update tests and mark as unsaved if needed
+    const updateTests = (newTests: string) => {
+        setTests(newTests);
+        markUnsavedChanges();
     };
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
             {/* Top Header */}
-            <HeaderComponent toSearch={false} parentComponent={'Request Builder'} onAddCollection={handleAddCollection} environments={environments} initials={initials} username={username} email={email} displayName={displayName} teams={teams} />
+            <HeaderComponent toSearch={false} parentComponent={'Request Builder'} onAddCollection={handleAddCollection} environments={environments} initials={initials} username={username} email={email} displayName={displayName} teams={teams} autoSave={autoSave} setAutoSave={setAutoSave} />
 
             {/* Main Content Area */}
             {collections !== undefined ? 
-            <MainContent 
-                activeRequestTab={activeRequestTab} 
-                activeResponseTab={activeResponseTab}
-                activeTabId={activeTabId} 
-                activeTabs={activeTabs} 
-                auth={auth} 
-                body={body} 
-                closeTab={closeTab} 
-                collections={collections} 
-                cookies={cookies} 
-                copyToClipboard={copyToClipboard} 
-                deleteItem={deleteItem} 
-                error={error} 
-                handleAddCollection={handleAddCollection} 
-                handleAddFolder={handleAddFolder} 
-                handleAddHeader={handleAddHeader} 
-                handleAddParam={handleAddParam} 
-                handleAddRequest={handleAddRequest} 
-                handleCopyResponse={handleCopyResponse} 
-                handleDownloadResponse={handleDownloadResponse} 
-                handleExportCollections={handleExportCollections} 
-                handleImportCollections={handleImportCollections} 
-                handleRemoveHeader={handleRemoveHeader} 
-                handleRemoveParam={handleRemoveParam} 
-                handleSendRequest={handleSendRequest} 
-                handleShareRequest={handleShareRequest} 
-                handleUpdateHeader={handleUpdateHeader} 
-                handleUpdateParam={handleUpdateParam} 
-                headers={headers} 
-                isLoading={isLoading} 
-                isStarred={isStarred} 
-                method={method} 
-                openRequestInTab={openRequestInTab} 
-                params={params} 
-                preRequestScript={preRequestScript} 
-                renameItem={renameItem} 
-                response={response} 
-                responseHeaders={responseHeaders} 
-                setActiveRequestTab={setActiveRequestTab} 
-                setActiveResponseTab={setActiveResponseTab} 
-                setActiveTabId={setActiveTabId} 
-                setAuth={setAuth} 
-                setBody={setBody} 
-                setIsStarred={setIsStarred} 
-                setMethod={setMethod} 
-                setPreRequestScript={setPreRequestScript} 
-                setTests={setTests} 
-                setUrl={setUrl} 
-                tests={tests} 
-                timeline={timeline} 
-                url={url || ''} 
-            /> : <></>}
+                <MainContent 
+                    activeRequestTab={activeRequestTab} 
+                    activeResponseTab={activeResponseTab}
+                    activeTabId={activeTabId} 
+                    activeTabs={activeTabs} 
+                    auth={auth} 
+                    body={body} 
+                    closeTab={closeTab} 
+                    collections={collections} 
+                    cookies={cookies} 
+                    copyToClipboard={copyToClipboard} 
+                    deleteItem={deleteItem} 
+                    error={error} 
+                    handleAddCollection={handleAddCollection} 
+                    handleAddFolder={handleAddFolder} 
+                    handleAddHeader={handleAddHeader} 
+                    handleAddParam={handleAddParam} 
+                    handleAddRequest={handleAddRequest} 
+                    handleCopyResponse={handleCopyResponse} 
+                    handleDownloadResponse={handleDownloadResponse} 
+                    handleExportCollections={handleExportCollections} 
+                    handleImportCollections={handleImportCollections} 
+                    handleRemoveHeader={handleRemoveHeader} 
+                    handleRemoveParam={handleRemoveParam} 
+                    handleSendRequest={handleSendRequest} 
+                    handleShareRequest={handleShareRequest} 
+                    handleUpdateHeader={handleUpdateHeader} 
+                    handleUpdateParam={handleUpdateParam} 
+                    headers={headers} 
+                    isLoading={isLoading} 
+                    isStarred={isStarred} 
+                    method={method} 
+                    openRequestInTab={openRequestInTab} 
+                    params={params} 
+                    preRequestScript={preRequestScript} 
+                    renameItem={renameItem} 
+                    response={response} 
+                    responseHeaders={responseHeaders} 
+                    setActiveRequestTab={setActiveRequestTab} 
+                    setActiveResponseTab={setActiveResponseTab} 
+                    setActiveTabId={setActiveTabId} 
+                    setAuth={setAuth} 
+                    setBody={setBody} 
+                    setIsStarred={setIsStarred} 
+                    setMethod={setMethod} 
+                    setPreRequestScript={setPreRequestScript} 
+                    setTests={setTests} 
+                    setUrl={setUrl} 
+                    tests={tests} 
+                    timeline={timeline} 
+                    url={url || ''} 
+                /> : <></>}
         </div>
     );
 }

@@ -40,7 +40,8 @@ export interface UserData {
         defaultEnvironment?: string;
     };
     invitations: Invitations[],
-    invited: Invited[]
+    invited: Invited[],
+    autoSave: boolean
 }
 
 export interface Team {
