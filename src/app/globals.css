@@ -1,11 +1,53 @@
 @import "tailwindcss";
 
+/* Base font and rendering optimizations */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    --dialog-bg: theme('colors.gray.800');
+    --dialog-border: theme('colors.gray.700');
+    --text-primary: theme('colors.gray.100');
+    --text-secondary: theme('colors.gray.400');
+    --input-bg: theme('colors.gray.700');
+    --input-border: theme('colors.gray.600');
+    --input-placeholder: theme('colors.gray.400');
+}
+
+.dialog-overlay {
+  background-color: rgb(0 0 0 / 0.8);
+  backdrop-filter: blur(4px);
+}
+
+.dialog-content {
+  background-color: var(--dialog-bg);
+  border-color: var(--dialog-border);
+  color: var(--text-primary);
+}
+
+.select-content {
+  background-color: var(--dialog-bg);
+  border-color: var(--dialog-border);
+}
+
+.select-item {
+  color: var(--text-primary);
+}
+
+.select-item:hover {
+  background-color: var(--input-bg);
+}
+
+.input-field {
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--text-primary);
+}
+
+.input-field::placeholder {
+  color: var(--input-placeholder);
 }

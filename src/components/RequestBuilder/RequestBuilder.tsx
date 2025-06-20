@@ -21,7 +21,7 @@ const RequestBuilder: React.FC<RequestBuilderProps> = ({ request, onSave }) => {
     return (
         <div className="h-full flex flex-col space-y-4">
             <div className="flex items-center space-x-3">
-                <select
+                <select title='handlechange'
                     name="method"
                     value={currentRequest.method}
                     onChange={handleChange}

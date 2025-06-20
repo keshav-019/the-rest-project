@@ -41,7 +41,11 @@ export interface UserData {
     };
     invitations: Invitations[],
     invited: Invited[],
-    autoSave: boolean
+    autoSave: boolean,
+    bio: string,
+    twoFactorSecret?: string;
+    twoFactorBackupCodes?: string[];
+    twoFactorEnabled?: boolean;
 }
 
 export interface Team {

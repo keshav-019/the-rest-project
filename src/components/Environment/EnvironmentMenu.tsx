@@ -32,7 +32,7 @@ export default function EnvironmentMenu({
             <div className="py-1">
                 {isEditing ? (
                     <div className="px-4 py-2">
-                        <input
+                        <input title='editname'
                             type="text"
                             className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                             value={editName}

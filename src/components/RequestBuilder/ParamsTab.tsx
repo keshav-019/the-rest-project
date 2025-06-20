@@ -1,7 +1,33 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 import { Param } from "@/types/Collections";
+import EnvironmentAutocomplete from "./EnvironmentAutocomplete";
+import { useRef, useState } from "react";
+import { Environment } from "@/types/User";
 
-export default function ParamsTab({handleAddParam, params, handleUpdateParam, handleRemoveParam} : {handleAddParam : () => void, params: Param[], handleUpdateParam: (index: number, field: keyof Param, value: string | boolean) => void, handleRemoveParam: (index: number) => void}) {
+interface ParamsTabProps {
+    handleAddParam: () => void;
+    params: Param[];
+    handleUpdateParam: (index: number, field: keyof Param, value: string | boolean) => void;
+    handleRemoveParam: (index: number) => void;
+    environments: Environment[];
+    activeEnvironmentId: string | null;
+}
+
+export default function ParamsTab({
+    handleAddParam,
+    params,
+    handleUpdateParam,
+    handleRemoveParam,
+    environments,
+    activeEnvironmentId
+}: ParamsTabProps) {
+    const paramKeyRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const paramValueRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const [activeParamIndex, setActiveParamIndex] = useState<number | null>(null);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [filteredVariables, setFilteredVariables] = useState<{name: string, value: string}[]>([]);
+
     return (
         <>
             <div className="flex justify-between items-center mb-4">
@@ -29,26 +55,58 @@ export default function ParamsTab({handleAddParam, params, handleUpdateParam, ha
             <div className="space-y-3">
                 {params.map((param, index) => (
                     <div key={index} className="flex items-center space-x-2">
-                        <input
+                        <input title="updateparamcheckbox"
                             type="checkbox"
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
                             checked={param.enabled}
                             onChange={(e) => handleUpdateParam(index, 'enabled', e.target.checked)}
                         />
-                        <input
-                            type="text"
-                            placeholder="Key"
-                            className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={param.key}
-                            onChange={(e) => handleUpdateParam(index, 'key', e.target.value)}
-                        />
-                        <input
-                            type="text"
-                            placeholder="Value"
-                            className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={param.value}
-                            onChange={(e) => handleUpdateParam(index, 'value', e.target.value)}
-                        />
+                        <div className="relative flex-1">
+                            <input title="handleupdateparam"
+                                ref={(el) => { paramKeyRefs.current[index] = el; }}
+                                type="text"
+                                placeholder="Key"
+                                className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={param.key}
+                                onChange={(e) => handleUpdateParam(index, 'key', e.target.value)}
+                                onFocus={() => setActiveParamIndex(index)}
+                            />
+                            {activeParamIndex === index && (
+                                <EnvironmentAutocomplete
+                                    value={param.key}
+                                    onChange={(newValue) => handleUpdateParam(index, 'key', newValue)}
+                                    onVariableSelect={() => {}}
+                                    environments={environments}
+                                    activeEnvironmentId={activeEnvironmentId}
+                                    targetElement={paramKeyRefs.current[index]}
+                                    onShowSuggestions={setShowSuggestions}
+                                    onSetVariables={setFilteredVariables}
+                                />
+                            )}
+                        </div>
+                        <div className="relative flex-1">
+                            <input
+                                ref={(el) => { paramValueRefs.current[index] = el; }}
+                                type="text"
+                                placeholder="Value"
+                                className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={param.value}
+                                onChange={(e) => handleUpdateParam(index, 'value', e.target.value)}
+                                onFocus={() => setActiveParamIndex(index)}
+                            />
+                            {activeParamIndex === index && (
+                                <EnvironmentAutocomplete
+                                    value={param.value}
+                                    onChange={(newValue) => handleUpdateParam(index, 'value', newValue)}
+                                    onVariableSelect={() => {}}
+                                    environments={environments}
+                                    activeEnvironmentId={activeEnvironmentId}
+                                    targetElement={paramValueRefs.current[index]}
+                                    onShowSuggestions={setShowSuggestions}
+                                    onSetVariables={setFilteredVariables}
+                                />
+                            )}
+                        </div>
                         <button
                             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none cursor-pointer"
                             onClick={() => handleRemoveParam(index)}
@@ -61,5 +119,5 @@ export default function ParamsTab({handleAddParam, params, handleUpdateParam, ha
                 ))}
             </div>
         </>
-    )
+    );
 }

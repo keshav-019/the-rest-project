@@ -7,10 +7,11 @@ import RequestTabs from '@/components/RequestBuilder/RequestTabs';
 import NewCollectionModal from '@/components/Collections/NewCollectionModal';
 import { getUserData, cleanOldActivity } from '@/services/userService';
 import { Collection, Request, Folder } from '@/types/Collections';
-import { User, UserData } from '@/types/User';
-import { getUserDetails } from '@/lib/firebase/auth';
+import { Team, User, UserData } from '@/types/User';
+import { getInitials, getUserDetails } from '@/lib/firebase/auth';
 import HeaderComponent from '@/components/Common/Header';
 import { savePersonalCollections } from '@/lib/firebase/collections';
+import { getTeamById, getTeamMode, getUserTeams } from '@/lib/firebase/teams';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
@@ -22,15 +23,48 @@ const Collections: React.FC = () => {
     const [userData, setUserData] = useState<UserData | null>(null);
     const [activeTabs, setActiveTabs] = useState<{ id: string; request: Request }[]>([]);
     const [activeTabId, setActiveTabId] = useState<string | null>(null);
+    const [userid, setUserid] = useState<string | undefined>(undefined);
+    const [autoSave, setAutoSave] = useState<boolean>(true);
+    const [displayName, setDisplayName] = useState<string>('');
+    const [email, setEmail] = useState<string>('');
+    const [username, setUsername] = useState<string>('');
+    const [initials, setInitials] = useState<string>('');
+    const [teams, setTeams] = useState<Team[]>([]);
+    const [teamMode, setTeamMode] = useState<Team | null>(null);
+    const [showTeamsDropdown, setShowTeamsDropdown] = useState(false);
+
+    // Add this useEffect to initialize team mode and environment from localStorage
+    useEffect(() => {
+        const savedTeamMode = localStorage.getItem('teamMode');
+
+        if (savedTeamMode) {
+            setTeamMode(JSON.parse(savedTeamMode));
+        }
+    }, []);
 
     // Fetch user data
     useEffect(() => {
         const fetchUserData = async () => {
-            const userData = (await getUserDetails()).user;
-            setUser(userData);
-            if (userData) {
-                console.log("It went inside of this");
-                const data = await getUserData(userData.uid);
+            const { user, userData } = (await getUserDetails());
+            setUser(user);
+            const teams = await getUserTeams(user?.uid || '');
+            setUserid(user?.uid);
+            setEmail(user?.email || '');
+            setAutoSave(userData?.autoSave || true);
+            setDisplayName(user?.displayName || '');
+            setUsername(user?.username || '');
+            setInitials(getInitials(user?.displayName || ''));
+            setTeams(teams);
+
+            const intermediateTeamMode = getTeamMode();
+
+            if(intermediateTeamMode){              
+                const getTeamDetails = await getTeamById(intermediateTeamMode.teamId);  
+                setCollections(getTeamDetails.collections);
+            }
+
+            if (user && !intermediateTeamMode) {
+                const data = await getUserData(user.uid);
                 if (data) {
                     setUserData(data);
                     console.log("The personal collections is: ", data.personalCollections);
@@ -42,7 +76,7 @@ const Collections: React.FC = () => {
                         setSelectedCollection(allCollections[0]);
                     }
                 }
-                await cleanOldActivity(userData.uid);
+                await cleanOldActivity(user.uid);
             }
         };
         fetchUserData();
@@ -97,7 +131,13 @@ const Collections: React.FC = () => {
             method: 'GET',
             name: 'New Request',
             description: '',
-            url: ''
+            url: '',
+            auth: {credentials: {}, type: 'none'},
+            body: '',
+            headers: [{enabled: false, key: '', value: ''}],
+            params: [{enabled: false, key: '', value: ''}],
+            preRequestScript: '',
+            tests: ''
         };
     
         const updatedCollections = collections.map(collection => {
@@ -262,6 +302,24 @@ const Collections: React.FC = () => {
             Array.isArray(obj.requests);
     };
 
+    // Add this handler for exiting team mode
+    const handleExitTeamMode = () => {
+        setTeamMode(null);
+        localStorage.removeItem('teamMode');
+        localStorage.removeItem('activeEnvironmentId');
+
+        // Refresh the page to reset all states
+        window.location.reload();
+    };
+
+    // Add this handler for team selection
+    const handleTeamSelect = (team: Team | null) => {
+        setTeamMode(team);
+        localStorage.setItem('teamMode', JSON.stringify(team));
+        setShowTeamsDropdown(false);
+        localStorage.removeItem('activeEnvironmentId');
+    };
+
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -270,6 +328,20 @@ const Collections: React.FC = () => {
                     toSearch={true}
                     parentComponent="Collections"
                     environments={[]}
+                    autoSave={autoSave}
+                    displayName={displayName}
+                    email={email}
+                    initials={initials}
+                    setAutoSave={setAutoSave}
+                    username={username}
+                    teams={teams}
+                    teamMode={teamMode}
+                    activeEnvironmentId={''}
+                    onEnvironmentSelect={() => {}}
+                    onExitTeamMode={handleExitTeamMode}
+                    onTeamSelect={handleTeamSelect}
+                    setShowTeams={setShowTeamsDropdown}
+                    showTeams={showTeamsDropdown}
                 />
 
                 <div className="flex-1 flex overflow-hidden">
@@ -286,7 +358,6 @@ const Collections: React.FC = () => {
                         onSelectRequest={openRequestInTab}
                         onAddCollection={handleAddCollection}
                         onExportCollections={handleExportCollections}
-                        onImportCollections={handleImportCollections}
                     />
 
                     <div className="flex-1 flex flex-col overflow-hidden">

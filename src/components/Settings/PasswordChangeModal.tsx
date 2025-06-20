@@ -74,7 +74,7 @@ export default function PasswordChangeModal({ isOpen, onClose, onSave }: {isOpen
                             Current Password
                         </label>
                         <div className="relative">
-                            <input
+                            <input title="setcurrentpassword"
                                 type={showPasswords.current ? "text" : "password"}
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -98,7 +98,7 @@ export default function PasswordChangeModal({ isOpen, onClose, onSave }: {isOpen
                             New Password
                         </label>
                         <div className="relative">
-                            <input
+                            <input title='setnewpassword'
                                 type={showPasswords.new ? "text" : "password"}
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
@@ -122,7 +122,7 @@ export default function PasswordChangeModal({ isOpen, onClose, onSave }: {isOpen
                             Confirm New Password
                         </label>
                         <div className="relative">
-                            <input
+                            <input title="setconfirmpassword"
                                 type={showPasswords.confirm ? "text" : "password"}
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}

@@ -1,7 +1,33 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 import { Header } from "@/types/Collections";
+import EnvironmentAutocomplete from "./EnvironmentAutocomplete";
+import { useRef, useState } from "react";
+import { Environment } from "@/types/User";
 
-export default function HeadersTab({handleAddHeader, headers, handleUpdateHeader, handleRemoveHeader} : {handleAddHeader: () => void, headers: Header[], handleUpdateHeader: (index: number, field: keyof Header, value: string | boolean) => void, handleRemoveHeader: (index: number) => void}) {
+interface HeadersTabProps {
+    handleAddHeader: () => void;
+    headers: Header[];
+    handleUpdateHeader: (index: number, field: keyof Header, value: string | boolean) => void;
+    handleRemoveHeader: (index: number) => void;
+    environments: Environment[];
+    activeEnvironmentId: string | null;
+}
+
+export default function HeadersTab({
+    handleAddHeader,
+    headers,
+    handleUpdateHeader,
+    handleRemoveHeader,
+    environments,
+    activeEnvironmentId
+}: HeadersTabProps) {
+    const headerKeyRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const headerValueRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const [activeHeaderIndex, setActiveHeaderIndex] = useState<number | null>(null);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [filteredVariables, setFilteredVariables] = useState<{name: string, value: string}[]>([]);
+
     return (
         <>
             <div className="flex justify-between items-center mb-4">
@@ -29,26 +55,58 @@ export default function HeadersTab({handleAddHeader, headers, handleUpdateHeader
             <div className="space-y-3">
                 {headers.map((header, index) => (
                     <div key={index} className="flex items-center space-x-2">
-                        <input
+                        <input title='updateHeader'
                             type="checkbox"
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
                             checked={header.enabled}
                             onChange={(e) => handleUpdateHeader(index, 'enabled', e.target.checked)}
                         />
-                        <input
-                            type="text"
-                            placeholder="Key"
-                            className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={header.key}
-                            onChange={(e) => handleUpdateHeader(index, 'key', e.target.value)}
-                        />
-                        <input
-                            type="text"
-                            placeholder="Value"
-                            className="flex-1 px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={header.value}
-                            onChange={(e) => handleUpdateHeader(index, 'value', e.target.value)}
-                        />
+                        <div className="relative flex-1">
+                            <input title="updateheader"
+                                ref={(el) => { headerKeyRefs.current[index] = el; }}
+                                type="text"
+                                placeholder="Key"
+                                className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={header.key}
+                                onChange={(e) => handleUpdateHeader(index, 'key', e.target.value)}
+                                onFocus={() => setActiveHeaderIndex(index)}
+                            />
+                            {activeHeaderIndex === index && (
+                                <EnvironmentAutocomplete
+                                    value={header.key}
+                                    onChange={(newValue) => handleUpdateHeader(index, 'key', newValue)}
+                                    onVariableSelect={() => {}}
+                                    environments={environments}
+                                    activeEnvironmentId={activeEnvironmentId}
+                                    targetElement={headerKeyRefs.current[index]}
+                                    onShowSuggestions={setShowSuggestions}
+                                    onSetVariables={setFilteredVariables}
+                                />
+                            )}
+                        </div>
+                        <div className="relative flex-1">
+                            <input
+                               ref={(el) => { headerKeyRefs.current[index] = el; }}
+                                type="text"
+                                placeholder="Value"
+                                className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={header.value}
+                                onChange={(e) => handleUpdateHeader(index, 'value', e.target.value)}
+                                onFocus={() => setActiveHeaderIndex(index)}
+                            />
+                            {activeHeaderIndex === index && (
+                                <EnvironmentAutocomplete
+                                    value={header.value}
+                                    onChange={(newValue) => handleUpdateHeader(index, 'value', newValue)}
+                                    onVariableSelect={() => {}}
+                                    environments={environments}
+                                    activeEnvironmentId={activeEnvironmentId}
+                                    targetElement={headerValueRefs.current[index]}
+                                    onShowSuggestions={setShowSuggestions}
+                                    onSetVariables={setFilteredVariables}
+                                />
+                            )}
+                        </div>
                         <button
                             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none cursor-pointer"
                             onClick={() => handleRemoveHeader(index)}

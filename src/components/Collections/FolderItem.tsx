@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // Updated FolderItem.tsx
 'use client'
 import { useEffect, useState } from 'react';
@@ -52,7 +53,7 @@ export default function FolderItem({
                 >
                     <ChevronIcon expanded={isExpanded} />
                     {isRenaming ? (
-                        <input
+                        <input title='rename-button'
                             type="text"
                             value={renameInput}
                             onChange={(e) => setRenameInput(e.target.value)}
@@ -82,47 +83,33 @@ export default function FolderItem({
                     <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                         <div className="py-1">
                             <MenuItem>
-                                {({ active }) => (
-                                    <button
-                                        onClick={() => onAddFolder?.(collectionId, folder.id)}
-                                        className={`${active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center px-4 py-2 text-sm`}
-                                    >
-                                        Add Subfolder
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => onAddRequest?.(collectionId, folder.id)}
+                                    className="group flex w-full items-center px-4 py-2 text-sm text-gray-900 dark:text-gray-100 data-[focus]:bg-blue-500 data-[focus]:text-white"
+                                >
+                                    Add Request
+                                </button>
                             </MenuItem>
+
                             <MenuItem>
-                                {({ active }) => (
-                                    <button
-                                        onClick={() => onAddRequest?.(collectionId, folder.id)}
-                                        className={`${active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center px-4 py-2 text-sm`}
-                                    >
-                                        Add Request
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => {
+                                        setIsRenaming(true);
+                                        setRenameInput(folder.name);
+                                    }}
+                                    className="group flex w-full items-center px-4 py-2 text-sm text-gray-900 dark:text-gray-100 data-[focus]:bg-blue-500 data-[focus]:text-white"
+                                >
+                                    Rename
+                                </button>
                             </MenuItem>
+
                             <MenuItem>
-                                {({ active }) => (
-                                    <button
-                                        onClick={() => {
-                                            setIsRenaming(true);
-                                            setRenameInput(folder.name);
-                                        }}
-                                        className={`${active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center px-4 py-2 text-sm`}
-                                    >
-                                        Rename
-                                    </button>
-                                )}
-                            </MenuItem>
-                            <MenuItem>
-                                {({ active }) => (
-                                    <button
-                                        onClick={() => onDeleteItem(folder.id)}
-                                        className={`${active ? 'bg-red-600 text-white' : 'text-red-600 dark:text-red-400'} group flex w-full items-center px-4 py-2 text-sm`}
-                                    >
-                                        Delete
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => onDeleteItem(folder.id)}
+                                    className="group flex w-full items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 data-[focus]:bg-red-600 data-[focus]:text-white"
+                                >
+                                    Delete
+                                </button>
                             </MenuItem>
                         </div>
                     </MenuItems>

@@ -1,5 +1,27 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
-export default function BodyTab({body, setBody}: {body: string, setBody: (value: React.SetStateAction<string>) => void}) {
+import { useState, useRef } from 'react';
+import EnvironmentAutocomplete from './EnvironmentAutocomplete';
+import { Environment } from '@/types/User';
+
+interface BodyTabProps {
+    body: string;
+    setBody: (value: string) => void;
+    environments: Environment[];
+    activeEnvironmentId: string | null;
+}
+
+export default function BodyTab({
+    body,
+    setBody,
+    environments,
+    activeEnvironmentId
+}: BodyTabProps) {
+    const [selectedFormat, setSelectedFormat] = useState('JSON');
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [filteredVariables, setFilteredVariables] = useState<{name: string, value: string}[]>([]);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
     return (
         <div className="space-y-4">
             <div className="flex space-x-2">
@@ -14,20 +36,38 @@ export default function BodyTab({body, setBody}: {body: string, setBody: (value:
                 </button>
             </div>
             <div className="relative">
-                <select className="absolute top-2 right-2 z-10 h-8 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select title='selectedformat'
+                    className="absolute top-2 right-2 z-10 h-8 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedFormat}
+                    onChange={(e) => setSelectedFormat(e.target.value)}
+                >
                     <option>JSON</option>
                     <option>Text</option>
                     <option>JavaScript</option>
                     <option>HTML</option>
                     <option>XML</option>
                 </select>
-                <textarea
-                    className="w-full h-64 p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    spellCheck="false"
-                />
+
+                <div className="relative">
+                    <textarea title='setbody'
+                        ref={textareaRef}
+                        value={body}
+                        onChange={(e) => setBody(e.target.value)}
+                        className="w-full h-64 p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        spellCheck="false"
+                    />
+                    <EnvironmentAutocomplete
+                        value={body}
+                        onChange={setBody}
+                        onVariableSelect={() => {}}
+                        environments={environments}
+                        activeEnvironmentId={activeEnvironmentId}
+                        targetElement={textareaRef.current}
+                        onShowSuggestions={setShowSuggestions}
+                        onSetVariables={setFilteredVariables}
+                    />
+                </div>
             </div>
         </div>
-    )
+    );
 }

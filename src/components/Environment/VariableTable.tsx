@@ -149,7 +149,7 @@ export default function VariableTable({
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                         {editingVar === variable.name ? (
-                                            <input
+                                            <input title='editvalue'
                                                 type="text"
                                                 className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                 value={editValue}

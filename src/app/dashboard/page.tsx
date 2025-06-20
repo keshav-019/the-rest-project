@@ -1,6 +1,10 @@
 'use client'
 import HeaderComponent from "@/components/Common/Header";
-import { getInitials } from "@/lib/firebase/auth";
+import { useUserData } from "@/hooks/useUserData";
+import { getInitials, getUserDetails } from "@/lib/firebase/auth";
+import { getUserTeams } from "@/lib/firebase/teams";
+import { Team } from "@/types/User";
+import { useEffect, useState } from "react";
 
 export default function Dashboard() {
     const dashboardKPIs = [
@@ -130,11 +134,54 @@ export default function Dashboard() {
         {api: 'api.example.com/users/456', requestType: requestColorMapping.find(element => element.requestType === 'DEL')}
     ];
 
+    const { userData, teamId } = useUserData();
+    const [autoSave, setAutoSave] = useState<boolean>(true);
+    const [displayName, setDisplayName] = useState<string>('');
+    const [email, setEmail] = useState<string>('');
+    const [username, setUsername] = useState<string>('');
+    const [initials, setInitials] = useState<string>('');
+    const [teams, setTeams] = useState<Team[]>([]);
+    const [teamMode, setTeamMode] = useState<Team | null>(null);
+    const [showTeamsDropdown, setShowTeamsDropdown] = useState(false);
+
+    // Initialize environments from userData
+    useEffect(() => {
+        const fetchUserData = async () => {
+            const {user, userData} = await getUserDetails();
+            const teams = await getUserTeams(user?.uid || '');
+            setEmail(user?.email || '');
+            setAutoSave(userData?.autoSave || true);
+            setDisplayName(user?.displayName || '');
+            setUsername(user?.username || '');
+            setInitials(getInitials(user?.displayName || ''));
+            setTeams(teams);
+        }
+        fetchUserData();
+    }, [userData, teamId]);
+
+    // Add this handler for exiting team mode
+    const handleExitTeamMode = () => {
+        setTeamMode(null);
+        localStorage.removeItem('teamMode');
+        localStorage.removeItem('activeEnvironmentId');
+
+        // Refresh the page to reset all states
+        window.location.reload();
+    };
+
+    // Add this handler for team selection
+    const handleTeamSelect = (team: Team | null) => {
+        setTeamMode(team);
+        localStorage.setItem('teamMode', JSON.stringify(team));
+        setShowTeamsDropdown(false);
+        localStorage.removeItem('activeEnvironmentId');
+    };
+
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
-                <HeaderComponent parentComponent={"Dashboard"} toSearch={false} onAddCollection={() => {}} environments={[]} />
+                <HeaderComponent parentComponent={"Dashboard"} toSearch={false} onAddCollection={() => {}} environments={[]} autoSave={autoSave} displayName={displayName} email={email} initials={initials} setAutoSave={setAutoSave} username={username} teams={teams} activeEnvironmentId={''} onEnvironmentSelect={() => {}} onExitTeamMode={handleExitTeamMode} onTeamSelect={handleTeamSelect} setShowTeams={setShowTeamsDropdown} showTeams={showTeamsDropdown} teamMode={teamMode} />
 
                 {/* Dashboard Content */}
                 <main className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
@@ -219,7 +266,7 @@ export default function Dashboard() {
                                                     <span className={`px-2 py-1 text-xs font-medium ${request.requestType?.colorClass} rounded mr-3`}>{request.requestType?.requestType}</span>
                                                     <span className="text-gray-800 dark:text-white">{request.api}</span>
                                                 </div>
-                                                <button className="text-yellow-500">
+                                                <button className="text-yellow-500" name="favourite-requests" type="button" title="favourite-requests">
                                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                                                     </svg>

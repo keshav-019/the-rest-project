@@ -9,9 +9,8 @@ import CreateTeamModal from "@/components/Teams/CreateTeamModal";
 import InviteMembersModal from "@/components/Teams/InviteMembersModal";
 import TeamDetailsModal from "@/components/Teams/TeamDetailsModal";
 import { Team, User } from "@/types/User";
-import { getCurrentUser } from "@/lib/firebase/auth";
-import { acceptTeamInvitation, createTeam, declineTeamInvitation, getUserTeams } from "@/lib/firebase/teams";
-// Update the imports at the top
+import { getCurrentUser, getInitials, getUserDetails } from "@/lib/firebase/auth";
+import { acceptTeamInvitation, createTeam, declineTeamInvitation, getTeamMode, getUserTeams } from "@/lib/firebase/teams";
 import { getUserInvitations } from "@/lib/firebase/teams";
 import HeaderComponent from "@/components/Common/Header";
 
@@ -32,6 +31,15 @@ export default function TeamManagement() {
     const createTeamModalRef = useRef<HTMLDivElement>(null);
     const inviteMembersModalRef = useRef<HTMLDivElement>(null);
     const teamDetailsModalRef = useRef<HTMLDivElement>(null);
+    const [autoSave, setAutoSave] = useState<boolean>(true);
+    const [name, setName] = useState<string>('');
+    const [displayName, setDisplayName] = useState<string>('');
+    const [email, setEmail] = useState<string>('');
+    const [username, setUsername] = useState<string>('');
+    const [initials, setInitials] = useState<string>('');
+    const [bio, setBio] = useState<string>('');
+    const [teamMode, setTeamMode] = useState<Team | null>(null);
+    const [showTeamsDropdown, setShowTeamsDropdown] = useState(false);
 
     // Focus trap for modals
     useEffect(() => {
@@ -59,10 +67,17 @@ export default function TeamManagement() {
         }
 
         const setTeamsFromDatabase = async () => {
+            const {user, userData} = await getUserDetails();
             if(!user?.uid) throw new Error('No user is logged in');
-            const teams = await getUserTeams(user?.uid);
-            console.log("The teams are: ", teams);
+            const teams = await getUserTeams(user?.uid || '');
+            setEmail(user?.email || '');
+            setAutoSave(userData?.autoSave || true);
+            setDisplayName(user?.displayName || '');
+            setUsername(user?.username || '');
+            setInitials(getInitials(user?.displayName || ''));
+            setName(user?.displayName || '');
             setTeams(teams);
+            setBio(userData?.bio || '');
         }
 
         setTeamsFromDatabase();
@@ -82,9 +97,11 @@ export default function TeamManagement() {
             }
         };
     
-        // if (activeTab === 'invitations') {
+        if (activeTab === 'invitations') {
             fetchInvitations();
-        // }
+        }
+
+        const getTeamDetails = getTeamMode();
 
         return () => {
             document.body.style.overflow = 'auto';
@@ -97,10 +114,6 @@ export default function TeamManagement() {
         setShowCreateTeamModal(false);
         if(user?.uid === undefined) throw new Error('No logged in User Found');
         createTeam(newTeam, user?.uid);
-    };
-
-    const handleInviteMembers = () => {
-        setShowInviteMembersModal(false);
     };
 
     const handleViewTeamDetails = (team: Team) => {
@@ -139,11 +152,48 @@ export default function TeamManagement() {
         }
     };
 
+    // Add this handler for exiting team mode
+    const handleExitTeamMode = () => {
+        setTeamMode(null);
+        localStorage.removeItem('teamMode');
+        localStorage.removeItem('activeEnvironmentId');
+
+        // Refresh the page to reset all states
+        window.location.reload();
+    };
+
+    // Add this handler for team selection
+    const handleTeamSelect = (team: Team | null) => {
+        setTeamMode(team);
+        localStorage.setItem('teamMode', JSON.stringify(team));
+        setShowTeamsDropdown(false);
+        localStorage.removeItem('activeEnvironmentId');
+    };
+
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
             {/* Main Content */}
             <div className="flex-1 overflow-auto">
-                <HeaderComponent parentComponent={"Teams"} toSearch={false} onAddCollection={() => {}} environments={[]} />
+                <HeaderComponent 
+                    parentComponent={"Teams"} 
+                    toSearch={false} 
+                    onAddCollection={() => {}} 
+                    environments={[]}
+                    autoSave={autoSave}
+                    displayName={displayName}
+                    email={email}
+                    initials={initials}
+                    setAutoSave={setAutoSave}
+                    username={username}
+                    teams={teams}
+                    teamMode={teamMode}
+                    activeEnvironmentId={''}
+                    onEnvironmentSelect={() => {}}
+                    onExitTeamMode={handleExitTeamMode}
+                    onTeamSelect={handleTeamSelect}
+                    setShowTeams={setShowTeamsDropdown}
+                    showTeams={showTeamsDropdown}
+                />
 
                 <TeamsHeader activeTab={activeTab} setActiveTab={setActiveTab} />
 

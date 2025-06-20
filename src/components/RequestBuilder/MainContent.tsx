@@ -6,80 +6,84 @@ import RequestsNavBar from "./RequestsNavbar";
 import ResponseTab from "./ResponseTab";
 import ReturnedResponseTab from "./ReturnedResponseTab";
 import { Dispatch, SetStateAction } from "react";
+import { Team, Environment } from "@/types/User";
 
 export type MainContentProps = {
     collections: Collection[],
     handleAddRequest: (collectionId: string, folderId?: string) => void,
     handleAddFolder: (collectionId: string) => void,
-    renameItem: (id: string, newName: string) => void, 
-    deleteItem: (value: string) => void, 
-    openRequestInTab: (request: Request) => void, 
-    handleAddCollection: (name: string) => Promise<void>, 
-    handleExportCollections: () => void, 
-    handleImportCollections: () => void, 
-    activeTabs: { id: string; request: Request; }[], 
-    setActiveTabId: (value: React.SetStateAction<string | null>) => void, 
-    closeTab: (value: string) => void, 
-    activeTabId: string | null, 
-    handleShareRequest: () => void, 
-    handleSendRequest: () => void, 
-    isLoading: boolean, 
-    isStarred: boolean, 
-    method: RequestType, 
-    setIsStarred: React.Dispatch<React.SetStateAction<boolean>>, 
-    setMethod: React.Dispatch<React.SetStateAction<RequestType>>, 
-    setUrl: (value: string) => void, 
-    url: string, 
-    activeRequestTab: TabType, 
-    setActiveRequestTab: React.Dispatch<React.SetStateAction<TabType>>, 
-    auth: Auth, 
-    body: string, 
-    handleAddHeader: () => void, 
-    handleAddParam: () => void, 
-    handleRemoveHeader: (index: number) => void, 
-    handleRemoveParam: (index: number) => void, 
-    handleUpdateHeader: (index: number, field: keyof Header, value: string | boolean) => void, 
-    handleUpdateParam: (index: number, field: keyof Param, value: string | boolean) => void, 
-    headers: Header[], 
-    params: Param[], 
-    preRequestScript: string, 
-    setAuth: Dispatch<SetStateAction<Auth>>, 
-    setBody: React.Dispatch<React.SetStateAction<string>>, 
-    setPreRequestScript: React.Dispatch<React.SetStateAction<string>>, 
-    setTests: React.Dispatch<React.SetStateAction<string>>, 
-    tests: string, 
-    activeResponseTab: ActiveResponseTab, 
-    cookies: { name: string; value: string; domain: string; path: string; }[], 
-    copyToClipboard: (text: string) => void, 
-    error: string | null, 
-    handleCopyResponse: () => void, 
-    handleDownloadResponse: () => void, 
-    response: ResponseData | null, 
-    responseHeaders: { key: string; value: string; }[], 
-    timeline: { name: string; duration: number; }[], 
-    setActiveResponseTab: React.Dispatch<React.SetStateAction<ActiveResponseTab>>
+    renameItem: (id: string, newName: string) => void,
+    deleteItem: (value: string) => void,
+    openRequestInTab: (request: Request) => void,
+    handleAddCollection: (name: string) => Promise<void>,
+    handleExportCollections: () => void,
+    activeTabs: { id: string; request: Request; }[],
+    setActiveTabId: (value: React.SetStateAction<string | null>) => void,
+    closeTab: (value: string) => void,
+    activeTabId: string | null,
+    handleShareRequest: () => void,
+    handleSendRequest: () => void,
+    isLoading: boolean,
+    isStarred: boolean,
+    method: RequestType,
+    setIsStarred: React.Dispatch<React.SetStateAction<boolean>>,
+    setMethod: React.Dispatch<React.SetStateAction<RequestType>>,
+    setUrl: (value: string) => void,
+    url: string,
+    activeRequestTab: TabType,
+    setActiveRequestTab: React.Dispatch<React.SetStateAction<TabType>>,
+    auth: Auth,
+    body: string,
+    handleAddHeader: () => void,
+    handleAddParam: () => void,
+    handleRemoveHeader: (index: number) => void,
+    handleRemoveParam: (index: number) => void,
+    handleUpdateHeader: (index: number, field: keyof Header, value: string | boolean) => void,
+    handleUpdateParam: (index: number, field: keyof Param, value: string | boolean) => void,
+    headers: Header[],
+    params: Param[],
+    preRequestScript: string,
+    setAuth: Dispatch<SetStateAction<Auth>>,
+    setBody: React.Dispatch<React.SetStateAction<string>>,
+    setPreRequestScript: React.Dispatch<React.SetStateAction<string>>,
+    setTests: React.Dispatch<React.SetStateAction<string>>,
+    tests: string,
+    activeResponseTab: ActiveResponseTab,
+    cookies: { name: string; value: string; domain: string; path: string; }[],
+    copyToClipboard: (text: string) => void,
+    error: string | null,
+    handleCopyResponse: () => void,
+    handleDownloadResponse: () => void,
+    response: ResponseData | null,
+    responseHeaders: { key: string; value: string; }[],
+    timeline: { name: string; duration: number; }[],
+    setActiveResponseTab: React.Dispatch<React.SetStateAction<ActiveResponseTab>>,
+    teamMode: Team | null,
+    environments: Environment[],
+    activeEnvironmentId: string | null
 }
 
 
-export default function MainContent({ collections, handleAddRequest, handleAddFolder, renameItem, deleteItem, openRequestInTab, handleAddCollection, handleExportCollections, handleImportCollections, activeTabs, setActiveTabId, closeTab, activeTabId, handleShareRequest, handleSendRequest, isLoading, isStarred, method, setIsStarred, setMethod, setUrl, url, activeRequestTab, setActiveRequestTab, auth, body, handleAddHeader, handleAddParam, handleRemoveHeader, handleRemoveParam, handleUpdateHeader, handleUpdateParam, headers, params, preRequestScript, setAuth, setBody, setPreRequestScript, setTests, tests, activeResponseTab, cookies, copyToClipboard, error, handleCopyResponse, handleDownloadResponse, response, responseHeaders, timeline, setActiveResponseTab }: MainContentProps) {
+export default function MainContent({ collections, handleAddRequest, handleAddFolder, renameItem, deleteItem, openRequestInTab, handleAddCollection, handleExportCollections, activeTabs, setActiveTabId, closeTab, activeTabId, handleShareRequest, handleSendRequest, isLoading, isStarred, method, setIsStarred, setMethod, setUrl, url, activeRequestTab, setActiveRequestTab, auth, body, handleAddHeader, handleAddParam, handleRemoveHeader, handleRemoveParam, handleUpdateHeader, handleUpdateParam, headers, params, preRequestScript, setAuth, setBody, setPreRequestScript, setTests, tests, activeResponseTab, cookies, copyToClipboard, error, handleCopyResponse, handleDownloadResponse, response, responseHeaders, timeline, setActiveResponseTab, teamMode, environments, activeEnvironmentId }: MainContentProps) {
     return (
         <div className="flex flex-1 overflow-hidden">
             {/* Collections Tree Sidebar */}
-            {collections !== undefined && <CollectionsTree
-                collections={collections} // Make sure this is your state variable
-                onAddRequest={handleAddRequest}
-                onAddFolder={handleAddFolder}
-                onRenameItem={renameItem}
-                onDeleteItem={deleteItem}
-                onDuplicateRequest={(request) => {
-                    const [collectionId, folderId] = request.id.split('-');
-                    handleAddRequest(collectionId, folderId === 'root' ? undefined : folderId);
-                }}
-                onSelectRequest={openRequestInTab}
-                onAddCollection={handleAddCollection}
-                onExportCollections={handleExportCollections}
-                onImportCollections={handleImportCollections}
-            />}
+            {collections !== undefined &&
+                <CollectionsTree
+                    collections={collections}
+                    onAddRequest={handleAddRequest}
+                    onAddFolder={handleAddFolder}
+                    onRenameItem={renameItem}
+                    onDeleteItem={deleteItem}
+                    onDuplicateRequest={(request) => {
+                        const [collectionId, folderId] = request.id.split('-');
+                        handleAddRequest(collectionId, folderId === 'root' ? undefined : folderId);
+                    }}
+                    onSelectRequest={openRequestInTab}
+                    onAddCollection={handleAddCollection}
+                    onExportCollections={handleExportCollections}
+                />
+            }
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -117,12 +121,15 @@ export default function MainContent({ collections, handleAddRequest, handleAddFo
                                 handleShareRequest={handleShareRequest}
                                 handleSendRequest={handleSendRequest}
                                 isLoading={isLoading}
-                                isStarred={isStarred ?? false}
+                                isStarred={isStarred}
                                 method={method}
                                 setIsStarred={setIsStarred}
                                 setMethod={setMethod}
                                 setUrl={setUrl}
                                 url={url}
+                                teamMode={teamMode}
+                                environments={[]}
+                                activeEnvironmentId={''}
                             />
 
                             <div className="flex flex-col md:flex-row h-[calc(100%-4rem)]">
@@ -147,12 +154,13 @@ export default function MainContent({ collections, handleAddRequest, handleAddFo
                                             headers={headers}
                                             params={params}
                                             preRequestScript={preRequestScript}
-                                            setActiveRequestTab={setActiveRequestTab}
                                             setAuth={setAuth}
                                             setBody={setBody}
                                             setPreRequestScript={setPreRequestScript}
                                             setTests={setTests}
                                             tests={tests}
+                                            environments={environments}
+                                            activeEnvironmentId={activeEnvironmentId}
                                         />
                                     </div>
                                 </div>

@@ -6,7 +6,7 @@ export default function AuthTab({auth, setAuth}: {auth: Auth, setAuth: (value: R
     return (
         <div className="space-y-4">
             <div className="relative">
-                <select
+                <select title="authselect"
                     className="w-full h-10 pl-3 pr-10 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
                     value={auth.type}
                     onChange={(e) => setAuth({ ...auth, type: e.target.value as AuthType })}
@@ -84,7 +84,7 @@ export default function AuthTab({auth, setAuth}: {auth: Auth, setAuth: (value: R
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Add to</label>
-                        <select
+                        <select title="selectauth"
                             className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                             value={auth.credentials.addTo || 'header'}
                             onChange={(e) => setAuth({ ...auth, credentials: { ...auth.credentials, addTo: e.target.value as "header" | "query" | undefined } })}

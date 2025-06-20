@@ -176,4 +176,46 @@ export function ChevronIcon({ expanded }: ChevronIconProps) {
         </svg>);
 };
 
+export function StackIcon({
+    size = 24,
+    color = 'currentColor',
+    items = 3,
+    thickness = 1,
+    gap = 1,
+    className = '',
+}) {
+    const renderItems = () => {
+        const elements = [];
+        for (let i = 0; i < items; i++) {
+            elements.push(
+                <rect
+                    key={i}
+                    x={i * gap}
+                    y={i * gap}
+                    width={size - i * gap * 2}
+                    height={size - i * gap * 2}
+                    stroke={color}
+                    strokeWidth={thickness}
+                    fill="none"
+                    rx={2} // slight rounding of corners
+                />
+            );
+        }
+        return elements;
+    };
+
+    return (
+        <svg
+            className={className}
+            width={size}
+            height={size}
+            viewBox={`0 0 ${size} ${size}`}
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            {renderItems()}
+        </svg>
+    );
+};
+
 // Add similar icon components for CollectionsIcon, RequestBuilderIcon, etc.

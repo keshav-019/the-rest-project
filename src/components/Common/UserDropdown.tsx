@@ -1,6 +1,6 @@
 // Updated UserDropdown.tsx with team dropdown and scrollable section
 'use client'
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { Menu, MenuButton, MenuItems, Transition } from '@headlessui/react';
 import {
     DashboardIcon,
@@ -8,8 +8,7 @@ import {
     RequestBuilderIcon,
     EnvironmentsIcon,
     TeamIcon,
-    SettingsIcon
-} from './Icons';
+    SettingsIcon} from './Icons';
 import { useRouter } from 'next/navigation';
 import { Team } from '@/types/User';
 import UserProfile from './UserProfile';
@@ -17,6 +16,7 @@ import TeamsDropdown from './TeamsDropdown';
 import AutoSaveMenuButton from './AutoSave';
 import LogoutMenuButton from './LogoutMenuButton';
 import NavigationMenuItems from './NavigationMenuItems';
+import { Database } from 'lucide-react';
 
 export interface UserDropdownProps {
     initials: string,
@@ -25,11 +25,15 @@ export interface UserDropdownProps {
     displayName: string,
     autoSave: boolean,
     setAutoSave: (value: boolean) => void,
-    teams?: Team[]
+    teamMode: Team | null,
+    setTeamMode: (value: Team | null) => void,
+    onExitTeamMode: () => void,
+    showTeams: boolean,
+    setShowTeams: (value: boolean) => void,
+    teams?: Team[],
 }
 
-const UserDropdown = ({ initials, email, username, displayName, autoSave, setAutoSave, teams }: UserDropdownProps) => {
-    const [showTeams, setShowTeams] = useState(false);
+const UserDropdown = ({ initials, email, username, displayName, autoSave, setAutoSave, teamMode, setTeamMode, onExitTeamMode, showTeams, setShowTeams, teams }: UserDropdownProps) => {
     const router = useRouter();
 
     const menuItems = [
@@ -38,6 +42,7 @@ const UserDropdown = ({ initials, email, username, displayName, autoSave, setAut
         { href: "/", icon: <RequestBuilderIcon />, label: "Request Builder" },
         { href: "/environments", icon: <EnvironmentsIcon />, label: "Environments" },
         { href: "/teams", icon: <TeamIcon />, label: "Team" },
+        { href: "/database", icon: <Database />, label: "Data Pro"},
         { href: "/settings", icon: <SettingsIcon />, label: "Settings" },
     ];
 
@@ -45,6 +50,26 @@ const UserDropdown = ({ initials, email, username, displayName, autoSave, setAut
         localStorage.removeItem('currentUser');
         router.push('/login');
     };
+
+    const handleEnterTeamMode = (team: Team) => {
+        setTeamMode(team);
+        // Store team mode in localStorage
+        localStorage.setItem('teamMode', JSON.stringify(team));
+    };
+
+    const handleExitTeamMode = () => {
+        setTeamMode(null);
+        localStorage.removeItem('teamMode');
+        router.refresh(); // Refresh the page to reset to personal mode
+    };
+
+    // Check for team mode on initial load
+    useEffect(() => {
+        const savedTeamMode = localStorage.getItem('teamMode');
+        if (savedTeamMode) {
+            setTeamMode(JSON.parse(savedTeamMode));
+        }
+    }, []);
 
     return (
         <Menu as="div" className="relative">
@@ -61,7 +86,6 @@ const UserDropdown = ({ initials, email, username, displayName, autoSave, setAut
                 leaveTo="transform opacity-0 scale-95"
             >
                 <MenuItems className="absolute right-0 mt-2 w-72 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none z-50 border border-gray-200 dark:border-gray-700">
-
                     {/* User Profile Section */}
                     <UserProfile displayName={displayName} email={email} initials={initials} username={username} />
 
@@ -69,15 +93,34 @@ const UserDropdown = ({ initials, email, username, displayName, autoSave, setAut
                     <NavigationMenuItems menuItems={menuItems} />
 
                     {/* Teams Dropdown */}
-                    {teams &&
-                        <TeamsDropdown setShowTeams={setShowTeams} showTeams={showTeams} teams={teams} />
-                    }
+                    {teams && !teamMode && (
+                        <TeamsDropdown
+                            setShowTeams={setShowTeams}
+                            showTeams={showTeams}
+                            teams={teams}
+                            onTeamSelect={handleEnterTeamMode}
+                            currentTeam={teamMode}
+                            onExitTeamMode={onExitTeamMode}
+                        />
+                    )}
 
                     {/* Settings Section */}
                     <AutoSaveMenuButton autoSave={autoSave} setAutoSave={setAutoSave} />
 
-                    {/* Logout Section */}
-                    <LogoutMenuButton handleLogout={handleLogout} />
+                    {/* Logout/Exit Team Mode Section */}
+                    {teamMode ? (
+                        <button
+                            onClick={handleExitTeamMode}
+                            className="w-full flex items-center px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 cursor-pointer"
+                        >
+                            <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            Exit Team Mode
+                        </button>
+                    ) : (
+                        <LogoutMenuButton handleLogout={handleLogout} />
+                    )}
                 </MenuItems>
             </Transition>
         </Menu>

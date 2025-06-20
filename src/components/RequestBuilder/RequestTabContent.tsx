@@ -1,3 +1,4 @@
+// components/RequestBuilder/RequestTabContent.tsx
 'use client'
 import AuthTab from "./AuthTab";
 import BodyTab from "./BodyTab";
@@ -6,12 +7,10 @@ import ParamsTab from "./ParamsTab";
 import PreRequestTab from "./PreRequestTab";
 import TestTab from "./TestTab";
 import { Auth, Header, Param, TabType } from "@/types/Collections";
-
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Environment } from "@/types/User";
 
 export default function RequestTabContent({
     activeRequestTab,
-    setActiveRequestTab,
     handleAddParam,
     handleRemoveParam,
     handleUpdateParam,
@@ -27,10 +26,11 @@ export default function RequestTabContent({
     preRequestScript,
     setPreRequestScript,
     setTests,
-    tests
+    tests,
+    activeEnvironmentId,
+    environments = [],
 }: {
     activeRequestTab: TabType,
-    setActiveRequestTab: React.Dispatch<React.SetStateAction<TabType>>,
     handleAddParam: () => void,
     handleRemoveParam: (index: number) => void,
     handleUpdateParam: (index: number, field: keyof Param, value: string | boolean) => void,
@@ -46,7 +46,9 @@ export default function RequestTabContent({
     preRequestScript: string,
     setPreRequestScript: React.Dispatch<React.SetStateAction<string>>,
     setTests: React.Dispatch<React.SetStateAction<string>>,
-    tests: string
+    tests: string,
+    activeEnvironmentId: string | null,
+    environments?: Environment[],
 }) {
     return (
         <div className="p-4">
@@ -56,6 +58,8 @@ export default function RequestTabContent({
                     handleRemoveParam={handleRemoveParam}
                     handleUpdateParam={handleUpdateParam}
                     params={params}
+                    activeEnvironmentId={''}
+                    environments={[]}
                 />
             )}
 
@@ -65,6 +69,8 @@ export default function RequestTabContent({
                     handleRemoveHeader={handleRemoveHeader}
                     handleUpdateHeader={handleUpdateHeader}
                     headers={headers}
+                    activeEnvironmentId={''}
+                    environments={[]}
                 />
             )}
 
@@ -72,6 +78,8 @@ export default function RequestTabContent({
                 <BodyTab
                     body={body}
                     setBody={setBody}
+                    environments={environments}
+                    activeEnvironmentId={activeEnvironmentId}
                 />
             )}
 
@@ -98,5 +106,3 @@ export default function RequestTabContent({
         </div>
     );
 }
-
-

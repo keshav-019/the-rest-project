@@ -1,16 +1,17 @@
 'use client'
 import { useState, useEffect } from 'react'
 import EnvironmentsList from "@/components/Environment/EnvironmentsList"
-import { Environment } from '@/types/User'
+import { Environment, Team } from '@/types/User'
 import { useUserData } from '@/hooks/useUserData'
 import { Variable } from '@/types/Collections'
 import EnvironmentSettings from '@/components/Environment/EnvironmentSettings'
 import VariableTable from '@/components/Environment/VariableTable'
 import AddEnvironmentModal from '@/components/Environment/EnvironmentModal'
 import { updatePersonalEnvironments } from '@/lib/firebase/userDataHelpers'
-import { getUserDetails } from '@/lib/firebase/auth'
+import { getInitials, getUserDetails } from '@/lib/firebase/auth'
 import { savePersonalEnvironments } from '@/lib/firebase/environments'
 import HeaderComponent from '@/components/Common/Header'
+import { getUserTeams, updateTeamEnvironments } from '@/lib/firebase/teams'
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
@@ -33,17 +34,42 @@ export default function Environments() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [showAddModal, setShowAddModal] = useState(false)
     const [userid, setUserid] = useState<string | undefined>(undefined);
+    const [autoSave, setAutoSave] = useState<boolean>(true);
+    const [displayName, setDisplayName] = useState<string>('');
+    const [email, setEmail] = useState<string>('');
+    const [username, setUsername] = useState<string>('');
+    const [initials, setInitials] = useState<string>('');
+    const [teams, setTeams] = useState<Team[]>([]);
+    const [teamMode, setTeamMode] = useState<Team | null>(null);
+    const [showTeamsDropdown, setShowTeamsDropdown] = useState(false);
+
+    // Add this useEffect to initialize team mode and environment from localStorage
+    useEffect(() => {
+        const savedTeamMode = localStorage.getItem('teamMode');
+
+        if (savedTeamMode) {
+            setTeamMode(JSON.parse(savedTeamMode));
+        }
+    }, []);
 
     // Initialize environments from userData
     useEffect(() => {
+
+
         const fetchUserData = async () => {
-            const {user} = await getUserDetails();
-            console.log("The user is: ", user);
+            const {user, userData} = await getUserDetails();
+            const teams = await getUserTeams(user?.uid || '');
             setUserid(user?.uid);
+            setEmail(user?.email || '');
+            setAutoSave(userData?.autoSave || true);
+            setDisplayName(user?.displayName || '');
+            setUsername(user?.username || '');
+            setInitials(getInitials(user?.displayName || ''));
+            setTeams(teams);
         }
         fetchUserData();
         if(userData) {
-            const personalEnvironments = userData.personalEnvironments || [];
+            const personalEnvironments = !teamMode ? userData.personalEnvironments || [] : teamMode.environments || [];
             setEnvironments(personalEnvironments);
             if (personalEnvironments.length > 0 && !activeEnvironment) {
                 setActiveEnvironment(personalEnvironments[0])
@@ -66,7 +92,13 @@ export default function Environments() {
         setEnvironments(updatedEnvs);
         setActiveEnvironment(newEnv);
 
-        if (userData) {
+        if(teamMode){
+            const intermediateTeamMode = {...teamMode, environments: updatedEnvs};
+            setTeamMode(intermediateTeamMode);
+            updateTeamEnvironments(teamMode.teamId, updatedEnvs);
+        }
+
+        if (userData && !teamMode) {
             const updatedData = updatePersonalEnvironments(userData, updatedEnvs); // <- add this
             updateUserData(updatedData);
         }
@@ -82,9 +114,15 @@ export default function Environments() {
     const handleEnvironmentDelete = (envId: string) => {
         const updatedEnvs = environments.filter(e => e.id !== envId);
         setEnvironments(updatedEnvs);
+
+        if(teamMode){
+            const intermediateTeamMode = {...teamMode, environments: updatedEnvs};
+            setTeamMode(intermediateTeamMode);
+            updateTeamEnvironments(teamMode.teamId, updatedEnvs);
+        }
     
         // Update Firebase
-        if (userData) {
+        if (userData && !teamMode) {
             const updatedData = updatePersonalEnvironments(userData, updatedEnvs); // 🔧 fallback
             updateUserData(updatedData);
         }
@@ -104,7 +142,13 @@ export default function Environments() {
         setEnvironments(updatedEnvs);
         setActiveEnvironment(updatedEnv);
 
-        if (userData) {
+        if(teamMode){
+            const intermediateTeamMode = {...teamMode, environments: updatedEnvs};
+            setTeamMode(intermediateTeamMode);
+            updateTeamEnvironments(teamMode.teamId, updatedEnvs);
+        }
+
+        if (userData && !teamMode) {
             const updatedData = updatePersonalEnvironments(userData, updatedEnvs); // ✅ fix
             updateUserData(updatedData);
         }
@@ -184,12 +228,38 @@ export default function Environments() {
         }
     }
 
+    // Add this handler for exiting team mode
+    const handleExitTeamMode = () => {
+        setTeamMode(null);
+        localStorage.removeItem('teamMode');
+
+        // Reset environment when exiting team mode
+        setActiveEnvironment(null);
+        localStorage.removeItem('activeEnvironmentId');
+
+        // Refresh the page to reset all states
+        window.location.reload();
+    };
+
+    // Add this handler for team selection
+    const handleTeamSelect = (team: Team | null) => {
+        setTeamMode(team);
+        localStorage.setItem('teamMode', JSON.stringify(team));
+        setShowTeamsDropdown(false);
+
+        // Reset environment when switching teams
+        setActiveEnvironment(null);
+        localStorage.removeItem('activeEnvironmentId');
+    };
+
+
+
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Top Header */}
-                <HeaderComponent parentComponent="Environment" toSearch={true} onAddCollection={() => {}} environments={[]} />
+                <HeaderComponent toSearch={false} parentComponent={'Request Builder'} onAddCollection={() => {}} environments={environments} initials={initials} username={username} email={email} displayName={displayName} teams={teams} autoSave={autoSave} setAutoSave={setAutoSave} activeEnvironmentId={activeEnvironment?.id || ''} onEnvironmentSelect={() => {}} onExitTeamMode={handleExitTeamMode} onTeamSelect={handleTeamSelect} setShowTeams={setShowTeamsDropdown} showTeams={showTeamsDropdown} teamMode={teamMode} />
 
                 {/* Environments Content */}
                 <main className="flex-1 overflow-hidden flex">
@@ -218,7 +288,7 @@ export default function Environments() {
                                         </h2>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <button
+                                        <button type='button' title='edit'
                                             onClick={startEditing}
                                             className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 transition-colors cursor-pointer"
                                         >
@@ -226,7 +296,7 @@ export default function Environments() {
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                             </svg>
                                         </button>
-                                        <button
+                                        <button type='button' title='showmodal'
                                             onClick={() => setShowShareModal(true)}
                                             className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 transition-colors cursor-pointer"
                                         >
@@ -234,7 +304,7 @@ export default function Environments() {
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                                             </svg>
                                         </button>
-                                        <button
+                                        <button type='button' title='condirmdelete'
                                             onClick={() => setShowDeleteConfirm(true)}
                                             className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 transition-colors cursor-pointer"
                                         >
@@ -314,7 +384,7 @@ export default function Environments() {
                                 Share Link
                             </label>
                             <div className="flex">
-                                <input
+                                <input placeholder='' title='environment-edit'
                                     type="text"
                                     readOnly
                                     value={`${window.location.origin}/share/env/${activeEnvironment.id}`}

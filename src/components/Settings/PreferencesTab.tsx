@@ -4,18 +4,14 @@ export default function PreferencesTab({setDarkMode, darkMode} : {setDarkMode: (
         <div className="space-y-8">
             <div>
                 <h2 className="text-lg font-medium text-gray-800 dark:text-white">Application Preferences</h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Customize your application experience.
-                </p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Customize your application experience.</p>
             </div>
 
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-sm font-medium text-gray-800 dark:text-white">Dark mode</h3>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            Switch between light and dark theme
-                        </p>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Switch between light and dark theme</p>
                     </div>
                     <button
                         onClick={() => setDarkMode(!darkMode)}
@@ -29,7 +25,7 @@ export default function PreferencesTab({setDarkMode, darkMode} : {setDarkMode: (
                     <h3 className="text-sm font-medium text-gray-800 dark:text-white">Language</h3>
                     <div className="mt-2">
                         <select
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm p-3"
                             defaultValue="en"
                         >
                             <option value="en">English</option>
@@ -44,7 +40,7 @@ export default function PreferencesTab({setDarkMode, darkMode} : {setDarkMode: (
                     <h3 className="text-sm font-medium text-gray-800 dark:text-white">Time zone</h3>
                     <div className="mt-2">
                         <select
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm p-3"
                             defaultValue="UTC"
                         >
                             <option value="UTC">UTC</option>

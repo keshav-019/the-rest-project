@@ -46,7 +46,7 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
                 >
                     <ChevronIcon expanded={isExpanded} />
                     {isRenaming ? (
-                        <input
+                        <input title='rename-input'
                             type="text"
                             value={renameInput}
                             onChange={(e) => setRenameInput(e.target.value)}

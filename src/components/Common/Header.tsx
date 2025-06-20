@@ -18,10 +18,17 @@ interface HeaderProps {
     displayName: string,
     autoSave: boolean,
     setAutoSave: (value: boolean) => void,
-    teams?: Team[]
+    teamMode: Team | null,
+    teams: Team[],
+    onTeamSelect: (team: Team | null) => void;
+    onExitTeamMode: () => void;
+    showTeams: boolean;
+    setShowTeams: (value: boolean) => void;
+    activeEnvironmentId: string | null;
+    onEnvironmentSelect: (environmentId: string) => void;
 }
 
-const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environments, initials, username, email, displayName, autoSave, setAutoSave, teams}: HeaderProps) => {
+const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environments, initials, username, email, displayName, autoSave, setAutoSave, teamMode, teams, onTeamSelect, onExitTeamMode, showTeams, setShowTeams, activeEnvironmentId, onEnvironmentSelect}: HeaderProps) => {
     return (
         <header className="flex items-center justify-between h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6">
             <div className="flex items-center space-x-8 w-full">
@@ -67,10 +74,28 @@ const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environme
                 }
 
                 {parentComponent === 'Request Builder' && 
-                    <EnvironmentSelector environments={environments} />
+                    <EnvironmentSelector 
+                        environments={environments}
+                        activeEnvironmentId={activeEnvironmentId}
+                        onEnvironmentSelect={onEnvironmentSelect}
+                        disabled={!environments || environments.length === 0}
+                    />
                 }
-
-                <UserDropdown username={username} displayName={displayName} email={email} initials={initials} teams={teams} autoSave={autoSave} setAutoSave={setAutoSave} />
+                
+                <UserDropdown 
+                    username={username} 
+                    displayName={displayName} 
+                    email={email} 
+                    initials={initials} 
+                    teams={teams} 
+                    autoSave={autoSave} 
+                    setAutoSave={setAutoSave}
+                    teamMode={teamMode}
+                    onExitTeamMode={onExitTeamMode}
+                    setTeamMode={onTeamSelect}
+                    setShowTeams={setShowTeams}
+                    showTeams={showTeams}
+                />
             </div>
         </header>
     );

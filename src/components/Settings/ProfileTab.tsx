@@ -1,23 +1,7 @@
 'use client'
-import { getInitials, getUserDetails } from "@/lib/firebase/auth";
-import { User } from "@/types/User";
-import { useEffect, useState } from "react";
+import { getInitials } from "@/lib/firebase/auth";
 
-export default function ProfileTab({setName}: {setName: (value: React.SetStateAction<string>) => void }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [name, setLocalName] = useState<string>(user?.displayName || '');
-    const [email, setEmail] = useState<string>(user?.email || '');
-    const [bio, setBio] = useState<string>('');
-
-    useEffect(() => {
-        const userDetailsFunction = async () => {
-            const {user} = await getUserDetails();
-            setUser(user);
-            setLocalName(user?.displayName || '');
-            setEmail(user?.email || '');
-        };
-        userDetailsFunction();
-    }, [])
+export default function ProfileTab({setName, setLocalName, name, email, setEmail, bio, setBio}: { setName: (value: string) => void, setLocalName: (value: string) => void, name: string, email: string, setEmail: (value: string) => void, bio: string, setBio: (value: string) => void }) {
 
     const handleNameChange = (value: string) => {
         setLocalName(value);

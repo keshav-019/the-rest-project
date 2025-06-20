@@ -2,13 +2,13 @@
 import { useState } from "react";
 import PasswordChangeModal from "./PasswordChangeModal";
 import TwoFactorModal from "./TwoFactorModal";
-import ActiveSessionsModal from "./ActiveSessionsModal";
+// import ActiveSessionsModal from "./ActiveSessionsModal";
 
 // Main Security Tab Component
 export default function SecurityTab() {
     const [passwordModalOpen, setPasswordModalOpen] = useState(false);
     const [twoFactorModalOpen, setTwoFactorModalOpen] = useState(false);
-    const [sessionsModalOpen, setSessionsModalOpen] = useState(false);
+    // const [sessionsModalOpen, setSessionsModalOpen] = useState(false);
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
     const [lastPasswordChange] = useState('3 months ago');
 
@@ -73,7 +73,7 @@ export default function SecurityTab() {
                     </div>
                 </div>
 
-                <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                {/* <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
                     <div className="flex justify-between items-center">
                         <div>
                             <h3 className="text-sm font-medium text-gray-800 dark:text-white">Active sessions</h3>
@@ -88,7 +88,7 @@ export default function SecurityTab() {
                             View all
                         </button>
                     </div>
-                </div>
+                </div> */}
             </div>
 
             {/* Modals */}
@@ -105,10 +105,10 @@ export default function SecurityTab() {
                 onToggle={setTwoFactorEnabled}
             />
             
-            <ActiveSessionsModal 
+            {/* <ActiveSessionsModal 
                 isOpen={sessionsModalOpen}
                 onClose={() => setSessionsModalOpen(false)}
-            />
+            /> */}
         </div>
     );
 }
