@@ -12,8 +12,9 @@
     "axe/forms": [
       "default",
       {
-        "select-name": "off"
+        "select-name": "off",
       }
-    ]
+    ],
+    "typescript-config/consistent-casing": "off"
   }
 }

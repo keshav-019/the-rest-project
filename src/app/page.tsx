@@ -9,10 +9,10 @@ import { getCurrentUser, getInitials, getUserDetails } from "@/lib/firebase/auth
 import { useRouter } from "next/navigation";
 import MainContent from "@/components/RequestBuilder/MainContent";
 import { savePersonalCollections } from "@/lib/firebase/collections";
-import HeaderComponent from "@/components/Common/Header";
 import { Environment, Team, User } from "@/types/User";
 import { getTeamById, getUserTeams, updateTeamCollections } from "@/lib/firebase/teams";
 import TeamModeWelcome from "@/components/RequestBuilder/TeamModeWelcome";
+import HeaderComponent from "@/components/Common/Header";
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */

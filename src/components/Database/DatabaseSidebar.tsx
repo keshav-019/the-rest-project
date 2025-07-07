@@ -12,11 +12,11 @@ import {
     TableIcon
 } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { useToast } from '@/components/ui/use-toast';
 import DatabaseService from '@/lib/database-service';
 import { ConnectionConfig, SchemaObject, WindowTab } from '@/types/Connection';
 import { SchemaActions } from './SchemaActions';
 import { TableActions } from './TableActions';
+import { useToast } from '@/hooks/useToast';
 
 interface DatabaseSidebarProps {
     connections: ConnectionConfig[];

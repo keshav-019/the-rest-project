@@ -1,0 +1,171 @@
+// terminal/page.tsx
+
+'use client'
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+
+// Dynamically import the terminal component to avoid SSR issues
+const TerminalComponent = dynamic(() => import('@/components/Terminal/TerminalComponent'), {
+    ssr: false,
+    loading: () => <div className="flex items-center justify-center h-full">Loading terminal...</div>
+});
+
+export default function TerminalPage() {
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    if (!isClient) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-black text-white">
+                <div>Loading...</div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-screen w-full bg-black text-white">
+            <div className="h-full flex flex-col">
+                <div className="flex-shrink-0 p-4 border-b border-gray-700">
+                    <h1 className="text-xl font-bold">Terminal</h1>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                    <TerminalComponent />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// components/Terminal/TerminalComponent.tsx
+
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { WebLinksAddon } from '@xterm/addon-web-links';
+import '@xterm/xterm/css/xterm.css';
+
+const TerminalComponent = () => {
+    const terminalRef = useRef<HTMLDivElement>(null);
+    const terminal = useRef<Terminal | null>(null);
+    const fitAddon = useRef<FitAddon | null>(null);
+
+    useEffect(() => {
+        if (!terminalRef.current) return;
+
+        // Initialize terminal
+        terminal.current = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+            theme: {
+                background: '#1a1a1a',
+                foreground: '#ffffff',
+                cursor: '#ffffff',
+                selection: '#ffffff33',
+            },
+            cols: 80,
+            rows: 24,
+        });
+
+        // Initialize addons
+        fitAddon.current = new FitAddon();
+        const webLinksAddon = new WebLinksAddon();
+
+        terminal.current.loadAddon(fitAddon.current);
+        terminal.current.loadAddon(webLinksAddon);
+
+        // Open terminal
+        terminal.current.open(terminalRef.current);
+
+        // Fit terminal to container
+        fitAddon.current.fit();
+
+        // Handle window resize
+        const handleResize = () => {
+            if (fitAddon.current && terminal.current) {
+                fitAddon.current.fit();
+                // Send resize to PTY
+                if (window.electron) {
+                    window.electron.resizePty(terminal.current.cols, terminal.current.rows);
+                }
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        // Request a PTY from the main process
+        if (typeof window !== 'undefined' && window.electron) {
+            window.electron.requestPty();
+
+            // Listen for data from PTY
+            window.electron.onPtyData((data: string) => {
+                if (terminal.current) {
+                    terminal.current.write(data);
+                }
+            });
+
+            // Send data to PTY when user types
+            terminal.current.onData((data) => {
+                if (window.electron) {
+                    window.electron.sendToPty(data);
+                }
+            });
+        }
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            if (terminal.current) {
+                terminal.current.dispose();
+            }
+        };
+    }, []);
+
+    return (
+        <div className="h-full w-full bg-black p-4">
+            <div
+                ref={terminalRef}
+                className="h-full w-full rounded-lg border border-gray-700"
+                style={{ minHeight: '400px' }}
+            />
+        </div>
+    );
+};
+
+export default TerminalComponent;
+
+// next.config.ts
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+    reactStrictMode: true,
+    images: {
+        unoptimized: true,
+    },
+    webpack: (config: any, { isServer }: {isServer: any}) => {
+        // Handle node modules that need to be ignored in the browser
+        if (!isServer) {
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                fs: false,
+                net: false,
+                tls: false,
+                child_process: false,
+            };
+        }
+
+        return config;
+    },
+    // Only use export for production builds
+    ...(process.env.NODE_ENV === 'production' && {
+        output: 'export',
+        distDir: 'out',
+        trailingSlash: true,
+    }),
+};
+
+module.exports = nextConfig;

@@ -1,0 +1,1144 @@
+// Teams/page.tsx
+
+'use client'
+import { useState, useEffect, useRef } from "react";
+import React from "react";
+import TeamsHeader from "@/components/Teams/TeamsHeader";
+import TeamsHeading from "@/components/Teams/TeamsHeading";
+import TeamTiles from "@/components/Teams/TeamTiles";
+import InvitationsHeading from "@/components/Teams/InvitationsHeading";
+import CreateTeamModal from "@/components/Teams/CreateTeamModal";
+import InviteMembersModal from "@/components/Teams/InviteMembersModal";
+import TeamDetailsModal from "@/components/Teams/TeamDetailsModal";
+import { Team, User } from "@/types/User";
+import { getCurrentUser, getInitials, getUserDetails } from "@/lib/firebase/auth";
+import { acceptTeamInvitation, createTeam, declineTeamInvitation, getTeamMode, getUserTeams } from "@/lib/firebase/teams";
+import { getUserInvitations } from "@/lib/firebase/teams";
+import HeaderComponent from "@/components/Common/Header";
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+export default function TeamManagement() {
+    const [activeTab, setActiveTab] = useState<'myTeams' | 'invitations'>('myTeams');
+    const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
+    const [showInviteMembersModal, setShowInviteMembersModal] = useState(false);
+    const [showTeamDetailsModal, setShowTeamDetailsModal] = useState(false);
+    const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+    const [user, setUser] = useState<User | null>(getCurrentUser());
+    const [teams, setTeams] = useState<Team[]>([]);
+    // Update the state in TeamManagement component
+    const [invitations, setInvitations] = useState<any[]>([]);
+    // Refs for modal focus management
+    const createTeamModalRef = useRef<HTMLDivElement>(null);
+    const inviteMembersModalRef = useRef<HTMLDivElement>(null);
+    const teamDetailsModalRef = useRef<HTMLDivElement>(null);
+    const [autoSave, setAutoSave] = useState<boolean>(true);
+    const [name, setName] = useState<string>('');
+    const [displayName, setDisplayName] = useState<string>('');
+    const [email, setEmail] = useState<string>('');
+    const [username, setUsername] = useState<string>('');
+    const [initials, setInitials] = useState<string>('');
+    const [bio, setBio] = useState<string>('');
+    const [teamMode, setTeamMode] = useState<Team | null>(null);
+    const [showTeamsDropdown, setShowTeamsDropdown] = useState(false);
+
+    // Focus trap for modals
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (showCreateTeamModal) setShowCreateTeamModal(false);
+                if (showInviteMembersModal) setShowInviteMembersModal(false);
+                if (showTeamDetailsModal) setShowTeamDetailsModal(false);
+            }
+        };
+
+        if (showCreateTeamModal || showInviteMembersModal || showTeamDetailsModal) {
+            document.body.style.overflow = 'hidden';
+            document.addEventListener('keydown', handleKeyDown);
+
+            // Focus the modal when it opens
+            const currentModalRef =
+                showCreateTeamModal ? createTeamModalRef.current :
+                    showInviteMembersModal ? inviteMembersModalRef.current :
+                        teamDetailsModalRef.current;
+
+            currentModalRef?.focus();
+        } else {
+            document.body.style.overflow = 'auto';
+        }
+
+        const setTeamsFromDatabase = async () => {
+            const {user, userData} = await getUserDetails();
+            if(!user?.uid) throw new Error('No user is logged in');
+            const teams = await getUserTeams(user?.uid || '');
+            setEmail(user?.email || '');
+            setAutoSave(userData?.autoSave || true);
+            setDisplayName(user?.displayName || '');
+            setUsername(user?.username || '');
+            setInitials(getInitials(user?.displayName || ''));
+            setName(user?.displayName || '');
+            setTeams(teams);
+            setBio(userData?.bio || '');
+        }
+
+        setTeamsFromDatabase();
+
+        const fetchInvitations = async () => {
+            if (user?.uid) {
+                try {
+                    const { invitations } = await getUserInvitations(user.uid);
+                    console.log("The invitations are: ", invitations, " and date of invitation is: ",
+                        invitations[0]?.date, " and the new Date value would be: ",
+                        invitations[0]?.date instanceof Date ? invitations[0].date : 'Invalid date'
+                    );
+                    setInvitations(invitations || []);
+                } catch (error) {
+                    console.error('Error fetching invitations:', error);
+                }
+            }
+        };
+
+        if (activeTab === 'invitations') {
+            fetchInvitations();
+        }
+
+        const getTeamDetails = getTeamMode();
+
+        return () => {
+            document.body.style.overflow = 'auto';
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showCreateTeamModal, showInviteMembersModal, showTeamDetailsModal, activeTab, user?.uid]);
+
+    const handleCreateTeam = (newTeam: Team) => {
+        setTeams([...teams, newTeam]);
+        setShowCreateTeamModal(false);
+        if(user?.uid === undefined) throw new Error('No logged in User Found');
+        createTeam(newTeam, user?.uid);
+    };
+
+    const handleViewTeamDetails = (team: Team) => {
+        setSelectedTeam(team);
+        setShowTeamDetailsModal(true);
+    };
+
+    // Add these handler functions
+    const handleAcceptInvitation = async (invitationId: string) => {
+        try {
+            if (!user?.uid) return;
+
+            const { success, team } = await acceptTeamInvitation(user.uid, invitationId);
+            if (success && team) {
+                // Update teams list if invitation was accepted
+                setTeams(prev => [...prev, team]);
+                // Remove the invitation from local state
+                setInvitations(prev => prev.filter(inv => inv.invitationId !== invitationId));
+            }
+        } catch (error) {
+            console.error('Error accepting invitation:', error);
+        }
+    };
+
+    const handleDeclineInvitation = async (invitationId: string) => {
+        try {
+            if (!user?.uid) return;
+
+            const { success } = await declineTeamInvitation(user.uid, invitationId);
+            if (success) {
+                // Remove the invitation from local state
+                setInvitations(prev => prev.filter(inv => inv.invitationId !== invitationId));
+            }
+        } catch (error) {
+            console.error('Error declining invitation:', error);
+        }
+    };
+
+    // Add this handler for exiting team mode
+    const handleExitTeamMode = () => {
+        setTeamMode(null);
+        localStorage.removeItem('teamMode');
+        localStorage.removeItem('activeEnvironmentId');
+
+        // Refresh the page to reset all states
+        window.location.reload();
+    };
+
+    // Add this handler for team selection
+    const handleTeamSelect = (team: Team | null) => {
+        setTeamMode(team);
+        localStorage.setItem('teamMode', JSON.stringify(team));
+        setShowTeamsDropdown(false);
+        localStorage.removeItem('activeEnvironmentId');
+    };
+
+    return (
+        <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+            {/* Main Content */}
+            <div className="flex-1 overflow-auto">
+                <HeaderComponent
+                    parentComponent={"Teams"}
+                    toSearch={false}
+                    onAddCollection={() => {}}
+                    environments={[]}
+                    autoSave={autoSave}
+                    displayName={displayName}
+                    email={email}
+                    initials={initials}
+                    setAutoSave={setAutoSave}
+                    username={username}
+                    teams={teams}
+                    teamMode={teamMode}
+                    activeEnvironmentId={''}
+                    onEnvironmentSelect={() => {}}
+                    onExitTeamMode={handleExitTeamMode}
+                    onTeamSelect={handleTeamSelect}
+                    setShowTeams={setShowTeamsDropdown}
+                    showTeams={showTeamsDropdown}
+                />
+
+                <TeamsHeader activeTab={activeTab} setActiveTab={setActiveTab} />
+
+                <main className="p-6">
+                    <TeamsHeading activeTab={activeTab} setShowCreateTeamModal={setShowCreateTeamModal} />
+
+                    {activeTab === 'myTeams' && (
+                        <TeamTiles
+                            teams={teams}
+                            handleViewTeamDetails={handleViewTeamDetails}
+                            setSelectedTeamName={(name) => setSelectedTeam(teams.find(t => t.name === name) || null)}
+                            setShowCreateTeamModal={setShowCreateTeamModal}
+                            setShowInviteMembersModal={setShowInviteMembersModal}
+                        />
+                    )}
+
+                    {activeTab === 'invitations' && (
+                        <InvitationsHeading
+                            invitations={invitations}
+                            onAccept={handleAcceptInvitation}
+                            onDecline={handleDeclineInvitation}
+                        />
+                    )}
+                </main>
+            </div>
+
+            {/* Create Team Modal */}
+            {showCreateTeamModal && (
+                <CreateTeamModal
+                    createTeamModalRef={createTeamModalRef}
+                    handleCreateTeam={handleCreateTeam}
+                    isOpen={true}
+                    setShowCreateTeamModal={setShowCreateTeamModal}
+                />
+            )}
+
+            {/* Invite Members Modal */}
+            {showInviteMembersModal && (
+                selectedTeam?.name && <InviteMembersModal
+                    isOpen={true}
+                    setShowInviteMembersModal={setShowInviteMembersModal}
+                    inviteMembersModalRef={inviteMembersModalRef}
+                    selectedTeamName={selectedTeam?.name}
+                    selectedTeamId={selectedTeam?.teamId || ''}
+                    currentUserId={user?.uid || ''}
+                />
+            )}
+
+            {/* Team Details Modal */}
+            {showTeamDetailsModal && (
+                selectedTeam?.name && <TeamDetailsModal isOpen={true} selectedTeamName={selectedTeam?.name} setShowInviteMembersModal={setShowInviteMembersModal} setShowTeamDetailsModal={setShowTeamDetailsModal} teamDetailsModalRef={teamDetailsModalRef} />
+            )}
+        </div>
+    );
+}
+
+// TeamsHeader.tsx
+
+import { InviteTabTeam } from "@/types/Collections";
+
+export default function TeamsHeader({setActiveTab, activeTab}: {setActiveTab: React.Dispatch<React.SetStateAction<InviteTabTeam>>, activeTab: InviteTabTeam}) {
+    const teamsList:{tabname: string, activeTabIdentifier: InviteTabTeam}[] = [
+        {tabname: 'My Teams', activeTabIdentifier: 'myTeams'},
+        {tabname: 'Invitations', activeTabIdentifier: 'invitations'}
+    ]
+
+    return (
+        <header className="bg-white dark:bg-gray-800 shadow-sm">
+            <div className="px-6 border-b border-gray-200 dark:border-gray-700">
+                <nav className="flex space-x-4">
+                    {teamsList.map((team, index) => {
+                        return (
+                            <button key={index}
+                                className={`px-3 py-2 text-sm font-medium rounded-md ${activeTab === team.activeTabIdentifier
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}
+                                onClick={() => setActiveTab(team.activeTabIdentifier)}
+                            >
+                                {team.tabname}
+                            </button>
+                        );
+                    })}
+                </nav>
+            </div>
+        </header>
+    );
+}
+
+// TeamsHeading.tsx
+
+import { InviteTabTeam } from "@/types/Collections";
+
+export default function TeamsHeading({activeTab, setShowCreateTeamModal}: {activeTab: InviteTabTeam, setShowCreateTeamModal: (value: boolean) => void}) {
+    return (
+        <div className="mb-6 flex justify-between items-center">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+                {activeTab === 'myTeams' ? 'My Teams' : 'Team Invitations'}
+            </h2>
+            {activeTab === 'myTeams' && (
+                <button
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                    onClick={() => setShowCreateTeamModal(true)}
+                >
+                    Create New Team
+                </button>
+            )}
+        </div>
+    );
+}
+
+// TeamTiles.tsx
+
+import TeamTile from "./TeamTile";
+import { Team } from "@/types/User";
+
+export default function TeamTiles({handleViewTeamDetails, setSelectedTeamName, setShowInviteMembersModal, setShowCreateTeamModal, teams}: {handleViewTeamDetails: (team: Team) => void, setSelectedTeamName: (value: string) => void, setShowInviteMembersModal: (value: boolean) => void, setShowCreateTeamModal: (value: boolean) => void, teams: Team[]}) {
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {teams.map((team, index) => {
+                console.log("The team is: ", team);
+                return (
+                    <TeamTile key={index} handleViewTeamDetails={handleViewTeamDetails} setSelectedTeamName={setSelectedTeamName} setShowInviteMembersModal={setShowInviteMembersModal} teamDescription={team.description} teamTitle={team.name} team={team} />
+                );
+            })}
+
+            {/* Create New Team Card */}
+            <div
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
+                onClick={() => setShowCreateTeamModal(true)}
+            >
+                <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Create New Team</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                    Start collaborating with your colleagues
+                </p>
+            </div>
+        </div>
+    )
+}
+
+// InvitationsHeading.tsx
+
+import { Invitations } from "@/types/User";
+import { formatDistanceToNow } from "date-fns";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+interface InvitationsHeadingProps {
+    invitations: Invitations[];
+    onAccept: (invitationId: string) => void;
+    onDecline: (invitationId: string) => void;
+}
+
+export default function InvitationsHeading({
+    invitations,
+    onAccept,
+    onDecline
+}: InvitationsHeadingProps) {
+    if (invitations.length === 0) {
+        return (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden p-6 text-center">
+                <div className="text-gray-500 dark:text-gray-400">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No pending invitations</h3>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        You don&apos;t have any team invitations at this time.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Team
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Invited By
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Date
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {invitations.map((invitation) => (
+                        <tr key={invitation.invitationId}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                                        <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                                            {invitation.teamName.split(' ').map((word:any) => word[0]).join('').slice(0, 2).toUpperCase()}
+                                        </span>
+                                    </div>
+                                    <div className="ml-4">
+                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                            {invitation.teamName}
+                                        </div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                            {invitation.teamDescription || 'No description'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
+                                    {invitation.invitedByName}
+                                </div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                    {invitation.invitedByEmail || ''}
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {invitation.date ? formatDistanceToNow(new Date(invitation.date), { addSuffix: true }) : 'Unknown date'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex justify-end space-x-2">
+                                    <button
+                                        onClick={() => onAccept(invitation.invitationId)}
+                                        className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded-md hover:bg-green-200 dark:hover:bg-green-900/50 cursor-pointer"
+                                    >
+                                        Accept
+                                    </button>
+                                    <button
+                                        onClick={() => onDecline(invitation.invitationId)}
+                                        className="px-3 py-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 rounded-md hover:bg-red-200 dark:hover:bg-red-900/50 cursor-pointer"
+                                    >
+                                        Decline
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+// CreateTeamModal.tsx
+
+'use client'
+import React, { useState } from "react";
+import ModalBackdrop from '../Common/ModalBackdrop';
+import { Team } from "@/types/User";
+import { getCurrentUser } from "@/lib/firebase/auth";
+
+export default function CreateTeamModal({
+    isOpen = false,
+    setShowCreateTeamModal,
+    createTeamModalRef,
+    handleCreateTeam
+}: {
+    isOpen: boolean,
+    setShowCreateTeamModal: (value: boolean) => void,
+    createTeamModalRef: React.RefObject<HTMLDivElement | null>,
+    handleCreateTeam: (team: Team) => void
+}) {
+    const [teamName, setTeamName] = useState('');
+    const [teamDescription, setTeamDescription] = useState('');
+    const [privacy, setPrivacy] = useState('public');
+
+    const handleSubmit = async () => {
+        if (!teamName.trim()) return;
+
+        const newTeam: Team = {
+            name: teamName,
+            description: teamDescription,
+            teamId: Math.random().toString(36).substring(2, 11),
+            createdAt: new Date(),
+            createdBy: getCurrentUser()?.uid || '', // Replace with actual user ID
+            users: [],
+            collections: [],
+            environments: [],
+            isPrivate: false,
+            isOwner: true,
+            userids: [], // Replace with actual user ID
+            recentActivity: []
+        };
+
+        handleCreateTeam(newTeam);
+    };
+
+    const teamButtons = [
+        {name: 'Create Team', onClickFunction: handleSubmit},
+        {name: 'Cancel', onClickFunction: () => setShowCreateTeamModal(false)}
+    ];
+
+    if (!isOpen) return null;
+
+    return (
+        <ModalBackdrop onClose={() => setShowCreateTeamModal(false)}>
+            <div
+                ref={createTeamModalRef}
+                className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full relative z-50"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-headline"
+                tabIndex={-1}
+            >
+                <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div className="sm:flex sm:items-start">
+                        <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                        </div>
+                        <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-headline">
+                                Create New Team
+                            </h3>
+                            <div className="mt-4 space-y-4">
+                                <div>
+                                    <label htmlFor="team-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Team Name*
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="team-name"
+                                        id="team-name"
+                                        className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        placeholder="Enter team name"
+                                        value={teamName}
+                                        onChange={(e) => setTeamName(e.target.value)}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="team-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Description
+                                    </label>
+                                    <textarea
+                                        id="team-description"
+                                        name="team-description"
+                                        rows={3}
+                                        className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        placeholder="Describe the purpose of this team"
+                                        value={teamDescription}
+                                        onChange={(e) => setTeamDescription(e.target.value)}
+                                    ></textarea>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Privacy Settings
+                                    </label>
+                                    <div className="mt-2 space-y-2">
+                                        <div className="flex items-center">
+                                            <input
+                                                id="privacy-public"
+                                                name="privacy"
+                                                type="radio"
+                                                checked={privacy === 'public'}
+                                                onChange={() => setPrivacy('public')}
+                                                className="h-4 w-4 text-blue-600 dark:text-blue-500 border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                                            />
+                                            <label htmlFor="privacy-public" className="ml-3 block text-sm text-gray-700 dark:text-gray-300">
+                                                Public - Anyone in your organization can see this team
+                                            </label>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <input
+                                                id="privacy-private"
+                                                name="privacy"
+                                                type="radio"
+                                                checked={privacy === 'private'}
+                                                onChange={() => setPrivacy('private')}
+                                                className="h-4 w-4 text-blue-600 dark:text-blue-500 border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                                            />
+                                            <label htmlFor="privacy-private" className="ml-3 block text-sm text-gray-700 dark:text-gray-300">
+                                                Private - Only team members can see this team
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    {teamButtons.map((teamButton, index) => {
+                        return (
+                            <button key={index}
+                                type="button"
+                                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm cursor-pointer"
+                                onClick={teamButton.onClickFunction}
+                            >
+                                {teamButton.name}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </ModalBackdrop>
+    )
+}
+
+// InviteMembersModal.tsx
+
+'use client'
+import React, { useEffect, useState } from "react"
+import ModalBackdrop from '../Common/ModalBackdrop';
+import { checkUsersExist, inviteUsersToTeamByEmail } from "@/lib/firebase/teams";
+import { getUserDetails } from "@/lib/firebase/auth";
+
+export default function InviteMembersModal({
+    isOpen = false,
+    setShowInviteMembersModal,
+    inviteMembersModalRef,
+    selectedTeamName,
+    selectedTeamId,
+    currentUserId
+}: {
+    isOpen: boolean,
+    setShowInviteMembersModal: (value: boolean) => void,
+    inviteMembersModalRef: React.RefObject<HTMLDivElement | null>,
+    selectedTeamName: string,
+    selectedTeamId: string,
+    currentUserId: string
+}) {
+    const [emails, setEmails] = useState<string>("");
+    const [emailStatus, setEmailStatus] = useState<{ [email: string]: { exists: boolean, loading: boolean } }>({});
+    const [role, setRole] = useState<string>("member");
+    const [message, setMessage] = useState<string>("I'd like to invite you to join our team on API Nexus.");
+    const [isSending, setIsSending] = useState(false);
+    const [sendResults, setSendResults] = useState<{ email: string; success: boolean; message?: string }[]>([]);
+
+    useEffect(() => {
+        const loggingUser = async () => {
+            const userData = await getUserDetails();
+            console.log("The user Data is: ", userData);
+        }
+        loggingUser();
+    })
+
+    if (!isOpen) return null;
+
+    const handleEmailChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value;
+        setEmails(value);
+
+        // Extract emails and validate
+        const emailList = value.split(',')
+            .map(email => email.trim())
+            .filter(email => email.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+
+        // Reset status for removed emails
+        const newStatus = { ...emailStatus };
+        Object.keys(newStatus).forEach(key => {
+            if (!emailList.includes(key)) {
+                delete newStatus[key];
+            }
+        });
+
+        // Check new emails
+        if (emailList.length > 0) {
+            // Mark all as loading
+            emailList.forEach(email => {
+                if (!newStatus[email]) {
+                    newStatus[email] = { exists: false, loading: true };
+                }
+            });
+            setEmailStatus(newStatus);
+
+            // Check existence in Firestore
+            const existenceMap = await checkUsersExist(emailList);
+
+            // Update status
+            setEmailStatus(prev => {
+                const updated = { ...prev };
+                emailList.forEach(email => {
+                    if (updated[email]) {
+                        updated[email] = {
+                            exists: existenceMap[email] || false,
+                            loading: false
+                        };
+                    }
+                });
+                return updated;
+            });
+        } else {
+            setEmailStatus({});
+        }
+    };
+
+    const handleInviteMembers = async () => {
+        if (!emails) return;
+
+        const emailList = emails.split(',')
+            .map(email => email.trim())
+            .filter(email => email.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+
+        if (emailList.length === 0) return;
+
+        setIsSending(true);
+        setSendResults([]);
+
+        const { results } = await inviteUsersToTeamByEmail(
+            selectedTeamId,
+            emailList,
+            currentUserId
+        );
+
+        setSendResults(results);
+        setIsSending(false);
+
+        // Clear form if all successful
+        if (results.every(r => r.success)) {
+            setEmails("");
+            setMessage("I'd like to invite you to join our team on API Nexus.");
+        }
+    };
+
+    return (
+        <ModalBackdrop onClose={() => setShowInviteMembersModal(false)}>
+            <div
+                ref={inviteMembersModalRef}
+                className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full relative z-50"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-headline"
+                tabIndex={-1}
+            >
+                <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div className="sm:flex sm:items-start">
+                        <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                            </svg>
+                        </div>
+                        <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-headline">
+                                Invite Members to {selectedTeamName}
+                            </h3>
+                            <div className="mt-4 space-y-4">
+                                <div>
+                                    <label htmlFor="member-emails" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Email Addresses*
+                                    </label>
+                                    <textarea
+                                        id="member-emails"
+                                        name="member-emails"
+                                        rows={3}
+                                        className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        placeholder="Enter email addresses separated by commas"
+                                        value={emails}
+                                        onChange={handleEmailChange}
+                                    ></textarea>
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Separate multiple email addresses with commas
+                                    </p>
+
+                                    {/* Email status indicators */}
+                                    {Object.keys(emailStatus).length > 0 && (
+                                        <div className="mt-2 space-y-1">
+                                            {Object.entries(emailStatus).map(([email, status]) => (
+                                                <div key={email} className="flex items-center text-xs">
+                                                    <span className="text-gray-600 dark:text-gray-400">{email}</span>
+                                                    {status.loading ? (
+                                                        <span className="ml-2 text-gray-500">Checking...</span>
+                                                    ) : status.exists ? (
+                                                        <span className="ml-2 text-green-600 dark:text-green-400 flex items-center">
+                                                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                            </svg>
+                                                            User exists
+                                                        </span>
+                                                    ) : (
+                                                        <span className="ml-2 text-yellow-600 dark:text-yellow-400 flex items-center">
+                                                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                            </svg>
+                                                            Not registered
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label htmlFor="member-role" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Role
+                                    </label>
+                                    <select
+                                        id="member-role"
+                                        name="member-role"
+                                        className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        value={role}
+                                        onChange={(e) => setRole(e.target.value)}
+                                    >
+                                        <option value="member">Member</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="viewer">Viewer</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="invitation-message" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Invitation Message
+                                    </label>
+                                    <textarea
+                                        id="invitation-message"
+                                        name="invitation-message"
+                                        rows={3}
+                                        className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        placeholder="Add a personal message to your invitation"
+                                        value={message}
+                                        onChange={(e) => setMessage(e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Send results */}
+                                {sendResults.length > 0 && (
+                                    <div className="mt-4">
+                                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            Invitation Results:
+                                        </h4>
+                                        <div className="space-y-1">
+                                            {sendResults.map((result, index) => (
+                                                <div
+                                                    key={index}
+                                                    className={`text-sm ${result.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                                                >
+                                                    {result.email}: {result.message}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button
+                        type="button"
+                        className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm ${isSending ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'}`}
+                        onClick={handleInviteMembers}
+                        disabled={isSending}
+                    >
+                        {isSending ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Sending...
+                            </>
+                        ) : 'Send Invitations'}
+                    </button>
+                    <button
+                        type="button"
+                        className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm cursor-pointer"
+                        onClick={() => setShowInviteMembersModal(false)}
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </ModalBackdrop>
+    )
+}
+
+// TeamDetailsModal.tsx
+
+'use client'
+import React, { useEffect, useState } from "react"
+import ModalBackdrop from '../Common/ModalBackdrop';
+import { checkUsersExist, inviteUsersToTeamByEmail } from "@/lib/firebase/teams";
+import { getUserDetails } from "@/lib/firebase/auth";
+
+export default function InviteMembersModal({
+    isOpen = false,
+    setShowInviteMembersModal,
+    inviteMembersModalRef,
+    selectedTeamName,
+    selectedTeamId,
+    currentUserId
+}: {
+    isOpen: boolean,
+    setShowInviteMembersModal: (value: boolean) => void,
+    inviteMembersModalRef: React.RefObject<HTMLDivElement | null>,
+    selectedTeamName: string,
+    selectedTeamId: string,
+    currentUserId: string
+}) {
+    const [emails, setEmails] = useState<string>("");
+    const [emailStatus, setEmailStatus] = useState<{ [email: string]: { exists: boolean, loading: boolean } }>({});
+    const [role, setRole] = useState<string>("member");
+    const [message, setMessage] = useState<string>("I'd like to invite you to join our team on API Nexus.");
+    const [isSending, setIsSending] = useState(false);
+    const [sendResults, setSendResults] = useState<{ email: string; success: boolean; message?: string }[]>([]);
+
+    useEffect(() => {
+        const loggingUser = async () => {
+            const userData = await getUserDetails();
+            console.log("The user Data is: ", userData);
+        }
+        loggingUser();
+    })
+
+    if (!isOpen) return null;
+
+    const handleEmailChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value;
+        setEmails(value);
+
+        // Extract emails and validate
+        const emailList = value.split(',')
+            .map(email => email.trim())
+            .filter(email => email.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+
+        // Reset status for removed emails
+        const newStatus = { ...emailStatus };
+        Object.keys(newStatus).forEach(key => {
+            if (!emailList.includes(key)) {
+                delete newStatus[key];
+            }
+        });
+
+        // Check new emails
+        if (emailList.length > 0) {
+            // Mark all as loading
+            emailList.forEach(email => {
+                if (!newStatus[email]) {
+                    newStatus[email] = { exists: false, loading: true };
+                }
+            });
+            setEmailStatus(newStatus);
+
+            // Check existence in Firestore
+            const existenceMap = await checkUsersExist(emailList);
+
+            // Update status
+            setEmailStatus(prev => {
+                const updated = { ...prev };
+                emailList.forEach(email => {
+                    if (updated[email]) {
+                        updated[email] = {
+                            exists: existenceMap[email] || false,
+                            loading: false
+                        };
+                    }
+                });
+                return updated;
+            });
+        } else {
+            setEmailStatus({});
+        }
+    };
+
+    const handleInviteMembers = async () => {
+        if (!emails) return;
+
+        const emailList = emails.split(',')
+            .map(email => email.trim())
+            .filter(email => email.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+
+        if (emailList.length === 0) return;
+
+        setIsSending(true);
+        setSendResults([]);
+
+        const { results } = await inviteUsersToTeamByEmail(
+            selectedTeamId,
+            emailList,
+            currentUserId
+        );
+
+        setSendResults(results);
+        setIsSending(false);
+
+        // Clear form if all successful
+        if (results.every(r => r.success)) {
+            setEmails("");
+            setMessage("I'd like to invite you to join our team on API Nexus.");
+        }
+    };
+
+    return (
+        <ModalBackdrop onClose={() => setShowInviteMembersModal(false)}>
+            <div
+                ref={inviteMembersModalRef}
+                className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full relative z-50"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-headline"
+                tabIndex={-1}
+            >
+                <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div className="sm:flex sm:items-start">
+                        <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                            </svg>
+                        </div>
+                        <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-headline">
+                                Invite Members to {selectedTeamName}
+                            </h3>
+                            <div className="mt-4 space-y-4">
+                                <div>
+                                    <label htmlFor="member-emails" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Email Addresses*
+                                    </label>
+                                    <textarea
+                                        id="member-emails"
+                                        name="member-emails"
+                                        rows={3}
+                                        className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        placeholder="Enter email addresses separated by commas"
+                                        value={emails}
+                                        onChange={handleEmailChange}
+                                    ></textarea>
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Separate multiple email addresses with commas
+                                    </p>
+
+                                    {/* Email status indicators */}
+                                    {Object.keys(emailStatus).length > 0 && (
+                                        <div className="mt-2 space-y-1">
+                                            {Object.entries(emailStatus).map(([email, status]) => (
+                                                <div key={email} className="flex items-center text-xs">
+                                                    <span className="text-gray-600 dark:text-gray-400">{email}</span>
+                                                    {status.loading ? (
+                                                        <span className="ml-2 text-gray-500">Checking...</span>
+                                                    ) : status.exists ? (
+                                                        <span className="ml-2 text-green-600 dark:text-green-400 flex items-center">
+                                                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                            </svg>
+                                                            User exists
+                                                        </span>
+                                                    ) : (
+                                                        <span className="ml-2 text-yellow-600 dark:text-yellow-400 flex items-center">
+                                                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                            </svg>
+                                                            Not registered
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label htmlFor="member-role" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Role
+                                    </label>
+                                    <select
+                                        id="member-role"
+                                        name="member-role"
+                                        className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        value={role}
+                                        onChange={(e) => setRole(e.target.value)}
+                                    >
+                                        <option value="member">Member</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="viewer">Viewer</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="invitation-message" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Invitation Message
+                                    </label>
+                                    <textarea
+                                        id="invitation-message"
+                                        name="invitation-message"
+                                        rows={3}
+                                        className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        placeholder="Add a personal message to your invitation"
+                                        value={message}
+                                        onChange={(e) => setMessage(e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Send results */}
+                                {sendResults.length > 0 && (
+                                    <div className="mt-4">
+                                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            Invitation Results:
+                                        </h4>
+                                        <div className="space-y-1">
+                                            {sendResults.map((result, index) => (
+                                                <div
+                                                    key={index}
+                                                    className={`text-sm ${result.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                                                >
+                                                    {result.email}: {result.message}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button
+                        type="button"
+                        className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm ${isSending ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'}`}
+                        onClick={handleInviteMembers}
+                        disabled={isSending}
+                    >
+                        {isSending ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Sending...
+                            </>
+                        ) : 'Send Invitations'}
+                    </button>
+                    <button
+                        type="button"
+                        className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm cursor-pointer"
+                        onClick={() => setShowInviteMembersModal(false)}
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </ModalBackdrop>
+    )
+}
+

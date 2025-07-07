@@ -16,7 +16,7 @@ import TeamsDropdown from './TeamsDropdown';
 import AutoSaveMenuButton from './AutoSave';
 import LogoutMenuButton from './LogoutMenuButton';
 import NavigationMenuItems from './NavigationMenuItems';
-import { Database } from 'lucide-react';
+import { Database, TerminalIcon } from 'lucide-react';
 
 export interface UserDropdownProps {
     initials: string,
@@ -43,6 +43,7 @@ const UserDropdown = ({ initials, email, username, displayName, autoSave, setAut
         { href: "/environments", icon: <EnvironmentsIcon />, label: "Environments" },
         { href: "/teams", icon: <TeamIcon />, label: "Team" },
         { href: "/database", icon: <Database />, label: "Data Pro"},
+        { href: "/terminal", icon: <TerminalIcon />, label: "SSH Manager"},
         { href: "/settings", icon: <SettingsIcon />, label: "Settings" },
     ];
 

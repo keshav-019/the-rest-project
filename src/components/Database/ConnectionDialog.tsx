@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import DatabaseService from '@/lib/database-service';
-import { useToast } from '@/components/ui/use-toast';
 import { ConnectionConfig } from '@/types/Connection';
+import { useToast } from '@/hooks/useToast';
 
 interface ConnectionDialogProps {
     isOpen: boolean;

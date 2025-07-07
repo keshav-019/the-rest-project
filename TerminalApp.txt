@@ -1,0 +1,2512 @@
+// Actions.tsx
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Workflow, Play, Pause, Settings, Trash2, Clock } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
+
+interface Action {
+  id: string;
+  name: string;
+  description: string;
+  commands: string[];
+  targetServers: string[];
+  schedule?: string;
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  lastRun?: Date;
+  environment: 'development' | 'staging' | 'production' | 'all';
+}
+
+export const Actions = () => {
+  const { toast } = useToast();
+  const [actions, setActions] = useState<Action[]>([
+    {
+      id: '1',
+      name: 'Deploy to Production',
+      description: 'Complete deployment pipeline from staging to production',
+      commands: [
+        'git pull origin main',
+        'npm install',
+        'npm run build',
+        'pm2 restart all'
+      ],
+      targetServers: ['prod-server-1', 'prod-server-2'],
+      status: 'completed',
+      lastRun: new Date(Date.now() - 3600000),
+      environment: 'production'
+    },
+    {
+      id: '2',
+      name: 'System Health Check',
+      description: 'Run comprehensive system health checks across all servers',
+      commands: [
+        'df -h',
+        'free -m',
+        'systemctl status nginx',
+        'docker ps'
+      ],
+      targetServers: ['all'],
+      schedule: '0 */6 * * *',
+      status: 'idle',
+      environment: 'all'
+    }
+  ]);
+
+  const [newAction, setNewAction] = useState({
+    name: '',
+    description: '',
+    commands: '',
+    targetServers: 'all',
+    environment: 'development' as Action['environment']
+  });
+
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const handleAddAction = () => {
+    if (!newAction.name || !newAction.commands) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const action: Action = {
+      id: Date.now().toString(),
+      name: newAction.name,
+      description: newAction.description,
+      commands: newAction.commands.split('\n').filter(cmd => cmd.trim()),
+      targetServers: newAction.targetServers === 'all' ? ['all'] : [newAction.targetServers],
+      status: 'idle',
+      environment: newAction.environment
+    };
+
+    setActions([...actions, action]);
+    setNewAction({ name: '', description: '', commands: '', targetServers: 'all', environment: 'development' });
+    setIsAddDialogOpen(false);
+
+    toast({
+      title: "Success",
+      description: `Action "${action.name}" created successfully`,
+    });
+  };
+
+  const executeAction = (actionId: string) => {
+    setActions(actions.map(a =>
+      a.id === actionId
+        ? { ...a, status: 'running' }
+        : a
+    ));
+
+    // Simulate action execution
+    setTimeout(() => {
+      setActions(actions.map(a =>
+        a.id === actionId
+          ? { ...a, status: 'completed', lastRun: new Date() }
+          : a
+      ));
+      toast({
+        title: "Action Completed",
+        description: "Action executed successfully",
+      });
+    }, 3000);
+  };
+
+  const handleDeleteAction = (actionId: string) => {
+    setActions(actions.filter(a => a.id !== actionId));
+    toast({
+      title: "Action Deleted",
+      description: "Action has been removed from your workflows",
+    });
+  };
+
+  const getStatusColor = (status: Action['status']) => {
+    switch (status) {
+      case 'running': return 'bg-blue-500';
+      case 'completed': return 'bg-green-500';
+      case 'failed': return 'bg-red-500';
+      case 'idle': return 'bg-gray-500';
+    }
+  };
+
+  const getEnvironmentColor = (environment: Action['environment']) => {
+    switch (environment) {
+      case 'development': return 'bg-green-500/10 text-green-500 border-green-500/20';
+      case 'staging': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+      case 'production': return 'bg-red-500/10 text-red-500 border-red-500/20';
+      case 'all': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+    }
+  };
+
+  const getStatusText = (status: Action['status']) => {
+    switch (status) {
+      case 'running': return 'Running';
+      case 'completed': return 'Completed';
+      case 'failed': return 'Failed';
+      case 'idle': return 'Ready';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Action Workflows</h2>
+          <p className="text-muted-foreground">
+            Automate deployment and maintenance tasks across your infrastructure
+          </p>
+        </div>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Action
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Create New Action</DialogTitle>
+              <DialogDescription>
+                Define a new automated workflow for your servers
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="actionName">Action Name</Label>
+                <Input
+                  id="actionName"
+                  value={newAction.name}
+                  onChange={(e) => setNewAction({...newAction, name: e.target.value})}
+                  placeholder="Deploy Application"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="actionDescription">Description</Label>
+                <Input
+                  id="actionDescription"
+                  value={newAction.description}
+                  onChange={(e) => setNewAction({...newAction, description: e.target.value})}
+                  placeholder="What this action does"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="commands">Commands (one per line)</Label>
+                <Textarea
+                  id="commands"
+                  value={newAction.commands}
+                  onChange={(e) => setNewAction({...newAction, commands: e.target.value})}
+                  placeholder="git pull origin main&#10;npm install&#10;npm run build"
+                  rows={6}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="environment">Environment</Label>
+                <Select value={newAction.environment} onValueChange={(value: Action['environment']) => setNewAction({...newAction, environment: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="development">Development</SelectItem>
+                    <SelectItem value="staging">Staging</SelectItem>
+                    <SelectItem value="production">Production</SelectItem>
+                    <SelectItem value="all">All Environments</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleAddAction}>
+                Create Action
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {actions.map((action) => (
+          <Card key={action.id} className="relative">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Workflow className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-lg">{action.name}</CardTitle>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className={`h-2 w-2 rounded-full ${getStatusColor(action.status)}`} />
+                  <Badge variant="secondary" className="text-xs">
+                    {getStatusText(action.status)}
+                  </Badge>
+                </div>
+              </div>
+              <CardDescription>
+                {action.description}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="secondary" className={`text-xs border ${getEnvironmentColor(action.environment)}`}>
+                      {action.environment}
+                    </Badge>
+                    {action.schedule && (
+                      <Badge variant="secondary" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Scheduled
+                      </Badge>
+                    )}
+                  </div>
+                  <p>Commands: {action.commands.length}</p>
+                  <p>Targets: {action.targetServers.join(', ')}</p>
+                  {action.lastRun && (
+                    <p>Last run: {action.lastRun.toLocaleString()}</p>
+                  )}
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    size="sm"
+                    onClick={() => executeAction(action.id)}
+                    disabled={action.status === 'running'}
+                    className="flex-1"
+                  >
+                    {action.status === 'running' ? (
+                      <>
+                        <Pause className="h-3 w-3 mr-1" />
+                        Running...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-3 w-3 mr-1" />
+                        Execute
+                      </>
+                    )}
+                  </Button>
+                  <Button size="sm" variant="outline">
+                    <Settings className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDeleteAction(action.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+
+
+// AppHeader.tsx
+
+import React from 'react';
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, User, Settings, LogOut, Terminal } from 'lucide-react';
+
+interface AppHeaderProps {
+    activeTab: string;
+    onOpenTerminal: () => void;
+}
+
+export const AppHeader = ({ activeTab, onOpenTerminal }: AppHeaderProps) => {
+    const getPageTitle = (tab: string) => {
+        switch (tab) {
+            case 'servers': return 'Servers';
+            case 'keys': return 'SSH Keys';
+            case 'shortcuts': return 'Shortcuts';
+            case 'actions': return 'Actions';
+            case 'logs': return 'Logs';
+            case 'settings': return 'Settings';
+            default: return 'Dashboard';
+        }
+    };
+
+    return (
+        <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b bg-background px-4">
+            <div className="flex items-center gap-4">
+                <SidebarTrigger />
+                <div>
+                    <h1 className="text-lg font-semibold">{getPageTitle(activeTab)}</h1>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onOpenTerminal}
+                    className="flex items-center gap-2"
+                >
+                    <Terminal className="h-4 w-4" />
+                    Terminal
+                </Button>
+
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="flex items-center gap-2 px-2 h-auto py-1">
+                            <Avatar className="h-8 w-8">
+                                <AvatarFallback className="bg-blue-600 text-white text-xs font-medium">
+                                    KJ
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col items-start">
+                                <span className="text-sm font-medium">Keshav Jha</span>
+                                <span className="text-xs text-muted-foreground">@tonystark</span>
+                            </div>
+                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 bg-card border border-border" align="end">
+                        <DropdownMenuLabel className="pb-2">
+                            <div className="flex items-center gap-3">
+                                <Avatar className="h-10 w-10">
+                                    <AvatarFallback className="bg-blue-600 text-white text-sm font-medium">
+                                        KJ
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-medium">Keshav Jha</span>
+                                    <span className="text-xs text-muted-foreground">@tonystark</span>
+                                    <span className="text-xs text-muted-foreground">keshavkjha1999@gmail.com</span>
+                                </div>
+                            </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="cursor-pointer">
+                            <User className="mr-2 h-4 w-4" />
+                            <span>Profile</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer">
+                            <Settings className="mr-2 h-4 w-4" />
+                            <span>Settings</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950">
+                            <LogOut className="mr-2 h-4 w-4" />
+                            <span>Logout</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+        </header>
+    );
+};
+
+
+// AppSidebar.tsx
+
+
+import React from 'react';
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarHeader,
+    SidebarFooter,
+} from "@/components/ui/sidebar";
+import { Server, Key, Zap, Play, FileText, Settings } from 'lucide-react';
+
+interface AppSidebarProps {
+    activeTab: string;
+    onTabChange: (tab: string) => void;
+}
+
+export const AppSidebar = ({ activeTab, onTabChange }: AppSidebarProps) => {
+    const menuItems = [
+        { id: 'servers', label: 'Servers', icon: Server },
+        { id: 'keys', label: 'SSH Keys', icon: Key },
+        { id: 'shortcuts', label: 'Shortcuts', icon: Zap },
+        { id: 'actions', label: 'Actions', icon: Play },
+        { id: 'logs', label: 'Logs', icon: FileText },
+        { id: 'settings', label: 'Settings', icon: Settings },
+    ];
+
+    return (
+        <Sidebar>
+            <SidebarHeader className="p-4">
+                <h2 className="text-lg font-semibold">SSH Manager</h2>
+            </SidebarHeader>
+
+            <SidebarContent>
+                <SidebarGroup>
+                    <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            {menuItems.map((item) => (
+                                <SidebarMenuItem key={item.id}>
+                                    <SidebarMenuButton
+                                        onClick={() => onTabChange(item.id)}
+                                        isActive={activeTab === item.id}
+                                        className="w-full justify-start"
+                                    >
+                                        <item.icon className="h-4 w-4" />
+                                        <span>{item.label}</span>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+            </SidebarContent>
+
+            <SidebarFooter className="p-4">
+                <div className="text-xs text-muted-foreground">
+                    SSH Manager v1.0
+                </div>
+            </SidebarFooter>
+        </Sidebar>
+    );
+};
+
+
+// KeyManagement.tsx
+
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Key, Copy, Trash2, Download } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
+
+interface SSHKey {
+    id: string;
+    name: string;
+    type: 'rsa' | 'ed25519' | 'ecdsa';
+    fingerprint: string;
+    createdAt: Date;
+    lastUsed?: Date;
+    isProtected: boolean;
+}
+
+export const KeyManagement = () => {
+    const { toast } = useToast();
+    const [keys, setKeys] = useState<SSHKey[]>([
+        {
+            id: '1',
+            name: 'Production Deploy Key',
+            type: 'rsa',
+            fingerprint: 'SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8',
+            createdAt: new Date(Date.now() - 86400000),
+            lastUsed: new Date(Date.now() - 3600000),
+            isProtected: true
+        },
+        {
+            id: '2',
+            name: 'Development Key',
+            type: 'ed25519',
+            fingerprint: 'SHA256:1234567890abcdef1234567890abcdef12345678',
+            createdAt: new Date(Date.now() - 172800000),
+            isProtected: false
+        }
+    ]);
+
+    const [newKey, setNewKey] = useState({
+        name: '',
+        type: 'rsa' as 'rsa' | 'ed25519' | 'ecdsa',
+        keyContent: '',
+        passphrase: ''
+    });
+
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+    const handleAddKey = () => {
+        if (!newKey.name || !newKey.keyContent) {
+            toast({
+                title: "Error",
+                description: "Please fill in all required fields",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const key: SSHKey = {
+            id: Date.now().toString(),
+            name: newKey.name,
+            type: newKey.type,
+            fingerprint: `SHA256:${Math.random().toString(36).substring(2, 45)}`,
+            createdAt: new Date(),
+            isProtected: newKey.passphrase.length > 0
+        };
+
+        setKeys([...keys, key]);
+        setNewKey({ name: '', type: 'rsa', keyContent: '', passphrase: '' });
+        setIsAddDialogOpen(false);
+
+        toast({
+            title: "Success",
+            description: `SSH key "${key.name}" added successfully`,
+        });
+    };
+
+    const handleDeleteKey = (keyId: string) => {
+        setKeys(keys.filter(k => k.id !== keyId));
+        toast({
+            title: "Key Deleted",
+            description: "SSH key has been removed from your keychain",
+        });
+    };
+
+    const copyFingerprint = (fingerprint: string) => {
+        navigator.clipboard.writeText(fingerprint);
+        toast({
+            title: "Copied",
+            description: "Fingerprint copied to clipboard",
+        });
+    };
+
+    const getTypeColor = (type: SSHKey['type']) => {
+        switch (type) {
+            case 'rsa': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+            case 'ed25519': return 'bg-green-500/10 text-green-500 border-green-500/20';
+            case 'ecdsa': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight">SSH Key Management</h2>
+                    <p className="text-muted-foreground">
+                        Manage your SSH keys and configure secure authentication
+                    </p>
+                </div>
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add SSH Key
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>Add New SSH Key</DialogTitle>
+                            <DialogDescription>
+                                Add an existing SSH key or generate a new one
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="keyName">Key Name</Label>
+                                <Input
+                                    id="keyName"
+                                    value={newKey.name}
+                                    onChange={(e) => setNewKey({ ...newKey, name: e.target.value })}
+                                    placeholder="My SSH Key"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="keyType">Key Type</Label>
+                                <Select value={newKey.type} onValueChange={(value: 'rsa' | 'ed25519' | 'ecdsa') => setNewKey({ ...newKey, type: value })}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="rsa">RSA</SelectItem>
+                                        <SelectItem value="ed25519">ED25519</SelectItem>
+                                        <SelectItem value="ecdsa">ECDSA</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="keyContent">Private Key Content</Label>
+                                <Textarea
+                                    id="keyContent"
+                                    value={newKey.keyContent}
+                                    onChange={(e) => setNewKey({ ...newKey, keyContent: e.target.value })}
+                                    placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..."
+                                    rows={8}
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="passphrase">Passphrase (Optional)</Label>
+                                <Input
+                                    id="passphrase"
+                                    type="password"
+                                    value={newKey.passphrase}
+                                    onChange={(e) => setNewKey({ ...newKey, passphrase: e.target.value })}
+                                    placeholder="Enter passphrase if key is protected"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleAddKey}>
+                                Add Key
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {keys.map((key) => (
+                    <Card key={key.id} className="relative">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                    <Key className="h-5 w-5 text-primary" />
+                                    <CardTitle className="text-lg">{key.name}</CardTitle>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Badge variant="secondary" className={`text-xs border ${getTypeColor(key.type)}`}>
+                                        {key.type.toUpperCase()}
+                                    </Badge>
+                                    {key.isProtected && (
+                                        <Badge variant="secondary" className="text-xs bg-amber-500/10 text-amber-500 border-amber-500/20">
+                                            Protected
+                                        </Badge>
+                                    )}
+                                </div>
+                            </div>
+                            <CardDescription>
+                                Created: {key.createdAt.toLocaleDateString()}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-3">
+                                <div className="text-sm text-muted-foreground">
+                                    <p className="font-mono text-xs break-all">{key.fingerprint}</p>
+                                    {key.lastUsed && (
+                                        <p className="mt-1">Last used: {key.lastUsed.toLocaleString()}</p>
+                                    )}
+                                </div>
+                                <div className="flex space-x-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => copyFingerprint(key.fingerprint)}
+                                        className="flex-1"
+                                    >
+                                        <Copy className="h-3 w-3 mr-1" />
+                                        Copy
+                                    </Button>
+                                    <Button size="sm" variant="outline">
+                                        <Download className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleDeleteKey(key.id)}
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
+// Layout.tsx
+
+
+import React, { useEffect, useState } from 'react';
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from './AppSidebar';
+import { KeyManagement } from './KeyManagement';
+import { Shortcuts } from './Shortcuts';
+import { Actions } from './Actions';
+import { Logs } from './Logs';
+import { Servers } from './Servers';
+import { Settings } from './Settings';
+import { LocalTerminal } from './LocalTerminal';
+import HeaderComponent from '../Common/Header';
+import { getInitials, getUserDetails } from '@/lib/firebase/auth';
+
+export const Layout = () => {
+    const [activeTab, setActiveTab] = useState('servers');
+    const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+    const [displayName, setDisplayName] = useState<string>('');
+    const [email, setEmail] = useState<string>('');
+    const [username, setUsername] = useState<string>('');
+    const [initials, setInitials] = useState<string>('');
+    const [autoSave, setAutoSave] = useState<boolean>(true);
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            const {user, userData} = await getUserDetails();
+            setEmail(user?.email || '');
+            setAutoSave(userData?.autoSave || true);
+            setDisplayName(user?.displayName || '');
+            setUsername(user?.username || '');
+            setInitials(getInitials(user?.displayName || ''));
+        }
+        fetchUserData();
+    }, [])
+
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'servers':
+                return <Servers />;
+            case 'keys':
+                return <KeyManagement />;
+            case 'shortcuts':
+                return <Shortcuts />;
+            case 'actions':
+                return <Actions />;
+            case 'logs':
+                return <Logs />;
+            case 'settings':
+                return <Settings />;
+            default:
+                return <Servers />;
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex w-full">
+            <SidebarProvider>
+                <AppSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+                <SidebarInset className="flex-1 flex flex-col">
+                    <HeaderComponent activeEnvironmentId={''} autoSave={true} displayName={displayName} email={email} environments={[]} initials={initials} onAddCollection={() => {}} onEnvironmentSelect={() => {}} onExitTeamMode={() => {}} onTeamSelect={() => {}} parentComponent={''} setAutoSave={setAutoSave} setShowTeams={() => {}} showTeams={true} teamMode={null} teams={[]} toSearch={false} username={username} />
+                    <main className="flex-1 p-6 overflow-auto">
+                        {renderContent()}
+                    </main>
+                </SidebarInset>
+                {isTerminalOpen && (
+                    <LocalTerminal onClose={() => setIsTerminalOpen(false)} />
+                )}
+            </SidebarProvider>
+        </div>
+    );
+};
+
+
+// LocalTerminal.tsx
+
+
+import React, { useEffect, useRef, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { X, Minimize2 } from 'lucide-react';
+
+interface LocalTerminalProps {
+    onClose: () => void;
+}
+
+export const LocalTerminal = ({ onClose }: LocalTerminalProps) => {
+    const terminalRef = useRef<HTMLDivElement>(null);
+    const [input, setInput] = useState('');
+    const [history, setHistory] = useState<string[]>([]);
+    const [currentDirectory, setCurrentDirectory] = useState('~');
+    const [isMinimized, setIsMinimized] = useState(false);
+
+    const executeCommand = (command: string) => {
+        const parts = command.trim().split(' ');
+        const cmd = parts[0];
+        const args = parts.slice(1);
+
+        let output = '';
+
+        switch (cmd) {
+            case 'ls':
+                output = 'Documents  Downloads  Desktop  Pictures  Music  Videos  Projects';
+                break;
+            case 'pwd':
+                output = `/home/user/${currentDirectory}`;
+                break;
+            case 'whoami':
+                output = 'keshav';
+                break;
+            case 'date':
+                output = new Date().toString();
+                break;
+            case 'echo':
+                output = args.join(' ');
+                break;
+            case 'cd':
+                if (args.length === 0) {
+                    setCurrentDirectory('~');
+                    output = '';
+                } else {
+                    const newDir = args[0];
+                    if (newDir === '..') {
+                        const pathParts = currentDirectory.split('/');
+                        pathParts.pop();
+                        setCurrentDirectory(pathParts.join('/') || '~');
+                    } else {
+                        setCurrentDirectory(currentDirectory === '~' ? newDir : `${currentDirectory}/${newDir}`);
+                    }
+                    output = '';
+                }
+                break;
+            case 'clear':
+                setHistory([]);
+                return;
+            case 'help':
+                output = `Available commands:
+ls       - List directory contents
+pwd      - Print working directory
+whoami   - Print current user
+date     - Print current date
+echo     - Echo text
+cd       - Change directory
+clear    - Clear terminal
+mkdir    - Create directory
+touch    - Create file
+cat      - Display file contents
+ps       - Show running processes
+uname    - System information`;
+                break;
+            case 'mkdir':
+                output = args.length > 0 ? `Directory '${args[0]}' created` : 'mkdir: missing operand';
+                break;
+            case 'touch':
+                output = args.length > 0 ? `File '${args[0]}' created` : 'touch: missing operand';
+                break;
+            case 'cat':
+                output = args.length > 0 ? `Contents of ${args[0]}: Hello World!` : 'cat: missing operand';
+                break;
+            case 'ps':
+                output = `PID    COMMAND
+1234   bash
+5678   node
+9012   code
+3456   chrome`;
+                break;
+            case 'uname':
+                output = 'Linux terminal-emulator 5.15.0 x86_64';
+                break;
+            default:
+                output = `Command '${cmd}' not found. Type 'help' for available commands.`;
+        }
+
+        return output;
+    };
+
+    const handleInputSubmit = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            const command = input.trim();
+            if (command) {
+                const prompt = `user@terminal:${currentDirectory}$ ${command}`;
+                const output = executeCommand(command);
+
+                setHistory(prev => {
+                    const newHistory = [...prev, prompt];
+                    if (output) {
+                        newHistory.push(output);
+                    }
+                    return newHistory;
+                });
+
+                setInput('');
+            }
+        }
+    };
+
+    useEffect(() => {
+        if (terminalRef.current) {
+            terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+        }
+    }, [history]);
+
+    if (isMinimized) {
+        return (
+            <div className="fixed bottom-4 left-4 z-50">
+                <Button
+                    onClick={() => setIsMinimized(false)}
+                    className="bg-zinc-800 hover:bg-zinc-700 text-white"
+                >
+                    Terminal
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="fixed inset-4 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+            <Card className="w-full max-w-4xl h-96 bg-zinc-900 border-zinc-700 text-green-400 font-mono">
+                <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm text-zinc-300">
+                            Local Terminal
+                        </CardTitle>
+                        <div className="flex gap-2">
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setIsMinimized(true)}
+                                className="h-6 w-6 p-0 text-zinc-400 hover:text-white hover:bg-zinc-700"
+                            >
+                                <Minimize2 className="h-3 w-3" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={onClose}
+                                className="h-6 w-6 p-0 text-zinc-400 hover:text-white hover:bg-zinc-700"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="flex flex-col h-full pb-4">
+                    <div
+                        ref={terminalRef}
+                        className="flex-1 overflow-y-auto bg-black p-3 rounded text-sm leading-relaxed"
+                    >
+                        <div className="text-green-400 mb-2">
+                            Welcome to Local Terminal Emulator v1.0
+                        </div>
+                        <div className="text-green-400 mb-2">
+                            Type 'help' for available commands.
+                        </div>
+                        {history.map((line, index) => (
+                            <div key={index} className="whitespace-pre-wrap">
+                                {line}
+                            </div>
+                        ))}
+                        <div className="flex items-center">
+                            <span className="text-green-400">user@terminal:{currentDirectory}$ </span>
+                            <input
+                                title='terminal_command'
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleInputSubmit}
+                                className="flex-1 bg-transparent outline-none text-green-400 ml-1"
+                                autoFocus
+                                placeholder=""
+                            />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+};
+
+
+// Logs.tsx
+
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search, Download, Trash2, Filter, Terminal, Workflow, Key, Keyboard } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
+
+interface LogEntry {
+    id: string;
+    timestamp: Date;
+    level: 'info' | 'warning' | 'error' | 'success';
+    category: 'server' | 'action' | 'key' | 'shortcut';
+    message: string;
+    details?: string;
+    source?: string;
+}
+
+export const Logs = () => {
+    const { toast } = useToast();
+    const [logs] = useState<LogEntry[]>([
+        {
+            id: '1',
+            timestamp: new Date(Date.now() - 300000),
+            level: 'success',
+            category: 'server',
+            message: 'Successfully connected to Production Server',
+            details: 'SSH connection established to 192.168.1.100:22',
+            source: 'Production Server'
+        },
+        {
+            id: '2',
+            timestamp: new Date(Date.now() - 600000),
+            level: 'info',
+            category: 'action',
+            message: 'Deploy to Production workflow completed',
+            details: 'All 4 commands executed successfully across 2 servers',
+            source: 'Deploy to Production'
+        },
+        {
+            id: '3',
+            timestamp: new Date(Date.now() - 900000),
+            level: 'warning',
+            category: 'key',
+            message: 'SSH key "Development Key" is unprotected',
+            details: 'Consider adding a passphrase for enhanced security',
+            source: 'Key Management'
+        },
+        {
+            id: '4',
+            timestamp: new Date(Date.now() - 1200000),
+            level: 'info',
+            category: 'shortcut',
+            message: 'Shortcut "Paste VM Password" executed',
+            details: 'Ctrl + P triggered password paste action',
+            source: 'Shortcuts'
+        },
+        {
+            id: '5',
+            timestamp: new Date(Date.now() - 1500000),
+            level: 'error',
+            category: 'server',
+            message: 'Failed to connect to Development Server',
+            details: 'Connection timeout after 30 seconds - check server status',
+            source: 'Development Server'
+        }
+    ]);
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [levelFilter, setLevelFilter] = useState<string>('all');
+    const [categoryFilter, setCategoryFilter] = useState<string>('all');
+
+    const filteredLogs = logs.filter(log => {
+        const matchesSearch = log.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            log.details?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            log.source?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesLevel = levelFilter === 'all' || log.level === levelFilter;
+        const matchesCategory = categoryFilter === 'all' || log.category === categoryFilter;
+
+        return matchesSearch && matchesLevel && matchesCategory;
+    });
+
+    const clearLogs = () => {
+        toast({
+            title: "Logs Cleared",
+            description: "All log entries have been removed",
+        });
+    };
+
+    const exportLogs = () => {
+        toast({
+            title: "Logs Exported",
+            description: "Log file has been downloaded",
+        });
+    };
+
+    const getLevelColor = (level: LogEntry['level']) => {
+        switch (level) {
+            case 'success': return 'bg-green-500/10 text-green-500 border-green-500/20';
+            case 'info': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+            case 'warning': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+            case 'error': return 'bg-red-500/10 text-red-500 border-red-500/20';
+        }
+    };
+
+    const getCategoryIcon = (category: LogEntry['category']) => {
+        switch (category) {
+            case 'server': return Terminal;
+            case 'action': return Workflow;
+            case 'key': return Key;
+            case 'shortcut': return Keyboard;
+        }
+    };
+
+    const getCategoryColor = (category: LogEntry['category']) => {
+        switch (category) {
+            case 'server': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+            case 'action': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+            case 'key': return 'bg-green-500/10 text-green-500 border-green-500/20';
+            case 'shortcut': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight">Activity Logs</h2>
+                    <p className="text-muted-foreground">
+                        Monitor all system activities and track operations
+                    </p>
+                </div>
+                <div className="flex space-x-2">
+                    <Button variant="outline" onClick={exportLogs}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Export
+                    </Button>
+                    <Button variant="outline" onClick={clearLogs}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Clear
+                    </Button>
+                </div>
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Filter className="h-5 w-5" />
+                        Filters & Search
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search logs..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-10"
+                                />
+                            </div>
+                        </div>
+                        <Select value={levelFilter} onValueChange={setLevelFilter}>
+                            <SelectTrigger className="w-full md:w-[150px]">
+                                <SelectValue placeholder="Level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Levels</SelectItem>
+                                <SelectItem value="success">Success</SelectItem>
+                                <SelectItem value="info">Info</SelectItem>
+                                <SelectItem value="warning">Warning</SelectItem>
+                                <SelectItem value="error">Error</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                            <SelectTrigger className="w-full md:w-[150px]">
+                                <SelectValue placeholder="Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Categories</SelectItem>
+                                <SelectItem value="server">Servers</SelectItem>
+                                <SelectItem value="action">Actions</SelectItem>
+                                <SelectItem value="key">SSH Keys</SelectItem>
+                                <SelectItem value="shortcut">Shortcuts</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Log Entries ({filteredLogs.length})</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <ScrollArea className="h-[600px]">
+                        <div className="space-y-1 p-4">
+                            {filteredLogs.map((log) => {
+                                const CategoryIcon = getCategoryIcon(log.category);
+                                return (
+                                    <div key={log.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex items-start gap-3 flex-1">
+                                                <CategoryIcon className="h-4 w-4 text-primary mt-1" />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <Badge variant="secondary" className={`text-xs border ${getLevelColor(log.level)}`}>
+                                                            {log.level.toUpperCase()}
+                                                        </Badge>
+                                                        <Badge variant="secondary" className={`text-xs border ${getCategoryColor(log.category)}`}>
+                                                            {log.category}
+                                                        </Badge>
+                                                        {log.source && (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {log.source}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm font-medium">{log.message}</p>
+                                                    {log.details && (
+                                                        <p className="text-xs text-muted-foreground mt-1">{log.details}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-xs text-muted-foreground whitespace-nowrap">
+                                                {log.timestamp.toLocaleString()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+            </Card>
+        </div>
+    );
+};
+
+
+// Servers.tsx
+
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Terminal } from './Terminal';
+import { Plus, Server, Play, Settings, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
+
+interface Server {
+    id: string;
+    name: string;
+    host: string;
+    port: number;
+    username: string;
+    authType: 'password' | 'key';
+    password?: string;
+    keyId?: string;
+    status: 'connected' | 'disconnected' | 'connecting';
+    lastConnected?: Date;
+}
+
+export const Servers = () => {
+    const { toast } = useToast();
+    const [servers, setServers] = useState<Server[]>([
+        {
+            id: '1',
+            name: 'Production Server',
+            host: '192.168.1.100',
+            port: 22,
+            username: 'admin',
+            authType: 'key',
+            keyId: 'prod-key',
+            status: 'disconnected',
+            lastConnected: new Date(Date.now() - 3600000)
+        },
+        {
+            id: '2',
+            name: 'Development Server',
+            host: '10.0.0.50',
+            port: 22,
+            username: 'developer',
+            authType: 'password',
+            status: 'connected',
+            lastConnected: new Date()
+        }
+    ]);
+
+    const [newServer, setNewServer] = useState({
+        name: '',
+        host: '',
+        port: 22,
+        username: '',
+        authType: 'password' as 'password' | 'key',
+        password: '',
+        keyId: ''
+    });
+
+    const [activeTerminal, setActiveTerminal] = useState<Server | null>(null);
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+    const handleAddServer = () => {
+        if (!newServer.name || !newServer.host || !newServer.username) {
+            toast({
+                title: "Error",
+                description: "Please fill in all required fields",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const server: Server = {
+            id: Date.now().toString(),
+            name: newServer.name,
+            host: newServer.host,
+            port: newServer.port,
+            username: newServer.username,
+            authType: newServer.authType,
+            password: newServer.authType === 'password' ? newServer.password : undefined,
+            keyId: newServer.authType === 'key' ? newServer.keyId : undefined,
+            status: 'disconnected'
+        };
+
+        setServers([...servers, server]);
+        setNewServer({
+            name: '',
+            host: '',
+            port: 22,
+            username: '',
+            authType: 'password',
+            password: '',
+            keyId: ''
+        });
+        setIsAddDialogOpen(false);
+
+        toast({
+            title: "Success",
+            description: `Server "${server.name}" added successfully`,
+        });
+    };
+
+    const handleConnect = (server: Server) => {
+        setServers(servers.map(s =>
+            s.id === server.id
+                ? { ...s, status: 'connecting' }
+                : s
+        ));
+
+        // Simulate connection delay
+        setTimeout(() => {
+            setServers(servers.map(s =>
+                s.id === server.id
+                    ? { ...s, status: 'connected', lastConnected: new Date() }
+                    : s
+            ));
+            setActiveTerminal(server);
+            toast({
+                title: "Connected",
+                description: `Connected to ${server.name}`,
+            });
+        }, 1500);
+    };
+
+    const handleDeleteServer = (serverId: string) => {
+        setServers(servers.filter(s => s.id !== serverId));
+        toast({
+            title: "Server Deleted",
+            description: "Server has been removed from your list",
+        });
+    };
+
+    const getStatusColor = (status: Server['status']) => {
+        switch (status) {
+            case 'connected': return 'bg-green-500';
+            case 'connecting': return 'bg-yellow-500';
+            case 'disconnected': return 'bg-gray-500';
+        }
+    };
+
+    const getStatusText = (status: Server['status']) => {
+        switch (status) {
+            case 'connected': return 'Connected';
+            case 'connecting': return 'Connecting...';
+            case 'disconnected': return 'Disconnected';
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight">Server Management</h2>
+                    <p className="text-muted-foreground">
+                        Manage your SSH connections and server configurations
+                    </p>
+                </div>
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Server
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>Add New Server</DialogTitle>
+                            <DialogDescription>
+                                Add a new SSH server connection to your workspace
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="name">Server Name</Label>
+                                <Input
+                                    id="name"
+                                    value={newServer.name}
+                                    onChange={(e) => setNewServer({ ...newServer, name: e.target.value })}
+                                    placeholder="Production Server"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="host">Host</Label>
+                                <Input
+                                    id="host"
+                                    value={newServer.host}
+                                    onChange={(e) => setNewServer({ ...newServer, host: e.target.value })}
+                                    placeholder="192.168.1.100"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="port">Port</Label>
+                                <Input
+                                    id="port"
+                                    type="number"
+                                    value={newServer.port}
+                                    onChange={(e) => setNewServer({ ...newServer, port: parseInt(e.target.value) })}
+                                    placeholder="22"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="username">Username</Label>
+                                <Input
+                                    id="username"
+                                    value={newServer.username}
+                                    onChange={(e) => setNewServer({ ...newServer, username: e.target.value })}
+                                    placeholder="admin"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="authType">Authentication Type</Label>
+                                <Select value={newServer.authType} onValueChange={(value: 'password' | 'key') => setNewServer({ ...newServer, authType: value })}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="password">Password</SelectItem>
+                                        <SelectItem value="key">SSH Key</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {newServer.authType === 'password' && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="password">Password</Label>
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        value={newServer.password}
+                                        onChange={(e) => setNewServer({ ...newServer, password: e.target.value })}
+                                        placeholder="Enter password"
+                                    />
+                                </div>
+                            )}
+                            {newServer.authType === 'key' && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="keyId">SSH Key</Label>
+                                    <Select value={newServer.keyId} onValueChange={(value) => setNewServer({ ...newServer, keyId: value })}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select SSH key" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="prod-key">Production Key</SelectItem>
+                                            <SelectItem value="dev-key">Development Key</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleAddServer}>
+                                Add Server
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {servers.map((server) => (
+                    <Card key={server.id} className="relative">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                    <Server className="h-5 w-5 text-primary" />
+                                    <CardTitle className="text-lg">{server.name}</CardTitle>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                    <div className={`h-2 w-2 rounded-full ${getStatusColor(server.status)}`} />
+                                    <Badge variant="secondary" className="text-xs">
+                                        {getStatusText(server.status)}
+                                    </Badge>
+                                </div>
+                            </div>
+                            <CardDescription>
+                                {server.username}@{server.host}:{server.port}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-3">
+                                <div className="text-sm text-muted-foreground">
+                                    <p>Auth: {server.authType === 'key' ? `SSH Key (${server.keyId})` : 'Password'}</p>
+                                    {server.lastConnected && (
+                                        <p>Last connected: {server.lastConnected.toLocaleString()}</p>
+                                    )}
+                                </div>
+                                <div className="flex space-x-2">
+                                    <Button
+                                        size="sm"
+                                        onClick={() => handleConnect(server)}
+                                        disabled={server.status === 'connecting'}
+                                        className="flex-1"
+                                    >
+                                        <Play className="h-3 w-3 mr-1" />
+                                        {server.status === 'connecting' ? 'Connecting...' : 'Connect'}
+                                    </Button>
+                                    <Button size="sm" variant="outline">
+                                        <Settings className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleDeleteServer(server.id)}
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {activeTerminal && (
+                <Terminal
+                    server={activeTerminal}
+                    onClose={() => setActiveTerminal(null)}
+                />
+            )}
+        </div>
+    );
+};
+
+
+// Settings.tsx
+
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { User, Shield, Smartphone, Key, Github, Linkedin, Camera, Save } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
+
+export const Settings = () => {
+    const { toast } = useToast();
+    const [profile, setProfile] = useState({
+        name: 'Keshav Jha',
+        email: 'keshavkjha1999@gmail.com',
+        username: 'tonystark',
+        dateOfBirth: '1999-01-01',
+        bio: 'Software Engineer passionate about creating amazing applications'
+    });
+
+    const [security, setSecurity] = useState({
+        twoFactorEnabled: false,
+        phoneAuth: false,
+        totpAuth: true
+    });
+
+    const [connections, setConnections] = useState({
+        github: true,
+        linkedin: false
+    });
+
+    const handleProfileSave = () => {
+        toast({
+            title: "Profile Updated",
+            description: "Your profile has been successfully updated.",
+        });
+    };
+
+    const handleSecuritySave = () => {
+        toast({
+            title: "Security Settings Updated",
+            description: "Your security preferences have been saved.",
+        });
+    };
+
+    const handleConnectionToggle = (service: string) => {
+        setConnections(prev => ({
+            ...prev,
+            [service]: !prev[service as keyof typeof prev]
+        }));
+
+        const isConnecting = !connections[service as keyof typeof connections];
+        toast({
+            title: isConnecting ? "Connected" : "Disconnected",
+            description: `Successfully ${isConnecting ? 'connected to' : 'disconnected from'} ${service.charAt(0).toUpperCase() + service.slice(1)}.`,
+        });
+    };
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
+                <p className="text-muted-foreground">
+                    Manage your account settings and preferences
+                </p>
+            </div>
+
+            <Tabs defaultValue="profile" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="profile" className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Profile
+                    </TabsTrigger>
+                    <TabsTrigger value="security" className="flex items-center gap-2">
+                        <Shield className="h-4 w-4" />
+                        Security
+                    </TabsTrigger>
+                    <TabsTrigger value="connections" className="flex items-center gap-2">
+                        <Key className="h-4 w-4" />
+                        Connections
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="profile">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Profile Settings</CardTitle>
+                            <CardDescription>
+                                Update your personal information and profile details
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="flex items-center space-x-4">
+                                <Avatar className="h-20 w-20">
+                                    <AvatarFallback className="bg-blue-600 text-white text-lg font-medium">
+                                        KJ
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="space-y-2">
+                                    <Label>Profile Picture</Label>
+                                    <Button variant="outline" size="sm">
+                                        <Camera className="h-4 w-4 mr-2" />
+                                        Change Photo
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="name">Full Name</Label>
+                                    <Input
+                                        id="name"
+                                        value={profile.name}
+                                        onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="username">Username</Label>
+                                    <Input
+                                        id="username"
+                                        value={profile.username}
+                                        onChange={(e) => setProfile(prev => ({ ...prev, username: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email Address</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={profile.email}
+                                    onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="dob">Date of Birth</Label>
+                                <Input
+                                    id="dob"
+                                    type="date"
+                                    value={profile.dateOfBirth}
+                                    onChange={(e) => setProfile(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="bio">Bio</Label>
+                                <Input
+                                    id="bio"
+                                    value={profile.bio}
+                                    onChange={(e) => setProfile(prev => ({ ...prev, bio: e.target.value }))}
+                                    placeholder="Tell us about yourself..."
+                                />
+                            </div>
+
+                            <Button onClick={handleProfileSave} className="w-full">
+                                <Save className="h-4 w-4 mr-2" />
+                                Save Profile
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="security">
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Password & Authentication</CardTitle>
+                                <CardDescription>
+                                    Manage your password and authentication methods
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="current-password">Current Password</Label>
+                                    <Input id="current-password" type="password" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-password">New Password</Label>
+                                    <Input id="new-password" type="password" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="confirm-password">Confirm New Password</Label>
+                                    <Input id="confirm-password" type="password" />
+                                </div>
+                                <Button variant="outline">Change Password</Button>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Two-Factor Authentication</CardTitle>
+                                <CardDescription>
+                                    Add an extra layer of security to your account
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <Label>Enable 2FA</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Require a second form of authentication
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={security.twoFactorEnabled}
+                                        onCheckedChange={(checked) =>
+                                            setSecurity(prev => ({ ...prev, twoFactorEnabled: checked }))
+                                        }
+                                    />
+                                </div>
+
+                                {security.twoFactorEnabled && (
+                                    <div className="space-y-4 pl-4 border-l-2 border-primary">
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Smartphone className="h-4 w-4" />
+                                                    <Label>SMS Authentication</Label>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Receive codes via SMS
+                                                </p>
+                                            </div>
+                                            <Switch
+                                                checked={security.phoneAuth}
+                                                onCheckedChange={(checked) =>
+                                                    setSecurity(prev => ({ ...prev, phoneAuth: checked }))
+                                                }
+                                            />
+                                        </div>
+
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Key className="h-4 w-4" />
+                                                    <Label>TOTP Authentication</Label>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Use an authenticator app
+                                                </p>
+                                            </div>
+                                            <Switch
+                                                checked={security.totpAuth}
+                                                onCheckedChange={(checked) =>
+                                                    setSecurity(prev => ({ ...prev, totpAuth: checked }))
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <Button onClick={handleSecuritySave} className="w-full">
+                                    Save Security Settings
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="connections">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Connected Applications</CardTitle>
+                            <CardDescription>
+                                Manage your connections to external services
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <Github className="h-8 w-8" />
+                                    <div>
+                                        <Label>GitHub</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Connect to your GitHub account
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {connections.github && (
+                                        <Badge variant="secondary" className="bg-green-500/10 text-green-500 border-green-500/20">
+                                            Connected
+                                        </Badge>
+                                    )}
+                                    <Button
+                                        variant={connections.github ? "outline" : "default"}
+                                        onClick={() => handleConnectionToggle('github')}
+                                    >
+                                        {connections.github ? 'Disconnect' : 'Connect'}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <Linkedin className="h-8 w-8" />
+                                    <div>
+                                        <Label>LinkedIn</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Connect to your LinkedIn profile
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {connections.linkedin && (
+                                        <Badge variant="secondary" className="bg-green-500/10 text-green-500 border-green-500/20">
+                                            Connected
+                                        </Badge>
+                                    )}
+                                    <Button
+                                        variant={connections.linkedin ? "outline" : "default"}
+                                        onClick={() => handleConnectionToggle('linkedin')}
+                                    >
+                                        {connections.linkedin ? 'Disconnect' : 'Connect'}
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+};
+
+
+// Shortcuts.tsx
+
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Keyboard, Play, Settings, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
+
+interface Shortcut {
+    id: string;
+    name: string;
+    description: string;
+    keys: string;
+    action: string;
+    category: 'password' | 'command' | 'text' | 'system';
+    isActive: boolean;
+}
+
+export const Shortcuts = () => {
+    const { toast } = useToast();
+    const [shortcuts, setShortcuts] = useState<Shortcut[]>([
+        {
+            id: '1',
+            name: 'Paste VM Password',
+            description: 'Automatically paste the current VM password',
+            keys: 'Ctrl + P',
+            action: 'paste_password',
+            category: 'password',
+            isActive: true
+        },
+        {
+            id: '2',
+            name: 'Quick SSH',
+            description: 'Open SSH connection to last used server',
+            keys: 'Ctrl + Shift + S',
+            action: 'quick_ssh',
+            category: 'command',
+            isActive: true
+        },
+        {
+            id: '3',
+            name: 'System Status',
+            description: 'Run system status check commands',
+            keys: 'Ctrl + Alt + S',
+            action: 'system_status',
+            category: 'system',
+            isActive: false
+        }
+    ]);
+
+    const [newShortcut, setNewShortcut] = useState({
+        name: '',
+        description: '',
+        keys: '',
+        action: '',
+        category: 'command' as Shortcut['category']
+    });
+
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+    const handleAddShortcut = () => {
+        if (!newShortcut.name || !newShortcut.keys || !newShortcut.action) {
+            toast({
+                title: "Error",
+                description: "Please fill in all required fields",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const shortcut: Shortcut = {
+            id: Date.now().toString(),
+            name: newShortcut.name,
+            description: newShortcut.description,
+            keys: newShortcut.keys,
+            action: newShortcut.action,
+            category: newShortcut.category,
+            isActive: true
+        };
+
+        setShortcuts([...shortcuts, shortcut]);
+        setNewShortcut({ name: '', description: '', keys: '', action: '', category: 'command' });
+        setIsAddDialogOpen(false);
+
+        toast({
+            title: "Success",
+            description: `Shortcut "${shortcut.name}" added successfully`,
+        });
+    };
+
+    const toggleShortcut = (shortcutId: string) => {
+        setShortcuts(shortcuts.map(s =>
+            s.id === shortcutId
+                ? { ...s, isActive: !s.isActive }
+                : s
+        ));
+    };
+
+    const handleDeleteShortcut = (shortcutId: string) => {
+        setShortcuts(shortcuts.filter(s => s.id !== shortcutId));
+        toast({
+            title: "Shortcut Deleted",
+            description: "Shortcut has been removed from your list",
+        });
+    };
+
+    const executeShortcut = (shortcut: Shortcut) => {
+        toast({
+            title: "Shortcut Executed",
+            description: `Executed: ${shortcut.name}`,
+        });
+    };
+
+    const getCategoryColor = (category: Shortcut['category']) => {
+        switch (category) {
+            case 'password': return 'bg-red-500/10 text-red-500 border-red-500/20';
+            case 'command': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+            case 'text': return 'bg-green-500/10 text-green-500 border-green-500/20';
+            case 'system': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight">Keyboard Shortcuts</h2>
+                    <p className="text-muted-foreground">
+                        Configure custom keyboard shortcuts for quick actions
+                    </p>
+                </div>
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Shortcut
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>Add New Shortcut</DialogTitle>
+                            <DialogDescription>
+                                Create a custom keyboard shortcut for quick actions
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="name">Shortcut Name</Label>
+                                <Input
+                                    id="name"
+                                    value={newShortcut.name}
+                                    onChange={(e) => setNewShortcut({ ...newShortcut, name: e.target.value })}
+                                    placeholder="My Custom Shortcut"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="description">Description</Label>
+                                <Input
+                                    id="description"
+                                    value={newShortcut.description}
+                                    onChange={(e) => setNewShortcut({ ...newShortcut, description: e.target.value })}
+                                    placeholder="What this shortcut does"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="keys">Key Combination</Label>
+                                <Input
+                                    id="keys"
+                                    value={newShortcut.keys}
+                                    onChange={(e) => setNewShortcut({ ...newShortcut, keys: e.target.value })}
+                                    placeholder="Ctrl + Alt + K"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="action">Action</Label>
+                                <Input
+                                    id="action"
+                                    value={newShortcut.action}
+                                    onChange={(e) => setNewShortcut({ ...newShortcut, action: e.target.value })}
+                                    placeholder="action_name"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="category">Category</Label>
+                                <Select value={newShortcut.category} onValueChange={(value: Shortcut['category']) => setNewShortcut({ ...newShortcut, category: value })}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="command">Command</SelectItem>
+                                        <SelectItem value="password">Password</SelectItem>
+                                        <SelectItem value="text">Text</SelectItem>
+                                        <SelectItem value="system">System</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleAddShortcut}>
+                                Add Shortcut
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {shortcuts.map((shortcut) => (
+                    <Card key={shortcut.id} className="relative">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                    <Keyboard className="h-5 w-5 text-primary" />
+                                    <CardTitle className="text-lg">{shortcut.name}</CardTitle>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                    <div className={`h-2 w-2 rounded-full ${shortcut.isActive ? 'bg-green-500' : 'bg-gray-500'}`} />
+                                    <Badge variant="secondary" className="text-xs">
+                                        {shortcut.isActive ? 'Active' : 'Disabled'}
+                                    </Badge>
+                                </div>
+                            </div>
+                            <CardDescription>
+                                {shortcut.description}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-3">
+                                <div className="text-sm text-muted-foreground">
+                                    <p className="font-mono font-semibold">{shortcut.keys}</p>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <Badge variant="secondary" className={`text-xs border ${getCategoryColor(shortcut.category)}`}>
+                                            {shortcut.category}
+                                        </Badge>
+                                    </div>
+                                </div>
+                                <div className="flex space-x-2">
+                                    <Button
+                                        size="sm"
+                                        onClick={() => executeShortcut(shortcut)}
+                                        disabled={!shortcut.isActive}
+                                        className="flex-1"
+                                    >
+                                        <Play className="h-3 w-3 mr-1" />
+                                        Execute
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => toggleShortcut(shortcut.id)}
+                                    >
+                                        <Settings className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleDeleteShortcut(shortcut.id)}
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
+// Terminal.tsx
+
+
+import React, { useEffect, useRef, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { X, Minimize2 } from 'lucide-react';
+
+interface TerminalProps {
+    server: {
+        id: string;
+        name: string;
+        host: string;
+        port: number;
+        username: string;
+    };
+    onClose: () => void;
+}
+
+export const Terminal = ({ server, onClose }: TerminalProps) => {
+    const terminalRef = useRef<HTMLDivElement>(null);
+    const [input, setInput] = useState('');
+    const [output, setOutput] = useState<string[]>([
+        `Connecting to ${server.username}@${server.host}:${server.port}...`,
+        `Connected to ${server.name}`,
+        `Welcome to ${server.name}`,
+        `Last login: ${new Date().toLocaleString()}`,
+        `${server.username}@${server.host}:~$`
+    ]);
+    const [isMinimized, setIsMinimized] = useState(false);
+
+    const handleInputSubmit = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            const command = input.trim();
+            if (command) {
+                setOutput(prev => [
+                    ...prev,
+                    `${server.username}@${server.host}:~$ ${command}`,
+                    `Command executed: ${command}`,
+                    `${server.username}@${server.host}:~$`
+                ]);
+                setInput('');
+            }
+        }
+    };
+
+    useEffect(() => {
+        if (terminalRef.current) {
+            terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+        }
+    }, [output]);
+
+    if (isMinimized) {
+        return (
+            <div className="fixed bottom-4 left-4 z-50">
+                <Button
+                    onClick={() => setIsMinimized(false)}
+                    className="bg-zinc-800 hover:bg-zinc-700 text-white"
+                >
+                    Terminal - {server.name}
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="fixed inset-4 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+            <Card className="w-full max-w-4xl h-96 bg-zinc-900 border-zinc-700 text-green-400 font-mono">
+                <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm text-zinc-300">
+                            Terminal - {server.name} ({server.host}:{server.port})
+                        </CardTitle>
+                        <div className="flex gap-2">
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setIsMinimized(true)}
+                                className="h-6 w-6 p-0 text-zinc-400 hover:text-white hover:bg-zinc-700"
+                            >
+                                <Minimize2 className="h-3 w-3" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={onClose}
+                                className="h-6 w-6 p-0 text-zinc-400 hover:text-white hover:bg-zinc-700"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="flex flex-col h-full pb-4">
+                    <div
+                        ref={terminalRef}
+                        className="flex-1 overflow-y-auto bg-black p-3 rounded text-sm leading-relaxed"
+                    >
+                        {output.map((line, index) => (
+                            <div key={index} className="whitespace-pre-wrap">
+                                {line}
+                            </div>
+                        ))}
+                        <div className="flex items-center">
+                            <span className="text-green-400">{server.username}@{server.host}:~$ </span>
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleInputSubmit}
+                                className="flex-1 bg-transparent outline-none text-green-400 ml-1"
+                                autoFocus
+                                placeholder="Type your command..."
+                            />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+};
+
+
+// globals.css
+
+@import "tailwindcss";
+
+/* Base font and rendering optimizations */
+:root {
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    --dialog-bg: theme('colors.gray.800');
+    --dialog-border: theme('colors.gray.700');
+    --text-primary: theme('colors.gray.100');
+    --text-secondary: theme('colors.gray.400');
+    --input-bg: theme('colors.gray.700');
+    --input-border: theme('colors.gray.600');
+    --input-placeholder: theme('colors.gray.400');
+}
+
+.dialog-overlay {
+    background-color: rgb(0 0 0 / 0.8);
+    backdrop-filter: blur(4px);
+}
+
+.dialog-content {
+    background-color: var(--dialog-bg);
+    border-color: var(--dialog-border);
+    color: var(--text-primary);
+}
+
+.select-content {
+    background-color: var(--dialog-bg);
+    border-color: var(--dialog-border);
+}
+
+.select-item {
+    color: var(--text-primary);
+}
+
+.select-item:hover {
+    background-color: var(--input-bg);
+}
+
+.input-field {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+.input-field::placeholder {
+    color: var(--input-placeholder);
+}
+
+
+
+// Header
+
+// components/Header.tsx
+'use client'
+import React from 'react';
+import LogoDisplay from './LogoDisplay';
+import UserDropdown from './UserDropdown';
+import { PlusIcon, SearchIcon } from './Icons';
+import { Environment, Team } from '@/types/User';
+import EnvironmentSelector from '../Environment/EnvironmentSelector';
+
+interface HeaderProps {
+    onAddCollection: (value: string) => void,
+    toSearch: boolean,
+    parentComponent: string,
+    environments: Environment[] | undefined,
+    initials: string,
+    username: string,
+    email: string,
+    displayName: string,
+    autoSave: boolean,
+    setAutoSave: (value: boolean) => void,
+    teamMode: Team | null,
+    teams: Team[],
+    onTeamSelect: (team: Team | null) => void;
+    onExitTeamMode: () => void;
+    showTeams: boolean;
+    setShowTeams: (value: boolean) => void;
+    activeEnvironmentId: string | null;
+    onEnvironmentSelect: (environmentId: string) => void;
+}
+
+const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environments, initials, username, email, displayName, autoSave, setAutoSave, teamMode, teams, onTeamSelect, onExitTeamMode, showTeams, setShowTeams, activeEnvironmentId, onEnvironmentSelect}: HeaderProps) => {
+    return (
+        <header className="flex items-center justify-between h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6">
+        <div className="flex items-center space-x-8 w-full">
+        <div className="w-50"> {/* Matches CollectionsTree width */}
+        <LogoDisplay />
+        </div>
+
+        {toSearch &&
+            (
+                <div className="flex-1 max-w-2xl mx-4"> {/* Centered search */}
+                <div className="relative">
+                <input
+                type="text"
+                placeholder={parentComponent === 'Environment' ? "Search environments..." : "Search collections..."}
+                className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="absolute left-3 top-2.5 text-gray-400">
+                <SearchIcon />
+                </div>
+                </div>
+                </div>
+            )
+        }
+        {!toSearch &&
+            (
+                <div></div>
+            )
+        }
+        </div>
+
+        <div className="flex items-center space-x-4">
+        {parentComponent === 'Collections' &&
+            <button
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors cursor-pointer flex items-center w-48"
+            onClick={(e) => {
+                e.preventDefault();
+                onAddCollection('New Collection');
+            }}
+            >
+            <PlusIcon />
+            <span className="ml-2">New Collection</span>
+            </button>
+        }
+
+        {parentComponent === 'Request Builder' &&
+            <EnvironmentSelector
+            environments={environments}
+            activeEnvironmentId={activeEnvironmentId}
+            onEnvironmentSelect={onEnvironmentSelect}
+            disabled={!environments || environments.length === 0}
+            />
+        }
+
+        <UserDropdown
+        username={username}
+        displayName={displayName}
+        email={email}
+        initials={initials}
+        teams={teams}
+        autoSave={autoSave}
+        setAutoSave={setAutoSave}
+        teamMode={teamMode}
+        onExitTeamMode={onExitTeamMode}
+        setTeamMode={onTeamSelect}
+        setShowTeams={setShowTeams}
+        showTeams={showTeams}
+        />
+        </div>
+        </header>
+    );
+};
+
+export default HeaderComponent;
+
+
+
+

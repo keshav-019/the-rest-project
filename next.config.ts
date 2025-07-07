@@ -1,7 +1,29 @@
-import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+    reactStrictMode: true,
+    images: {
+        unoptimized: true,
+    },
+    webpack: (config: any, { isServer }: {isServer: any}) => {
+        // Handle node modules that need to be ignored in the browser
+        if (!isServer) {
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                fs: false,
+                net: false,
+                tls: false,
+                child_process: false,
+            };
+        }
 
-const nextConfig: NextConfig = {
-  /* config options here */
+        return config;
+    },
+    // Only use export for production builds
+    ...(process.env.NODE_ENV === 'production' && {
+        output: 'export',
+        distDir: 'out',
+        trailingSlash: true,
+    }),
 };
 
-export default nextConfig;
+module.exports = nextConfig;

@@ -31,72 +31,72 @@ interface HeaderProps {
 const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environments, initials, username, email, displayName, autoSave, setAutoSave, teamMode, teams, onTeamSelect, onExitTeamMode, showTeams, setShowTeams, activeEnvironmentId, onEnvironmentSelect}: HeaderProps) => {
     return (
         <header className="flex items-center justify-between h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6">
-            <div className="flex items-center space-x-8 w-full">
-                <div className="w-50"> {/* Matches CollectionsTree width */}
-                    <LogoDisplay />
-                </div>
+        <div className="flex items-center space-x-8 w-full">
+        <div className="w-50"> {/* Matches CollectionsTree width */}
+        <LogoDisplay />
+        </div>
 
-                {toSearch && 
-                    (
-                        <div className="flex-1 max-w-2xl mx-4"> {/* Centered search */}
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    placeholder={parentComponent === 'Environment' ? "Search environments..." : "Search collections..."}
-                                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                                <div className="absolute left-3 top-2.5 text-gray-400">
-                                    <SearchIcon />
-                                </div>
-                            </div>
-                        </div>
-                    )
-                }
-                {!toSearch &&
-                    (
-                        <div></div>
-                    )
-                }
-            </div>
-
-            <div className="flex items-center space-x-4">
-                {parentComponent === 'Collections' &&
-                    <button
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors cursor-pointer flex items-center w-48"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            onAddCollection('New Collection');
-                        }}
-                    >
-                        <PlusIcon />
-                        <span className="ml-2">New Collection</span>
-                    </button>
-                }
-
-                {parentComponent === 'Request Builder' && 
-                    <EnvironmentSelector 
-                        environments={environments}
-                        activeEnvironmentId={activeEnvironmentId}
-                        onEnvironmentSelect={onEnvironmentSelect}
-                        disabled={!environments || environments.length === 0}
-                    />
-                }
-                
-                <UserDropdown 
-                    username={username} 
-                    displayName={displayName} 
-                    email={email} 
-                    initials={initials} 
-                    teams={teams} 
-                    autoSave={autoSave} 
-                    setAutoSave={setAutoSave}
-                    teamMode={teamMode}
-                    onExitTeamMode={onExitTeamMode}
-                    setTeamMode={onTeamSelect}
-                    setShowTeams={setShowTeams}
-                    showTeams={showTeams}
+        {toSearch &&
+            (
+                <div className="flex-1 max-w-2xl mx-4"> {/* Centered search */}
+                <div className="relative">
+                <input
+                type="text"
+                placeholder={parentComponent === 'Environment' ? "Search environments..." : "Search collections..."}
+                className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-            </div>
+                <div className="absolute left-3 top-2.5 text-gray-400">
+                <SearchIcon />
+                </div>
+                </div>
+                </div>
+            )
+        }
+        {!toSearch &&
+            (
+                <div></div>
+            )
+        }
+        </div>
+
+        <div className="flex items-center space-x-4">
+        {parentComponent === 'Collections' &&
+            <button
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors cursor-pointer flex items-center w-48"
+            onClick={(e) => {
+                e.preventDefault();
+                onAddCollection('New Collection');
+            }}
+            >
+            <PlusIcon />
+            <span className="ml-2">New Collection</span>
+            </button>
+        }
+
+        {parentComponent === 'Request Builder' &&
+            <EnvironmentSelector
+            environments={environments}
+            activeEnvironmentId={activeEnvironmentId}
+            onEnvironmentSelect={onEnvironmentSelect}
+            disabled={!environments || environments.length === 0}
+            />
+        }
+
+        <UserDropdown
+        username={username}
+        displayName={displayName}
+        email={email}
+        initials={initials}
+        teams={teams}
+        autoSave={autoSave}
+        setAutoSave={setAutoSave}
+        teamMode={teamMode}
+        onExitTeamMode={onExitTeamMode}
+        setTeamMode={onTeamSelect}
+        setShowTeams={setShowTeams}
+        showTeams={showTeams}
+        />
+        </div>
         </header>
     );
 };
