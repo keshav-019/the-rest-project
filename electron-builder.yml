@@ -1,0 +1,12 @@
+appId: com.yourcompany.yourapp
+productName: YourApp
+directories:
+  output: release
+files:
+  - "dist/**/*"
+  - "electron/**/*"
+  - "!**/node_modules/*"
+  - "package.json"
+extraResources:
+  - from: "public"
+    to: "public"

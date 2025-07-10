@@ -21,7 +21,7 @@ const nextConfig = {
     // Only use export for production builds
     ...(process.env.NODE_ENV === 'production' && {
         output: 'export',
-        distDir: 'out',
+        distDir: 'next-output',
         trailingSlash: true,
     }),
 };
