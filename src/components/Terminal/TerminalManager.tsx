@@ -1,7 +1,7 @@
 // components/Terminal/TerminalManager.tsx
 'use client'
-import { useState, useEffect, useRef } from 'react';
-import { Monitor, Plus, Server, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Monitor, Server, X } from 'lucide-react';
 import TerminalTab from './TerminalTab';
 import ConnectionModal from './ConnectionModal';
 import HeaderComponent from '../Common/Header';
@@ -12,7 +12,7 @@ import WelcomeScreen from './WelcomeScreenComponent';
 export default function TerminalManager() {
     const [activeTab, setActiveTab] = useState<string>('welcome');
     const [tabs, setTabs] = useState<{ id: string, type: 'local' | 'ssh', connection?: TerminalConnection }[]>([
-        { id: 'welcome', type: 'local' } // Welcome tab that can't be closed
+        { id: 'welcome', type: 'local' }
     ]);
     const [connections, setConnections] = useState<TerminalConnection[]>([]);
     const [showConnectionModal, setShowConnectionModal] = useState(false);
@@ -50,12 +50,11 @@ export default function TerminalManager() {
     };
 
     const closeTab = (id: string) => {
-        if (id === 'welcome') return; // Prevent closing welcome tab
+        if (id === 'welcome') return;
 
         const newTabs = tabs.filter(tab => tab.id !== id);
         setTabs(newTabs);
 
-        // If we closed the active tab, activate the welcome tab
         if (activeTab === id) {
             setActiveTab('welcome');
         }
@@ -74,9 +73,9 @@ export default function TerminalManager() {
         setShowConnectionModal(false);
     };
 
-    const deleteConnection = (id: string) => {
-        setConnections(connections.filter(conn => conn.id !== id));
-    };
+    // const deleteConnection = (id: string) => {
+    //     setConnections(connections.filter(conn => conn.id !== id));
+    // };
 
     const changeTheme = (theme: string) => {
         setCurrentTheme(theme);
@@ -87,7 +86,6 @@ export default function TerminalManager() {
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-            {/* Header */}
             <HeaderComponent
                 parentComponent="Terminal"
                 toSearch={false}
@@ -107,12 +105,6 @@ export default function TerminalManager() {
                 onTeamSelect={() => { }}
                 setShowTeams={() => { }}
                 showTeams={false}
-                terminalProps={{
-                    onNewLocalTerminal: () => addNewTab('local'),
-                    currentTheme,
-                    onChangeTheme: changeTheme,
-                    themes: Object.keys(themes)
-                }}
             />
 
             {/* Tab bar */}
@@ -167,21 +159,22 @@ export default function TerminalManager() {
                                     setSelectedConnection(null);
                                     setShowConnectionModal(true);
                                 }}
-                                onConnectionClick={(conn: any) => addNewTab('ssh', conn)}
+                                onConnectionClick={(conn) => addNewTab('ssh', conn)}
                                 onLocalTerminalClick={() => addNewTab('local')}
                             />
                         ) : (
                             <TerminalTab
                                 type={tab.type}
                                 connection={tab.connection}
-                                theme={themes[currentTheme as keyof typeof themes]}
+                                currentTheme={currentTheme}
+                                onChangeTheme={changeTheme}
+                                themes={Object.keys(themes)}
                             />
                         )}
                     </div>
                 ))}
             </div>
 
-            {/* Connection modal */}
             <ConnectionModal
                 isOpen={showConnectionModal}
                 onClose={() => setShowConnectionModal(false)}

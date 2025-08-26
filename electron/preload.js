@@ -11,7 +11,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     removePtyListeners: () => ipcRenderer.removeAllListeners('pty-data'),
     connectSSH: (connection) => ipcRenderer.invoke('connect-ssh', connection),
     openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
-    
+
     // Add this new method
-    changeTheme: (theme) => ipcRenderer.invoke('change-theme', theme)
+    changeTheme: (theme) => ipcRenderer.invoke('change-theme', theme),
+    // Fix the SSH close handler
+    onSSHClose: (callback) => {
+        const handler = () => callback();
+        ipcRenderer.on('ssh-close', handler);
+        return () => ipcRenderer.removeListener('ssh-close', handler);
+    },
+
+    // Add SSH error handler
+    onSSHError: (callback) => {
+        const handler = (event, error) => callback(error);
+        ipcRenderer.on('ssh-error', handler);
+        return () => ipcRenderer.removeListener('ssh-error', handler);
+    }
 });

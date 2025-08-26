@@ -18,6 +18,7 @@ declare global {
             resizePty: (cols: number, rows: number) => Promise<void>;
             cleanupPty: () => Promise<void>;
             onPtyData: (callback: (data: string) => void) => void;
+            onSSHClose: () => any;
             openFileDialog(): Promise<any>;
             executeCommand: (command: string) => Promise<string>;
             connectSSH: (server: any) => Promise<boolean>;

@@ -1,11 +1,14 @@
+// electron/main.js
 const { app, BrowserWindow, ipcMain } = require('electron');
 const pty = require('node-pty');
 const path = require('path');
 const isDev = require('electron-is-dev');
-const os = require('os');
+const fs = require('fs');
+const { Client } = require('ssh2');
 
 let mainWindow;
 let ptyProcess;
+let sshConnection;
 let currentTheme = 'Ubuntu';
 
 function createWindow() {
@@ -31,11 +34,11 @@ function createWindow() {
 
     mainWindow.on('closed', () => {
         mainWindow = null;
-        cleanupPty();
+        cleanup();
     });
 }
 
-function cleanupPty() {
+function cleanup() {
     if (ptyProcess) {
         try {
             ptyProcess.kill();
@@ -44,57 +47,20 @@ function cleanupPty() {
         }
         ptyProcess = null;
     }
-}
-
-function applyGarudaPrompt() {
-    if (!ptyProcess) return;
-    
-    const shell = process.platform === 'win32'
-        ? 'powershell.exe'
-        : process.env.SHELL || '/bin/bash';
-
-    // Apply Garuda-specific prompt styling
-    setTimeout(() => {
-        if (ptyProcess) {
-            if (shell.includes('bash')) {
-                // Bash multi-line prompt for Garuda theme
-                ptyProcess.write('export PS1="\\[\\e[35m\\]\\u\\[\\e[0m\\]@\\[\\e[33m\\]\\h\\[\\e[0m\\] \\[\\e[36m\\]in\\[\\e[0m\\] \\[\\e[32m\\]\\w\\[\\e[0m\\]\\n\\[\\e[34m\\]❯\\[\\e[0m\\] "\r');
-            } else if (shell.includes('zsh')) {
-                // Zsh multi-line prompt for Garuda theme
-                ptyProcess.write('export PS1="%F{magenta}%n%f@%F{yellow}%m%f %F{cyan}in%f %F{green}%~%f\\n%F{blue}❯%f "\r');
-            } else if (shell.includes('fish')) {
-                // Fish multi-line prompt for Garuda theme
-                ptyProcess.write('function fish_prompt\\nset_color magenta; echo -n (whoami); set_color normal; echo -n "@"; set_color yellow; echo -n (hostname); set_color normal; echo -n " "; set_color cyan; echo -n "in"; set_color normal; echo -n " "; set_color green; echo (pwd)\\nset_color blue; echo -n "❯ "; set_color normal\\nend\r');
-            }
+    if (sshConnection) {
+        try {
+            sshConnection.end();
+        } catch (error) {
+            console.error('Error closing SSH connection:', error);
         }
-    }, 500);
-}
-
-function resetPrompt() {
-    if (!ptyProcess) return;
-    
-    const shell = process.platform === 'win32'
-        ? 'powershell.exe'
-        : process.env.SHELL || '/bin/bash';
-
-    // Reset to default prompt
-    setTimeout(() => {
-        if (ptyProcess) {
-            if (shell.includes('bash')) {
-                ptyProcess.write('unset PS1\r');
-            } else if (shell.includes('zsh')) {
-                ptyProcess.write('unset PS1\r');
-            } else if (shell.includes('fish')) {
-                ptyProcess.write('functions -e fish_prompt\r');
-            }
-        }
-    }, 500);
+        sshConnection = null;
+    }
 }
 
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
-    cleanupPty();
+    cleanup();
     if (process.platform !== 'darwin') {
         app.quit();
     }
@@ -108,27 +74,17 @@ app.on('activate', () => {
 
 // IPC Handlers
 ipcMain.handle('cleanup-pty', () => {
-    cleanupPty();
+    cleanup();
     return true;
 });
 
 ipcMain.handle('change-theme', (event, theme) => {
-    const previousTheme = currentTheme;
     currentTheme = theme;
-    
-    // If switching from Garuda to another theme, reset prompt
-    if (previousTheme === 'Garuda' && theme !== 'Garuda') {
-        resetPrompt();
-    }
-    
-    // If switching to Garuda, apply special prompt
-    if (theme === 'Garuda') {
-        applyGarudaPrompt();
-    }
+    return true;
 });
 
 ipcMain.handle('request-pty', () => {
-    cleanupPty();
+    cleanup();
 
     const shell = process.platform === 'win32'
         ? 'powershell.exe'
@@ -147,22 +103,17 @@ ipcMain.handle('request-pty', () => {
             }
         });
 
-        // Set up data handler
-        ptyProcess.onData = ptyProcess.on('data', (data) => {
+        ptyProcess.on('data', (data) => {
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('pty-data', data);
             }
         });
 
-        // Apply theme-specific prompt if needed
-        if (currentTheme === 'Garuda') {
-            applyGarudaPrompt();
-        }
-
         ptyProcess.on('exit', () => {
             ptyProcess = null;
         });
 
+        console.log('Local PTY process started successfully');
         return true;
     } catch (error) {
         console.error('Failed to spawn PTY:', error);
@@ -173,95 +124,161 @@ ipcMain.handle('request-pty', () => {
     }
 });
 
-// electron/main.js (additional handlers)
+// electron/main.js (updated SSH handler)
 ipcMain.handle('connect-ssh', async (event, connection) => {
-    cleanupPty();
-    
-    try {
-        const { Client } = require('ssh2');
-        const conn = new Client();
-        
-        ptyProcess = pty.spawn('bash', [], {
-            name: 'xterm-256color',
-            cols: 80,
-            rows: 24,
-            env: process.env
-        });
-        
-        conn.on('ready', () => {
-            conn.shell((err, stream) => {
+    cleanup();
+    console.log('Attempting SSH connection to:', connection.host);
+
+    return new Promise((resolve) => {
+        sshConnection = new Client();
+
+        // Set timeout for connection
+        const timeout = setTimeout(() => {
+            console.log('SSH connection timeout');
+            mainWindow.webContents.send('ssh-error', 'Timed out while waiting for handshake');
+            cleanup();
+            resolve(false);
+        }, 20000); // 20 seconds timeout
+
+        sshConnection.on('ready', () => {
+            clearTimeout(timeout);
+            console.log('SSH connection ready');
+
+            ptyProcess = pty.spawn('bash', [], {
+                name: 'xterm-256color',
+                cols: 80,
+                rows: 24,
+                env: process.env
+            });
+
+            sshConnection.shell((err, stream) => {
                 if (err) {
-                    event.sender.send('pty-data', `\r\nSSH Error: ${err.message}\r\n`);
-                    return;
+                    console.error('SSH shell error:', err);
+                    mainWindow.webContents.send('ssh-error', err.message);
+                    cleanup();
+                    return resolve(false);
                 }
-                
-                // Pipe between terminal and SSH stream
+
+                console.log('SSH shell established');
+
+                // Data piping
                 ptyProcess.on('data', (data) => stream.write(data));
-                stream.on('data', (data) => {
-                    if (ptyProcess) {
-                        ptyProcess.write(data);
-                    } else {
-                        event.sender.send('pty-data', data);
-                    }
-                });
-                
+                stream.on('data', (data) => ptyProcess.write(data));
+
+                // Cleanup handlers
                 stream.on('close', () => {
-                    if (ptyProcess) ptyProcess.kill();
-                    conn.end();
+                    console.log('SSH stream closed');
+                    mainWindow.webContents.send('ssh-close');
+                    cleanup();
                 });
+
+                ptyProcess.on('exit', () => {
+                    stream.end();
+                    cleanup();
+                });
+
+                resolve(true);
             });
         });
-        
-        conn.on('error', (err) => {
-            event.sender.send('pty-data', `\r\nSSH Connection Error: ${err.message}\r\n`);
+
+        sshConnection.on('error', (err) => {
+            clearTimeout(timeout);
+            console.error('SSH connection error:', err);
+            mainWindow.webContents.send('ssh-error', err.message);
+            cleanup();
+            resolve(false);
         });
-        
-        // Connect with appropriate auth method
+
+        // Connection options
+        const connectOptions = {
+            host: connection.host,
+            port: connection.port,
+            username: connection.username,
+            readyTimeout: 20000,
+            algorithms: {
+                kex: [
+                    'ecdh-sha2-nistp256',
+                    'ecdh-sha2-nistp384',
+                    'ecdh-sha2-nistp521',
+                    'diffie-hellman-group-exchange-sha256',
+                    'diffie-hellman-group14-sha1'
+                ],
+                cipher: [
+                    'aes128-ctr',
+                    'aes192-ctr',
+                    'aes256-ctr',
+                    'aes128-gcm',
+                    'aes128-gcm@openssh.com',
+                    'aes256-gcm',
+                    'aes256-gcm@openssh.com',
+                    'aes256-cbc'
+                ],
+                hmac: [
+                    'hmac-sha2-256',
+                    'hmac-sha2-512',
+                    'hmac-sha1'
+                ]
+            }
+        };
+
+        // Authentication
         if (connection.authMethod === 'password') {
-            conn.connect({
-                host: connection.host,
-                port: connection.port,
-                username: connection.username,
-                password: connection.password
-            });
+            connectOptions.password = connection.password;
         } else {
-            conn.connect({
-                host: connection.host,
-                port: connection.port,
-                username: connection.username,
-                privateKey: require('fs').readFileSync(connection.keyPath),
-                passphrase: connection.passphrase || undefined
-            });
+            try {
+                connectOptions.privateKey = fs.readFileSync(connection.keyPath);
+                if (connection.passphrase) {
+                    connectOptions.passphrase = connection.passphrase;
+                }
+            } catch (err) {
+                mainWindow.webContents.send('ssh-error', `Key file error: ${err.message}`);
+                return resolve(false);
+            }
         }
-        
-        return true;
-    } catch (error) {
-        console.error('SSH connection failed:', error);
-        event.sender.send('pty-data', `\r\nSSH Error: ${error.message}\r\n`);
-        return false;
-    }
-});
 
-ipcMain.handle('open-file-dialog', async () => {
-    const { dialog } = require('electron');
-    const result = await dialog.showOpenDialog({
-        properties: ['openFile'],
-        filters: [
-            { name: 'SSH Keys', extensions: ['pem', 'key', 'ppk'] },
-            { name: 'All Files', extensions: ['*'] }
-        ]
+        sshConnection.connect(connectOptions);
     });
-    return result.filePaths[0] || null;
-});
-
-ipcMain.handle('send-to-pty', (event, data) => {
-    if (ptyProcess) {
-        ptyProcess.write(data);
-    }
 });
 
 ipcMain.handle('resize-pty', (event, cols, rows) => {
     if (ptyProcess) {
-        ptyProcess.resize(cols, rows);
+        try {
+            ptyProcess.resize(cols, rows);
+            return true;
+        } catch (error) {
+            console.error('Error resizing PTY:', error);
+            return false;
+        }
+    }
+    return false;
+});
+
+ipcMain.handle('send-to-pty', (event, data) => {
+    if (ptyProcess) {
+        try {
+            ptyProcess.write(data);
+            return true;
+        } catch (error) {
+            console.error('Error writing to PTY:', error);
+            return false;
+        }
+    }
+    return false;
+});
+
+ipcMain.handle('open-file-dialog', async () => {
+    const { dialog } = require('electron');
+    try {
+        const result = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            filters: [
+                { name: 'SSH Keys', extensions: ['pem', 'key', 'ppk'] },
+                { name: 'All Files', extensions: ['*'] }
+            ]
+        });
+        return result.filePaths[0] || null;
+    } catch (error) {
+        console.error('File dialog error:', error);
+        return null;
     }
 });
