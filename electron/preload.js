@@ -1,8 +1,7 @@
-// Add this to your existing preload.js file
+// electron/preload.js
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-    // Your existing methods...
     requestPty: () => ipcRenderer.invoke('request-pty'),
     sendToPty: (data) => ipcRenderer.invoke('send-to-pty', data),
     resizePty: (cols, rows) => ipcRenderer.invoke('resize-pty', cols, rows),
@@ -11,20 +10,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     removePtyListeners: () => ipcRenderer.removeAllListeners('pty-data'),
     connectSSH: (connection) => ipcRenderer.invoke('connect-ssh', connection),
     openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
-
-    // Add this new method
     changeTheme: (theme) => ipcRenderer.invoke('change-theme', theme),
-    // Fix the SSH close handler
-    onSSHClose: (callback) => {
-        const handler = () => callback();
-        ipcRenderer.on('ssh-close', handler);
-        return () => ipcRenderer.removeListener('ssh-close', handler);
-    },
-
-    // Add SSH error handler
-    onSSHError: (callback) => {
-        const handler = (event, error) => callback(error);
-        ipcRenderer.on('ssh-error', handler);
-        return () => ipcRenderer.removeListener('ssh-error', handler);
-    }
 });

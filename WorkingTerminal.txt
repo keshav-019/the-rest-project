@@ -1,171 +1,837 @@
-// terminal/page.tsx
-
+// components/Terminal/ConnectionList.tsx
 'use client'
-import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import { TerminalConnection } from '@/types/Terminal';
+import { PencilIcon, ServerIcon, TrashIcon } from 'lucide-react';
 
-// Dynamically import the terminal component to avoid SSR issues
-const TerminalComponent = dynamic(() => import('@/components/Terminal/TerminalComponent'), {
-    ssr: false,
-    loading: () => <div className="flex items-center justify-center h-full">Loading terminal...</div>
-});
+interface ConnectionListProps {
+    connections: TerminalConnection[];
+    onSelect: (connection: TerminalConnection) => void;
+    onEdit: (connection: TerminalConnection) => void;
+    onDelete: (id: string) => void;
+}
 
-export default function TerminalPage() {
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    if (!isClient) {
+export default function ConnectionList({ connections, onSelect, onEdit, onDelete }: ConnectionListProps) {
+    if (connections.length === 0) {
         return (
-            <div className="flex items-center justify-center h-screen bg-black text-white">
-                <div>Loading...</div>
+            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                <p>No connections yet. Add your first SSH connection.</p>
             </div>
         );
     }
 
     return (
-        <div className="h-screen w-full bg-black text-white">
-            <div className="h-full flex flex-col">
-                <div className="flex-shrink-0 p-4 border-b border-gray-700">
-                    <h1 className="text-xl font-bold">Terminal</h1>
+        <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            {connections.map((connection) => (
+                <li key={connection.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div className="flex items-center justify-between px-4 py-3">
+                        <div 
+                            className="flex items-center flex-1 min-w-0 cursor-pointer"
+                            onClick={() => onSelect(connection)}
+                        >
+                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                <ServerIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="ml-3 overflow-hidden">
+                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                    {connection.name}
+                                </p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                                    {connection.username}@{connection.host}:{connection.port}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="ml-4 flex-shrink-0 flex space-x-2">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEdit(connection);
+                                }}
+                                className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                            >
+                                <PencilIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(connection.id);
+                                }}
+                                className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                            >
+                                <TrashIcon className="h-5 w-5" />
+                            </button>
+                        </div>
+                    </div>
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+
+// components/Terminal/ConnectionModal.tsx
+'use client'
+import { useState, useEffect } from 'react';
+import ModalBackdrop from '../Common/ModalBackdrop';
+import { TerminalConnection } from '@/types/Terminal';
+
+interface ConnectionModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (connection: TerminalConnection) => void;
+    connection?: TerminalConnection | null;
+}
+
+export default function ConnectionModal({ isOpen, onClose, onSubmit, connection }: ConnectionModalProps) {
+    const [name, setName] = useState('');
+    const [host, setHost] = useState('');
+    const [port, setPort] = useState('22');
+    const [username, setUsername] = useState('');
+    const [authMethod, setAuthMethod] = useState<'password' | 'key'>('password');
+    const [password, setPassword] = useState('');
+    const [keyPath, setKeyPath] = useState('');
+    const [passphrase, setPassphrase] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (connection) {
+            setName(connection.name);
+            setHost(connection.host);
+            setPort(connection.port.toString());
+            setUsername(connection.username);
+            setAuthMethod(connection.authMethod);
+            setPassword(connection.password || '');
+            setKeyPath(connection.keyPath || '');
+            setPassphrase(connection.passphrase || '');
+        } else {
+            resetForm();
+        }
+    }, [connection]);
+
+    const resetForm = () => {
+        setName('');
+        setHost('');
+        setPort('22');
+        setUsername('');
+        setAuthMethod('password');
+        setPassword('');
+        setKeyPath('');
+        setPassphrase('');
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+
+        const newConnection: TerminalConnection = {
+            id: connection?.id || Date.now().toString(),
+            name,
+            host,
+            port: parseInt(port) || 22,
+            username,
+            authMethod,
+            password: authMethod === 'password' ? password : undefined,
+            keyPath: authMethod === 'key' ? keyPath : undefined,
+            passphrase: authMethod === 'key' ? passphrase : undefined,
+            createdAt: new Date().toISOString()
+        };
+
+        onSubmit(newConnection);
+        setIsLoading(false);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <ModalBackdrop onClose={onClose}>
+            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full relative z-50">
+                <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div className="sm:flex sm:items-start">
+                        <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                        </div>
+                        <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                                {connection ? 'Edit Connection' : 'Add New Connection'}
+                            </h3>
+                            <div className="mt-4">
+                                <form onSubmit={handleSubmit}>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Connection Name*
+                                            </label>
+                                            <input
+                                                type="text"
+                                                id="name"
+                                                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                                placeholder="My Server"
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)}
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label htmlFor="host" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Host*
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    id="host"
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                                    placeholder="example.com"
+                                                    value={host}
+                                                    onChange={(e) => setHost(e.target.value)}
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label htmlFor="port" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Port
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    id="port"
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                                    placeholder="22"
+                                                    value={port}
+                                                    onChange={(e) => setPort(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Username*
+                                            </label>
+                                            <input
+                                                type="text"
+                                                id="username"
+                                                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                                placeholder="user"
+                                                value={username}
+                                                onChange={(e) => setUsername(e.target.value)}
+                                                required
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Authentication Method*
+                                            </label>
+                                            <div className="mt-2 space-y-2">
+                                                <div className="flex items-center">
+                                                    <input
+                                                        id="auth-password"
+                                                        name="auth-method"
+                                                        type="radio"
+                                                        checked={authMethod === 'password'}
+                                                        onChange={() => setAuthMethod('password')}
+                                                        className="h-4 w-4 text-blue-600 dark:text-blue-500 border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                                                    />
+                                                    <label htmlFor="auth-password" className="ml-3 block text-sm text-gray-700 dark:text-gray-300">
+                                                        Password
+                                                    </label>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <input
+                                                        id="auth-key"
+                                                        name="auth-method"
+                                                        type="radio"
+                                                        checked={authMethod === 'key'}
+                                                        onChange={() => setAuthMethod('key')}
+                                                        className="h-4 w-4 text-blue-600 dark:text-blue-500 border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                                                    />
+                                                    <label htmlFor="auth-key" className="ml-3 block text-sm text-gray-700 dark:text-gray-300">
+                                                        SSH Key
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {authMethod === 'password' && (
+                                            <div>
+                                                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Password*
+                                                </label>
+                                                <input
+                                                    type="password"
+                                                    id="password"
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                                    placeholder="••••••••"
+                                                    value={password}
+                                                    onChange={(e) => setPassword(e.target.value)}
+                                                    required={authMethod === 'password'}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {authMethod === 'key' && (
+                                            <>
+                                                <div>
+                                                    <label htmlFor="key-path" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        Private Key Path*
+                                                    </label>
+                                                    <div className="mt-1 flex rounded-md shadow-sm">
+                                                        <input
+                                                            type="text"
+                                                            id="key-path"
+                                                            className="flex-1 min-w-0 block w-full border border-gray-300 dark:border-gray-600 rounded-l-md py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                                            placeholder="/path/to/private/key"
+                                                            value={keyPath}
+                                                            onChange={(e) => setKeyPath(e.target.value)}
+                                                            required={authMethod === 'key'}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                            onClick={() => {
+                                                                if (window.electronAPI) {
+                                                                    window.electronAPI.openFileDialog().then((path) => {
+                                                                        if (path) setKeyPath(path);
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            Browse
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="passphrase" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        Key Passphrase (optional)
+                                                    </label>
+                                                    <input
+                                                        type="password"
+                                                        id="passphrase"
+                                                        className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                                        placeholder="••••••••"
+                                                        value={passphrase}
+                                                        onChange={(e) => setPassphrase(e.target.value)}
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-6 bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                                        <button
+                                            type="submit"
+                                            className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm ${isLoading ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'}`}
+                                            disabled={isLoading}
+                                        >
+                                            {isLoading ? 'Saving...' : 'Save Connection'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm cursor-pointer"
+                                            onClick={onClose}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div className="flex-1 overflow-hidden">
-                    <TerminalComponent />
+            </div>
+        </ModalBackdrop>
+    );
+}
+
+// components/Terminal/TerminalManager.tsx
+'use client'
+import { useState, useEffect } from 'react';
+import { Monitor, Server, X } from 'lucide-react';
+import TerminalTab from './TerminalTab';
+import ConnectionModal from './ConnectionModal';
+import HeaderComponent from '../Common/Header';
+import { TerminalConnection } from '@/types/Terminal';
+import { themes } from './terminalThemes';
+import WelcomeScreen from './WelcomeScreenComponent';
+
+export default function TerminalManager() {
+    const [activeTab, setActiveTab] = useState<string>('welcome');
+    const [tabs, setTabs] = useState<{ id: string, type: 'local' | 'ssh', connection?: TerminalConnection }[]>([
+        { id: 'welcome', type: 'local' }
+    ]);
+    const [connections, setConnections] = useState<TerminalConnection[]>([]);
+    const [showConnectionModal, setShowConnectionModal] = useState(false);
+    const [selectedConnection, setSelectedConnection] = useState<TerminalConnection | null>(null);
+    const [currentTheme, setCurrentTheme] = useState<string>('Ubuntu');
+
+    // Load saved connections and theme from localStorage
+    useEffect(() => {
+        const savedConnections = localStorage.getItem('ssh-connections');
+        const savedTheme = localStorage.getItem('terminal-theme');
+
+        if (savedConnections) {
+            try {
+                setConnections(JSON.parse(savedConnections));
+            } catch (e) {
+                console.error('Failed to parse saved connections', e);
+            }
+        }
+
+        if (savedTheme && themes[savedTheme as keyof typeof themes]) {
+            setCurrentTheme(savedTheme);
+        }
+    }, []);
+
+    // Save connections and theme to localStorage
+    useEffect(() => {
+        localStorage.setItem('ssh-connections', JSON.stringify(connections));
+        localStorage.setItem('terminal-theme', currentTheme);
+    }, [connections, currentTheme]);
+
+    const addNewTab = (type: 'local' | 'ssh', connection?: TerminalConnection) => {
+        const id = `${type}-${Date.now()}`;
+        setTabs([...tabs, { id, type, connection }]);
+        setActiveTab(id);
+    };
+
+    const closeTab = (id: string) => {
+        if (id === 'welcome') return;
+        const newTabs = tabs.filter(tab => tab.id !== id);
+        setTabs(newTabs);
+
+        if (activeTab === id) {
+            setActiveTab('welcome');
+        }
+    };
+
+    const addConnection = (connection: TerminalConnection) => {
+        const newConnections = [...connections, connection];
+        setConnections(newConnections);
+        setShowConnectionModal(false);
+    };
+
+    const updateConnection = (updatedConnection: TerminalConnection) => {
+        setConnections(connections.map(conn =>
+            conn.id === updatedConnection.id ? updatedConnection : conn
+        ));
+        setShowConnectionModal(false);
+    };
+
+    const changeTheme = (theme: string) => {
+        setCurrentTheme(theme);
+        if (window.electronAPI) {
+            window.electronAPI.changeTheme(theme);
+        }
+    };
+
+    return (
+        <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
+            <HeaderComponent
+                parentComponent="Terminal"
+                toSearch={false}
+                onAddCollection={() => { }}
+                environments={[]}
+                autoSave={true}
+                displayName=""
+                email=""
+                initials=""
+                setAutoSave={() => { }}
+                username=""
+                teams={[]}
+                teamMode={null}
+                activeEnvironmentId={null}
+                onEnvironmentSelect={() => { }}
+                onExitTeamMode={() => { }}
+                onTeamSelect={() => { }}
+                setShowTeams={() => { }}
+                showTeams={false}
+            />
+
+            {/* Tab bar */}
+            <div className="flex items-center border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4">
+                <div className="flex overflow-x-auto flex-1">
+                    {tabs.map(tab => (
+                        <div
+                            key={tab.id}
+                            className={`flex items-center px-4 py-2 border-r border-gray-200 dark:border-gray-700 cursor-pointer ${activeTab === tab.id
+                                    ? 'bg-gray-100 dark:bg-gray-700'
+                                    : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                                }`}
+                            onClick={() => setActiveTab(tab.id)}
+                        >
+                            {tab.type === 'local' ?
+                                (
+                                    <Monitor className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
+                                ) : (
+                                    <Server className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
+                                )}
+                            <span className="text-sm font-medium">
+                                {tab.id === 'welcome' ? 'Welcome' :
+                                    tab.type === 'local' ? 'Local Terminal' :
+                                        tab.connection?.name || 'SSH Connection'} 
+                            </span>
+                            {tab.id !== 'welcome' && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        closeTab(tab.id);
+                                    }}
+                                    className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                >
+                                    <X className="h-4 w-4" /> 
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Terminal content */}
+            <div className="flex-1 overflow-hidden">
+                {tabs.map(tab => (
+                    <div
+                        key={tab.id}
+                        className={`h-full w-full ${activeTab === tab.id ? 'block' : 'hidden'}`}
+                    >
+                        {tab.id === 'welcome' ?
+                            (
+                                <WelcomeScreen
+                                    connections={connections}
+                                    onAddConnection={() => {
+                                        setSelectedConnection(null);
+                                        setShowConnectionModal(true);
+                                    }}
+                                    onConnectionClick={(conn) => addNewTab('ssh', conn)}
+                                    onLocalTerminalClick={() => addNewTab('local')}
+                                />
+                            ) : (
+                                <TerminalTab
+                                    type={tab.type}
+                                    connection={tab.connection}
+                                    currentTheme={currentTheme}
+                                    onChangeTheme={changeTheme}
+                                    themes={Object.keys(themes)}
+                                    // This is the new prop
+                                    isActive={activeTab === tab.id}
+                                />
+                            )}
+                    </div>
+                ))}
+            </div>
+
+            <ConnectionModal
+                isOpen={showConnectionModal}
+                onClose={() => setShowConnectionModal(false)}
+                onSubmit={selectedConnection ? updateConnection : addConnection}
+                connection={selectedConnection}
+            />
+        </div>
+    );
+}
+
+
+// components/Terminal/TerminalTab.tsx
+'use client'
+import { useEffect, useRef, useState } from 'react';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit'; 
+import { WebLinksAddon } from '@xterm/addon-web-links';
+import '@xterm/xterm/css/xterm.css';
+import { themes } from './terminalThemes';
+
+interface TerminalTabProps {
+    type: 'local' | 'ssh';
+    connection?: any;
+    currentTheme: string;
+    onChangeTheme: (theme: string) => void;
+    themes: string[];
+}
+
+export default function TerminalTab({
+    type,
+    connection,
+    currentTheme,
+    onChangeTheme,
+    themes: availableThemes
+}: TerminalTabProps) {
+    const terminalRef = useRef<HTMLDivElement>(null);
+    const terminal = useRef<Terminal | null>(null);
+    const fitAddon = useRef<FitAddon | null>(null);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [logs, setLogs] = useState<string[]>([]);
+
+    const addLog = (message: string) => {
+        console.log(`[TERMINAL] ${message}`);
+        setLogs(prev => [...prev, message]);
+    };
+
+    // Main effect for initialization and connection, runs only once.
+    useEffect(() => {
+        if (!terminalRef.current || terminal.current) return;
+
+        addLog(`Initializing ${type} terminal...`);
+        const themeObj = themes[currentTheme as keyof typeof themes] || themes['Ubuntu'];
+
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+            theme: themeObj,
+            convertEol: true,
+            disableStdin: false,
+            allowTransparency: false,
+            windowsMode: process.platform === 'win32'
+        });
+
+        terminal.current = term;
+        fitAddon.current = new FitAddon();
+        const webLinksAddon = new WebLinksAddon();
+
+        term.loadAddon(fitAddon.current);
+        term.loadAddon(webLinksAddon);
+        term.open(terminalRef.current);
+
+        const resizeObserver = new ResizeObserver(() => {
+            setTimeout(() => {
+                if (fitAddon.current) {
+                    try {
+                        fitAddon.current.fit();
+                    } catch (e: any) {
+                        addLog(`Resize error: ${e.message}`);
+                    }
+                }
+            }, 10);
+        });
+
+        if (terminalRef.current) {
+            resizeObserver.observe(terminalRef.current);
+        }
+        
+        setupPtyListeners(term);
+
+        if (type === 'local') {
+            initializeLocalTerminal(term);
+        } else if (type === 'ssh' && connection) {
+            initializeSSHTerminal(term, connection);
+        }
+
+        return () => {
+            addLog('Cleaning up terminal...');
+            if (window.electronAPI) {
+                window.electronAPI.removePtyListeners();
+                window.electronAPI.cleanupPty();
+            }
+            resizeObserver.disconnect();
+            term.dispose();
+            terminal.current = null;
+            setIsInitialized(false);
+        };
+    // The dependency array no longer includes `currentTheme` to prevent reconnection.
+    }, [type, connection]);
+
+    // New separate effect to handle theme changes without reconnecting.
+    useEffect(() => {
+        if (terminal.current) {
+            const themeObj = themes[currentTheme as keyof typeof themes] || themes['Ubuntu'];
+            terminal.current.options.theme = themeObj;
+        }
+    }, [currentTheme]);
+
+
+    const setupPtyListeners = (term: Terminal) => {
+        if (typeof window !== 'undefined' && window.electronAPI) {
+            window.electronAPI.removePtyListeners();
+
+            window.electronAPI.onPtyData((data: string) => {
+                term.write(data);
+            });
+
+            term.onData((data) => {
+                window.electronAPI?.sendToPty(data);
+            });
+
+            term.onResize(({ cols, rows }) => {
+                window.electronAPI?.resizePty(cols, rows);
+            });
+        }
+    };
+
+    const initializeLocalTerminal = (term: Terminal) => {
+        addLog('Starting local terminal...');
+        if (typeof window !== 'undefined' && window.electronAPI) {
+            window.electronAPI.requestPty()
+                .then((success) => {
+                    if (!success) {
+                        addLog('Failed to initialize local terminal');
+                        term.writeln('\r\nFailed to initialize terminal session\r\n');
+                        return;
+                    }
+                    setIsInitialized(true);
+                    addLog('Local terminal ready');
+                })
+                .catch((err) => {
+                    addLog(`Local terminal error: ${err.message}`);
+                    term.writeln(`\r\nError: ${err.message}\r\n`);
+                });
+        } else {
+            term.writeln('\r\nLocal terminal initialized (simulated)\r\n$ ');
+            setIsInitialized(true);
+            addLog('Local terminal ready (simulated)');
+        }
+    };
+
+    const initializeSSHTerminal = (term: Terminal, conn: any) => {
+        addLog(`Connecting to ${conn.host}...`);
+        term.writeln(`\r\nAttempting to connect to ${conn.username}@${conn.host}...\r\n`);
+
+        if (typeof window !== 'undefined' && window.electronAPI) {
+            window.electronAPI.connectSSH(conn)
+                .then((success) => {
+                    if (!success) {
+                        addLog(`Failed to connect to ${conn.host}`);
+                        // Error messages are now sent from main process via onPtyData
+                    } else {
+                        setIsInitialized(true);
+                        addLog(`Connected to ${conn.host}`);
+                    }
+                })
+                .catch((err) => {
+                    addLog(`SSH connection error: ${err.message}`);
+                    term.writeln(`\r\nSSH Error: ${err.message}\r\n`);
+                });
+        } else {
+            term.writeln(`\r\nSSH connection to ${conn.host} (simulated)\r\n$ `);
+            setIsInitialized(true);
+            addLog(`Connected to ${conn.host} (simulated)`);
+        }
+    };
+
+    return (
+        <div className="h-full w-full bg-black p-2 flex flex-col">
+            {/* Terminal container */}
+            <div className="flex-1 flex overflow-hidden">
+                <div className="flex-1 overflow-hidden relative">
+                    <div
+                        ref={terminalRef}
+                        className="h-full w-full terminal-container"
+                    />
+                </div>
+
+                {/* Theme selector */}
+                <div className="w-56 p-4 border-l border-gray-700 bg-gray-800 overflow-y-auto">
+                    <h3 className="text-sm font-medium text-white mb-3">Terminal Theme</h3>
+                    <div className="space-y-2">
+                        {availableThemes.map(theme => {
+                            const themeObj = themes[theme as keyof typeof themes] || themes['Ubuntu'];
+                            return (
+                                <div
+                                    key={theme}
+                                    className={`p-2 rounded cursor-pointer transition-colors ${currentTheme === theme ? 'bg-gray-700' : 'bg-gray-900 hover:bg-gray-700'}`}
+                                    onClick={() => {
+                                        addLog(`Changing theme to ${theme}`);
+                                        onChangeTheme(theme);
+                                    }}
+                                >
+                                    <div className="flex items-center">
+                                        <div
+                                            className="w-4 h-4 rounded-full mr-2 border border-gray-500"
+                                            style={{ backgroundColor: themeObj.cursor }}
+                                        />
+                                        <span className="text-white text-sm">{theme}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </div>
     );
 }
 
-// components/Terminal/TerminalComponent.tsx
 
-'use client';
+// components/Terminal/WelcomeScreen.tsx
+'use client'
+import { Plus, Server } from 'lucide-react';
+import { TerminalConnection } from '@/types/Terminal';
 
-import { useEffect, useRef } from 'react';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import { WebLinksAddon } from '@xterm/addon-web-links';
-import '@xterm/xterm/css/xterm.css';
+interface WelcomeScreenProps {
+    connections: TerminalConnection[];
+    onAddConnection: () => void;
+    onConnectionClick: (connection: TerminalConnection) => void;
+    onLocalTerminalClick: () => void;
+}
 
-const TerminalComponent = () => {
-    const terminalRef = useRef<HTMLDivElement>(null);
-    const terminal = useRef<Terminal | null>(null);
-    const fitAddon = useRef<FitAddon | null>(null);
-
-    useEffect(() => {
-        if (!terminalRef.current) return;
-
-        // Initialize terminal
-        terminal.current = new Terminal({
-            cursorBlink: true,
-            fontSize: 14,
-            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-            theme: {
-                background: '#1a1a1a',
-                foreground: '#ffffff',
-                cursor: '#ffffff',
-                selection: '#ffffff33',
-            },
-            cols: 80,
-            rows: 24,
-        });
-
-        // Initialize addons
-        fitAddon.current = new FitAddon();
-        const webLinksAddon = new WebLinksAddon();
-
-        terminal.current.loadAddon(fitAddon.current);
-        terminal.current.loadAddon(webLinksAddon);
-
-        // Open terminal
-        terminal.current.open(terminalRef.current);
-
-        // Fit terminal to container
-        fitAddon.current.fit();
-
-        // Handle window resize
-        const handleResize = () => {
-            if (fitAddon.current && terminal.current) {
-                fitAddon.current.fit();
-                // Send resize to PTY
-                if (window.electron) {
-                    window.electron.resizePty(terminal.current.cols, terminal.current.rows);
-                }
-            }
-        };
-
-        window.addEventListener('resize', handleResize);
-
-        // Request a PTY from the main process
-        if (typeof window !== 'undefined' && window.electron) {
-            window.electron.requestPty();
-
-            // Listen for data from PTY
-            window.electron.onPtyData((data: string) => {
-                if (terminal.current) {
-                    terminal.current.write(data);
-                }
-            });
-
-            // Send data to PTY when user types
-            terminal.current.onData((data) => {
-                if (window.electron) {
-                    window.electron.sendToPty(data);
-                }
-            });
-        }
-
-        return () => {
-            window.removeEventListener('resize', handleResize);
-            if (terminal.current) {
-                terminal.current.dispose();
-            }
-        };
-    }, []);
-
+export default function WelcomeScreen({
+    connections,
+    onAddConnection,
+    onConnectionClick,
+    onLocalTerminalClick
+}: WelcomeScreenProps) {
     return (
-        <div className="h-full w-full bg-black p-4">
-            <div
-                ref={terminalRef}
-                className="h-full w-full rounded-lg border border-gray-700"
-                style={{ minHeight: '400px' }}
-            />
+        <div className="h-full w-full p-6 bg-white dark:bg-gray-900">
+            <div className="max-w-6xl mx-auto h-full flex flex-col">
+                {/* Header */}
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-lg font-medium text-gray-900 dark:text-white">My Connections</h1>
+                    <button
+                        onClick={onLocalTerminalClick}
+                        className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <span>Local Terminal</span>
+                    </button>
+                </div>
+
+                {/* Connections Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 flex-1 overflow-y-auto">
+                    {/* Always visible Add Connection tile */}
+                    <div
+                        className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden border border-dashed border-gray-300 dark:border-gray-600 cursor-pointer hover:shadow-md transition-shadow h-40"
+                        onClick={onAddConnection}
+                    >
+                        <div className="h-full flex flex-col items-center justify-center p-4">
+                            <div className="bg-blue-100 dark:bg-blue-900/30 rounded-full p-3 mb-3">
+                                <Plus className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">Add SSH Connection</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                                Create a new SSH connection
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Existing connections */}
+                    {connections.map(connection => (
+                        <div
+                            key={connection.id}
+                            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md transition-shadow h-40"
+                            onClick={() => onConnectionClick(connection)}
+                        >
+                            <div className="h-full flex flex-col p-4">
+                                <div className="flex items-center mb-3">
+                                    <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-2 mr-3">
+                                        <Server className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                    </div>
+                                    <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                        {connection.name}
+                                    </h3>
+                                </div>
+                                <div className="flex-1 flex flex-col justify-between">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                        {connection.username}@{connection.host}:{connection.port}
+                                    </p>
+                                    <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded self-start">
+                                        {connection.authMethod === 'password' ? 'Password' : 'SSH Key'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     );
-};
+}
 
-export default TerminalComponent;
 
-// next.config.ts
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-    reactStrictMode: true,
-    images: {
-        unoptimized: true,
-    },
-    webpack: (config: any, { isServer }: {isServer: any}) => {
-        // Handle node modules that need to be ignored in the browser
-        if (!isServer) {
-            config.resolve.fallback = {
-                ...config.resolve.fallback,
-                fs: false,
-                net: false,
-                tls: false,
-                child_process: false,
-            };
-        }
-
-        return config;
-    },
-    // Only use export for production builds
-    ...(process.env.NODE_ENV === 'production' && {
-        output: 'export',
-        distDir: 'out',
-        trailingSlash: true,
-    }),
-};
-
-module.exports = nextConfig;

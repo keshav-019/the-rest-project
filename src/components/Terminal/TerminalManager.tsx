@@ -51,7 +51,6 @@ export default function TerminalManager() {
 
     const closeTab = (id: string) => {
         if (id === 'welcome') return;
-
         const newTabs = tabs.filter(tab => tab.id !== id);
         setTabs(newTabs);
 
@@ -72,10 +71,6 @@ export default function TerminalManager() {
         ));
         setShowConnectionModal(false);
     };
-
-    // const deleteConnection = (id: string) => {
-    //     setConnections(connections.filter(conn => conn.id !== id));
-    // };
 
     const changeTheme = (theme: string) => {
         setCurrentTheme(theme);
@@ -119,15 +114,16 @@ export default function TerminalManager() {
                                 }`}
                             onClick={() => setActiveTab(tab.id)}
                         >
-                            {tab.type === 'local' ? (
-                                <Monitor className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
-                            ) : (
-                                <Server className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
-                            )}
+                            {tab.type === 'local' ?
+                                (
+                                    <Monitor className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
+                                ) : (
+                                    <Server className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
+                                )}
                             <span className="text-sm font-medium">
                                 {tab.id === 'welcome' ? 'Welcome' :
                                     tab.type === 'local' ? 'Local Terminal' :
-                                        tab.connection?.name || 'SSH Connection'}
+                                        tab.connection?.name || 'SSH Connection'} 
                             </span>
                             {tab.id !== 'welcome' && (
                                 <button
@@ -137,7 +133,7 @@ export default function TerminalManager() {
                                     }}
                                     className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                                 >
-                                    <X className="h-4 w-4" />
+                                    <X className="h-4 w-4" /> 
                                 </button>
                             )}
                         </div>
@@ -152,25 +148,27 @@ export default function TerminalManager() {
                         key={tab.id}
                         className={`h-full w-full ${activeTab === tab.id ? 'block' : 'hidden'}`}
                     >
-                        {tab.id === 'welcome' ? (
-                            <WelcomeScreen
-                                connections={connections}
-                                onAddConnection={() => {
-                                    setSelectedConnection(null);
-                                    setShowConnectionModal(true);
-                                }}
-                                onConnectionClick={(conn) => addNewTab('ssh', conn)}
-                                onLocalTerminalClick={() => addNewTab('local')}
-                            />
-                        ) : (
-                            <TerminalTab
-                                type={tab.type}
-                                connection={tab.connection}
-                                currentTheme={currentTheme}
-                                onChangeTheme={changeTheme}
-                                themes={Object.keys(themes)}
-                            />
-                        )}
+                        {tab.id === 'welcome' ?
+                            (
+                                <WelcomeScreen
+                                    connections={connections}
+                                    onAddConnection={() => {
+                                        setSelectedConnection(null);
+                                        setShowConnectionModal(true);
+                                    }}
+                                    onConnectionClick={(conn) => addNewTab('ssh', conn)}
+                                    onLocalTerminalClick={() => addNewTab('local')}
+                                />
+                            ) : (
+                                <TerminalTab
+                                    type={tab.type}
+                                    connection={tab.connection}
+                                    currentTheme={currentTheme}
+                                    onChangeTheme={changeTheme}
+                                    themes={Object.keys(themes)}
+                                    isActive={activeTab === tab.id}
+                                />
+                            )}
                     </div>
                 ))}
             </div>
@@ -178,7 +176,7 @@ export default function TerminalManager() {
             <ConnectionModal
                 isOpen={showConnectionModal}
                 onClose={() => setShowConnectionModal(false)}
-                onSubmit={selectedConnection ? updateConnection : addConnection}
+                onSubmit={selectedConnection ? updateConnection : addConnection} // [cite: 118]
                 connection={selectedConnection}
             />
         </div>

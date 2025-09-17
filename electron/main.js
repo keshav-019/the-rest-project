@@ -1,5 +1,5 @@
 // electron/main.js
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const pty = require('node-pty');
 const path = require('path');
 const isDev = require('electron-is-dev');
@@ -7,9 +7,9 @@ const fs = require('fs');
 const { Client } = require('ssh2');
 
 let mainWindow;
-let ptyProcess;
-let sshConnection;
-let currentTheme = 'Ubuntu';
+let ptyProcess = null;
+let sshConnection = null;
+let sshStream = null;
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -47,6 +47,14 @@ function cleanup() {
         }
         ptyProcess = null;
     }
+    if (sshStream) {
+        try {
+            sshStream.end();
+        } catch (error) {
+            console.error('Error closing SSH stream:', error);
+        }
+        sshStream = null;
+    }
     if (sshConnection) {
         try {
             sshConnection.end();
@@ -55,6 +63,7 @@ function cleanup() {
         }
         sshConnection = null;
     }
+    console.log('Cleanup complete.');
 }
 
 app.whenReady().then(createWindow);
@@ -79,16 +88,14 @@ ipcMain.handle('cleanup-pty', () => {
 });
 
 ipcMain.handle('change-theme', (event, theme) => {
-    currentTheme = theme;
+    // This handler seems unused in the main process logic provided, but leaving it.
     return true;
 });
 
 ipcMain.handle('request-pty', () => {
     cleanup();
 
-    const shell = process.platform === 'win32'
-        ? 'powershell.exe'
-        : process.env.SHELL || '/bin/bash';
+    const shell = process.platform === 'win32' ? 'powershell.exe' : (process.env.SHELL || '/bin/bash');
 
     try {
         ptyProcess = pty.spawn(shell, [], {
@@ -96,20 +103,16 @@ ipcMain.handle('request-pty', () => {
             cols: 80,
             rows: 24,
             cwd: process.env.HOME || process.env.USERPROFILE || process.cwd(),
-            env: {
-                ...process.env,
-                TERM: 'xterm-256color',
-                COLORTERM: 'truecolor'
-            }
+            env: { ...process.env, TERM: 'xterm-256color', COLORTERM: 'truecolor' }
         });
 
-        ptyProcess.on('data', (data) => {
+        ptyProcess.onData((data) => {
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('pty-data', data);
             }
         });
 
-        ptyProcess.on('exit', () => {
+        ptyProcess.onExit(() => {
             ptyProcess = null;
         });
 
@@ -124,7 +127,6 @@ ipcMain.handle('request-pty', () => {
     }
 });
 
-// electron/main.js (updated SSH handler)
 ipcMain.handle('connect-ssh', async (event, connection) => {
     cleanup();
     console.log('Attempting SSH connection to:', connection.host);
@@ -132,64 +134,6 @@ ipcMain.handle('connect-ssh', async (event, connection) => {
     return new Promise((resolve) => {
         sshConnection = new Client();
 
-        // Set timeout for connection
-        const timeout = setTimeout(() => {
-            console.log('SSH connection timeout');
-            mainWindow.webContents.send('ssh-error', 'Timed out while waiting for handshake');
-            cleanup();
-            resolve(false);
-        }, 20000); // 20 seconds timeout
-
-        sshConnection.on('ready', () => {
-            clearTimeout(timeout);
-            console.log('SSH connection ready');
-
-            ptyProcess = pty.spawn('bash', [], {
-                name: 'xterm-256color',
-                cols: 80,
-                rows: 24,
-                env: process.env
-            });
-
-            sshConnection.shell((err, stream) => {
-                if (err) {
-                    console.error('SSH shell error:', err);
-                    mainWindow.webContents.send('ssh-error', err.message);
-                    cleanup();
-                    return resolve(false);
-                }
-
-                console.log('SSH shell established');
-
-                // Data piping
-                ptyProcess.on('data', (data) => stream.write(data));
-                stream.on('data', (data) => ptyProcess.write(data));
-
-                // Cleanup handlers
-                stream.on('close', () => {
-                    console.log('SSH stream closed');
-                    mainWindow.webContents.send('ssh-close');
-                    cleanup();
-                });
-
-                ptyProcess.on('exit', () => {
-                    stream.end();
-                    cleanup();
-                });
-
-                resolve(true);
-            });
-        });
-
-        sshConnection.on('error', (err) => {
-            clearTimeout(timeout);
-            console.error('SSH connection error:', err);
-            mainWindow.webContents.send('ssh-error', err.message);
-            cleanup();
-            resolve(false);
-        });
-
-        // Connection options
         const connectOptions = {
             host: connection.host,
             port: connection.port,
@@ -204,24 +148,14 @@ ipcMain.handle('connect-ssh', async (event, connection) => {
                     'diffie-hellman-group14-sha1'
                 ],
                 cipher: [
-                    'aes128-ctr',
-                    'aes192-ctr',
-                    'aes256-ctr',
-                    'aes128-gcm',
-                    'aes128-gcm@openssh.com',
-                    'aes256-gcm',
-                    'aes256-gcm@openssh.com',
+                    'aes128-ctr', 'aes192-ctr', 'aes256-ctr', 'aes128-gcm',
+                    'aes128-gcm@openssh.com', 'aes256-gcm', 'aes256-gcm@openssh.com',
                     'aes256-cbc'
                 ],
-                hmac: [
-                    'hmac-sha2-256',
-                    'hmac-sha2-512',
-                    'hmac-sha1'
-                ]
+                hmac: ['hmac-sha2-256', 'hmac-sha2-512', 'hmac-sha1']
             }
         };
 
-        // Authentication
         if (connection.authMethod === 'password') {
             connectOptions.password = connection.password;
         } else {
@@ -231,10 +165,54 @@ ipcMain.handle('connect-ssh', async (event, connection) => {
                     connectOptions.passphrase = connection.passphrase;
                 }
             } catch (err) {
-                mainWindow.webContents.send('ssh-error', `Key file error: ${err.message}`);
+                mainWindow.webContents.send('pty-data', `\r\nKey file error: ${err.message}\r\n`);
                 return resolve(false);
             }
         }
+
+        sshConnection.on('ready', () => {
+            console.log('SSH connection ready');
+            sshConnection.shell({ term: 'xterm-256color' }, (err, stream) => {
+                if (err) {
+                    console.error('SSH shell error:', err);
+                    mainWindow.webContents.send('pty-data', `\r\nSSH shell error: ${err.message}\r\n`);
+                    cleanup();
+                    return resolve(false);
+                }
+
+                sshStream = stream;
+                console.log('SSH shell established');
+
+                stream.on('data', (data) => {
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('pty-data', data.toString('utf8'));
+                    }
+                });
+
+                stream.on('close', () => {
+                    console.log('SSH stream closed');
+                    mainWindow.webContents.send('pty-data', '\r\nConnection closed.\r\n');
+                    cleanup();
+                });
+
+                resolve(true);
+            });
+        });
+
+        sshConnection.on('error', (err) => {
+            console.error('SSH connection error:', err);
+            mainWindow.webContents.send('pty-data', `\r\nSSH Connection Error: ${err.message}\r\n`);
+            cleanup();
+            resolve(false);
+        });
+
+        sshConnection.on('timeout', () => {
+            console.error('SSH connection timeout');
+            mainWindow.webContents.send('pty-data', `\r\nSSH Connection Error: Timed out\r\n`);
+            cleanup();
+            resolve(false);
+        });
+
 
         sshConnection.connect(connectOptions);
     });
@@ -242,32 +220,29 @@ ipcMain.handle('connect-ssh', async (event, connection) => {
 
 ipcMain.handle('resize-pty', (event, cols, rows) => {
     if (ptyProcess) {
-        try {
-            ptyProcess.resize(cols, rows);
-            return true;
-        } catch (error) {
-            console.error('Error resizing PTY:', error);
-            return false;
-        }
+        ptyProcess.resize(cols, rows);
+        return true;
+    }
+    if (sshStream) {
+        sshStream.setWindow(rows, cols, 0, 0);
+        return true;
     }
     return false;
 });
 
 ipcMain.handle('send-to-pty', (event, data) => {
     if (ptyProcess) {
-        try {
-            ptyProcess.write(data);
-            return true;
-        } catch (error) {
-            console.error('Error writing to PTY:', error);
-            return false;
-        }
+        ptyProcess.write(data);
+        return true;
+    }
+    if (sshStream) {
+        sshStream.write(data);
+        return true;
     }
     return false;
 });
 
 ipcMain.handle('open-file-dialog', async () => {
-    const { dialog } = require('electron');
     try {
         const result = await dialog.showOpenDialog({
             properties: ['openFile'],
