@@ -10,6 +10,8 @@ export async function savePersonalCollections(userId: string, newCollections: Co
     console.log("The save personal collections function is called");
     const userRef = doc(db, 'users', userId);
     const userDoc = await getDoc(userRef);
+
+    console.log("The user doc is: ", userDoc);
     
     if (!userDoc.exists()) {
         console.log("Ran into an error");

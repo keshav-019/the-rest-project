@@ -29,6 +29,8 @@ export default function Authentication() {
         setError(undefined);
         setIsLoading('email-password');
 
+        console.log("Handle Email Password Submit Function Called");
+
         try {
             if (isLoginView) {
                 // Login validation
@@ -37,7 +39,12 @@ export default function Authentication() {
                     return;
                 }
 
+                console.log("Just before the login with email function call");
+
                 const result = await loginWithEmail(email, password);
+
+                console.log("The result is: ", result);
+
                 if (result.success) {
                     window.location.href = '/';
                     console.log("The result is: ", result.user);
@@ -62,6 +69,10 @@ export default function Authentication() {
                 }
 
                 const result = await signUpWithEmail(email, password, name, username);
+
+                console.log("The result of the login request is: ", result);
+
+
                 if (result.success) {
                     window.location.href = '/';
                 } else {

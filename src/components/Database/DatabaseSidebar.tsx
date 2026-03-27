@@ -279,13 +279,6 @@ export const DatabaseSidebar = ({
                             <Plus className="h-4 w-4 mr-2" />
                             New Connection
                         </Button>
-                        <Button
-                            onClick={() => setShowFilterDialog(true)}
-                            variant="outline"
-                            size="sm"
-                        >
-                            <Eye className="h-4 w-4" />
-                        </Button>
                     </div>
                 </div>
 

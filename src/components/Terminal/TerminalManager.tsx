@@ -8,16 +8,44 @@ import HeaderComponent from '../Common/Header';
 import { TerminalConnection } from '@/types/Terminal';
 import { themes } from './terminalThemes';
 import WelcomeScreen from './WelcomeScreenComponent';
+import { getInitials, getUserDetails } from '@/lib/firebase/auth';
+import { getUserTeams } from '@/lib/firebase/teams';
+import { Team } from '@/types/User';
+import { useUserData } from '@/hooks/useUserData';
 
 export default function TerminalManager() {
     const [activeTab, setActiveTab] = useState<string>('welcome');
     const [tabs, setTabs] = useState<{ id: string, type: 'local' | 'ssh', connection?: TerminalConnection }[]>([
         { id: 'welcome', type: 'local' }
     ]);
+    const { userData, teamId } = useUserData();
     const [connections, setConnections] = useState<TerminalConnection[]>([]);
     const [showConnectionModal, setShowConnectionModal] = useState(false);
     const [selectedConnection, setSelectedConnection] = useState<TerminalConnection | null>(null);
     const [currentTheme, setCurrentTheme] = useState<string>('Ubuntu');
+    const [autoSave, setAutoSave] = useState<boolean>(true);
+    const [email, setEmail] = useState<string>('');
+    const [username, setUsername] = useState<string>('');
+    const [initials, setInitials] = useState<string>('');
+    const [teams, setTeams] = useState<Team[]>([]);
+    const [teamMode, setTeamMode] = useState<Team | null>(null);
+    const [showTeamsDropdown, setShowTeamsDropdown] = useState(false);
+    const [displayName, setDisplayName] = useState<string>('');
+
+    // Initialize environments from userData
+    useEffect(() => {
+        const fetchUserData = async () => {
+            const {user, userData} = await getUserDetails();
+            const teams = await getUserTeams(user?.uid || '');
+            setEmail(user?.email || '');
+            setAutoSave(userData?.autoSave || true);
+            setDisplayName(user?.displayName || '');
+            setUsername(user?.username || '');
+            setInitials(getInitials(user?.displayName || ''));
+            setTeams(teams);
+        }
+        fetchUserData();
+    }, [userData, teamId]);
 
     // Load saved connections and theme from localStorage
     useEffect(() => {
@@ -81,26 +109,7 @@ export default function TerminalManager() {
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-            <HeaderComponent
-                parentComponent="Terminal"
-                toSearch={false}
-                onAddCollection={() => { }}
-                environments={[]}
-                autoSave={true}
-                displayName=""
-                email=""
-                initials=""
-                setAutoSave={() => { }}
-                username=""
-                teams={[]}
-                teamMode={null}
-                activeEnvironmentId={null}
-                onEnvironmentSelect={() => { }}
-                onExitTeamMode={() => { }}
-                onTeamSelect={() => { }}
-                setShowTeams={() => { }}
-                showTeams={false}
-            />
+            <HeaderComponent parentComponent={"Dashboard"} toSearch={false} onAddCollection={() => {}} environments={[]} autoSave={autoSave} displayName={displayName} email={email} initials={initials} setAutoSave={setAutoSave} username={username} teams={teams} activeEnvironmentId={''} onEnvironmentSelect={() => {}} onExitTeamMode={() => {}} onTeamSelect={() => {}} setShowTeams={setShowTeamsDropdown} showTeams={showTeamsDropdown} teamMode={teamMode} />
 
             {/* Tab bar */}
             <div className="flex items-center border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4">
@@ -166,7 +175,7 @@ export default function TerminalManager() {
                                     currentTheme={currentTheme}
                                     onChangeTheme={changeTheme}
                                     themes={Object.keys(themes)}
-                                    isActive={activeTab === tab.id}
+                                    // isActive={activeTab === tab.id}
                                 />
                             )}
                     </div>

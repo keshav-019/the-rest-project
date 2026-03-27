@@ -250,6 +250,8 @@ export const signUpWithEmail = async (email: string, password: string, name: str
     try {
         await setAuthPersistence(true);
 
+        console.log("The Database is: ", db);
+
         // 1. Check username availability if provided
         if (username) {
             const availability = await checkUsernameAvailability(username);

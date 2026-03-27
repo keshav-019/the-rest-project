@@ -7,6 +7,9 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import { themes } from './terminalThemes';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 interface TerminalTabProps {
     type: 'local' | 'ssh';
     connection?: any;
