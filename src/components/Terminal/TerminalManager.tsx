@@ -28,6 +28,7 @@ export default function TerminalManager() {
     const [username, setUsername] = useState<string>('');
     const [initials, setInitials] = useState<string>('');
     const [teams, setTeams] = useState<Team[]>([]);
+    /* eslint-disable @typescript-eslint/no-unused-vars */
     const [teamMode, setTeamMode] = useState<Team | null>(null);
     const [showTeamsDropdown, setShowTeamsDropdown] = useState(false);
     const [displayName, setDisplayName] = useState<string>('');
