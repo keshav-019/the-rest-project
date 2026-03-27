@@ -4,6 +4,7 @@ const nextConfig = {
     images: {
         unoptimized: true,
     },
+    turbopack: {},
     webpack: (config: any, { isServer }: {isServer: any}) => {
         // Handle node modules that need to be ignored in the browser
         if (!isServer) {
