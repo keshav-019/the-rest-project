@@ -34,6 +34,7 @@ export default function TeamManagement() {
     const [autoSave, setAutoSave] = useState<boolean>(true);
     const [name, setName] = useState<string>('');
     const [displayName, setDisplayName] = useState<string>('');
+    const [photoURL, setPhotoURL] = useState<string>('');
     const [email, setEmail] = useState<string>('');
     const [username, setUsername] = useState<string>('');
     const [initials, setInitials] = useState<string>('');
@@ -75,6 +76,7 @@ export default function TeamManagement() {
             setDisplayName(user?.displayName || '');
             setUsername(user?.username || '');
             setInitials(getInitials(user?.displayName || ''));
+            setPhotoURL(user?.photoURL || '');
             setName(user?.displayName || '');
             setTeams(teams);
             setBio(userData?.bio || '');
@@ -193,6 +195,7 @@ export default function TeamManagement() {
                     onTeamSelect={handleTeamSelect}
                     setShowTeams={setShowTeamsDropdown}
                     showTeams={showTeamsDropdown}
+                    photoURL={photoURL}
                 />
 
                 <TeamsHeader activeTab={activeTab} setActiveTab={setActiveTab} />

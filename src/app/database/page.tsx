@@ -28,6 +28,7 @@ const DatabaseScreen = () => {
     const [teamMode, setTeamMode] = useState<Team | null>(null);
     const [initials, setInitials] = useState<string>('');
     const [email, setEmail] = useState<string>('');
+    const [photoURL, setPhotoURL] = useState<string>('');
     const [displayName, setDisplayName] = useState<string>('');
     const [autoSave, setAutoSave] = useState<boolean>(true);
 
@@ -44,6 +45,7 @@ const DatabaseScreen = () => {
             setEmail(currentUser?.email || '');
             setDisplayName(currentUser?.displayName || '');
             setAutoSave(userDetails.userData?.autoSave || true);
+            setPhotoURL(currentUser?.photoURL || '');
         };
 
         loadData();
@@ -124,6 +126,7 @@ const DatabaseScreen = () => {
                         setShowTeams={setShowTeamsDropdown}
                         activeEnvironmentId={''}
                         onEnvironmentSelect={() => {}}
+                        photoURL={photoURL}
                     />
                     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                         <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">

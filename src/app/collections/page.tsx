@@ -24,6 +24,7 @@ const Collections: React.FC = () => {
     const [activeTabs, setActiveTabs] = useState<{ id: string; request: Request }[]>([]);
     const [activeTabId, setActiveTabId] = useState<string | null>(null);
     const [userid, setUserid] = useState<string | undefined>(undefined);
+    const [photoURL, setPhotoURL] = useState<string>('');
     const [autoSave, setAutoSave] = useState<boolean>(true);
     const [displayName, setDisplayName] = useState<string>('');
     const [email, setEmail] = useState<string>('');
@@ -52,6 +53,7 @@ const Collections: React.FC = () => {
             setEmail(user?.email || '');
             setAutoSave(userData?.autoSave || true);
             setDisplayName(user?.displayName || '');
+            setPhotoURL(user?.photoURL || '');
             setUsername(user?.username || '');
             setInitials(getInitials(user?.displayName || ''));
             setTeams(teams);
@@ -342,6 +344,7 @@ const Collections: React.FC = () => {
                     onTeamSelect={handleTeamSelect}
                     setShowTeams={setShowTeamsDropdown}
                     showTeams={showTeamsDropdown}
+                    photoURL={photoURL}
                 />
 
                 <div className="flex-1 flex overflow-hidden">

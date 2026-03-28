@@ -31,9 +31,10 @@ export interface UserDropdownProps {
     showTeams: boolean,
     setShowTeams: (value: boolean) => void,
     teams?: Team[],
+    photoURL?: string
 }
 
-const UserDropdown = ({ initials, email, username, displayName, autoSave, setAutoSave, teamMode, setTeamMode, onExitTeamMode, showTeams, setShowTeams, teams }: UserDropdownProps) => {
+const UserDropdown = ({ initials, email, username, displayName, autoSave, setAutoSave, teamMode, setTeamMode, onExitTeamMode, showTeams, setShowTeams, teams, photoURL }: UserDropdownProps) => {
     const router = useRouter();
 
     const menuItems = [
@@ -74,8 +75,17 @@ const UserDropdown = ({ initials, email, username, displayName, autoSave, setAut
 
     return (
         <Menu as="div" className="relative">
-            <MenuButton className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium cursor-pointer hover:bg-blue-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
-                {initials}
+            <MenuButton className="w-10 h-10 rounded-full overflow-hidden bg-blue-500 flex items-center justify-center text-white font-medium cursor-pointer hover:bg-blue-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
+                {photoURL && photoURL !== '' ? (
+                    <img
+                        src={photoURL}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <span>{initials}</span>
+                )}
+
             </MenuButton>
 
             <Transition
@@ -88,7 +98,7 @@ const UserDropdown = ({ initials, email, username, displayName, autoSave, setAut
             >
                 <MenuItems className="absolute right-0 mt-2 w-72 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none z-50 border border-gray-200 dark:border-gray-700">
                     {/* User Profile Section */}
-                    <UserProfile displayName={displayName} email={email} initials={initials} username={username} />
+                    <UserProfile displayName={displayName} email={email} initials={initials} username={username} photoURL={photoURL} />
 
                     {/* Navigation Menu Items */}
                     <NavigationMenuItems menuItems={menuItems} />

@@ -98,7 +98,7 @@ export default function Dashboard() {
                 <p className="text-xs text-gray-500 dark:text-gray-400">Yesterday at 4:30 PM</p>
             ),
             colorClass: "bg-yellow-500"
-        }        
+        }
     ];
 
     const recentCollections = [
@@ -121,17 +121,17 @@ export default function Dashboard() {
     ];
 
     const requestColorMapping = [
-        {requestType: 'GET', colorClass: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'},
-        {requestType: 'POST', colorClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'},
-        {requestType: 'PUT', colorClass: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'},
-        {requestType: 'DEL', colorClass: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'}
+        { requestType: 'GET', colorClass: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
+        { requestType: 'POST', colorClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
+        { requestType: 'PUT', colorClass: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
+        { requestType: 'DEL', colorClass: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' }
     ]
 
     const favouriteRequests = [
-        {api: 'api.example.com/users', requestType: requestColorMapping.find(element => element.requestType === 'GET')},
-        {api: 'api.example.com/auth/login', requestType: requestColorMapping.find(element => element.requestType === 'POST')},
-        {api: 'api.example.com/products/123', requestType: requestColorMapping.find(element => element.requestType === 'PUT')},
-        {api: 'api.example.com/users/456', requestType: requestColorMapping.find(element => element.requestType === 'DEL')}
+        { api: 'api.example.com/users', requestType: requestColorMapping.find(element => element.requestType === 'GET') },
+        { api: 'api.example.com/auth/login', requestType: requestColorMapping.find(element => element.requestType === 'POST') },
+        { api: 'api.example.com/products/123', requestType: requestColorMapping.find(element => element.requestType === 'PUT') },
+        { api: 'api.example.com/users/456', requestType: requestColorMapping.find(element => element.requestType === 'DEL') }
     ];
 
     const { userData, teamId } = useUserData();
@@ -143,17 +143,19 @@ export default function Dashboard() {
     const [teams, setTeams] = useState<Team[]>([]);
     const [teamMode, setTeamMode] = useState<Team | null>(null);
     const [showTeamsDropdown, setShowTeamsDropdown] = useState(false);
+    const [photoURL, setPhotoURL] = useState<string>('');
 
     // Initialize environments from userData
     useEffect(() => {
         const fetchUserData = async () => {
-            const {user, userData} = await getUserDetails();
+            const { user, userData } = await getUserDetails();
             const teams = await getUserTeams(user?.uid || '');
             setEmail(user?.email || '');
             setAutoSave(userData?.autoSave || true);
             setDisplayName(user?.displayName || '');
             setUsername(user?.username || '');
             setInitials(getInitials(user?.displayName || ''));
+            setPhotoURL(user?.photoURL || '');
             setTeams(teams);
         }
         fetchUserData();
@@ -181,7 +183,27 @@ export default function Dashboard() {
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
-                <HeaderComponent parentComponent={"Dashboard"} toSearch={false} onAddCollection={() => {}} environments={[]} autoSave={autoSave} displayName={displayName} email={email} initials={initials} setAutoSave={setAutoSave} username={username} teams={teams} activeEnvironmentId={''} onEnvironmentSelect={() => {}} onExitTeamMode={handleExitTeamMode} onTeamSelect={handleTeamSelect} setShowTeams={setShowTeamsDropdown} showTeams={showTeamsDropdown} teamMode={teamMode} />
+                <HeaderComponent
+                    parentComponent={"Dashboard"}
+                    toSearch={false}
+                    onAddCollection={() => { }}
+                    environments={[]}
+                    autoSave={autoSave}
+                    displayName={displayName}
+                    email={email}
+                    initials={initials}
+                    setAutoSave={setAutoSave}
+                    username={username}
+                    teams={teams}
+                    activeEnvironmentId={''}
+                    onEnvironmentSelect={() => { }}
+                    onExitTeamMode={handleExitTeamMode}
+                    onTeamSelect={handleTeamSelect}
+                    setShowTeams={setShowTeamsDropdown}
+                    showTeams={showTeamsDropdown}
+                    teamMode={teamMode}
+                    photoURL={photoURL}
+                />
 
                 {/* Dashboard Content */}
                 <main className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">

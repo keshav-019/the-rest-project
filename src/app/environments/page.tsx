@@ -38,6 +38,7 @@ export default function Environments() {
     const [displayName, setDisplayName] = useState<string>('');
     const [email, setEmail] = useState<string>('');
     const [username, setUsername] = useState<string>('');
+    const [photoURL, setPhotoURL] = useState<string>('');
     const [initials, setInitials] = useState<string>('');
     const [teams, setTeams] = useState<Team[]>([]);
     const [teamMode, setTeamMode] = useState<Team | null>(null);
@@ -54,10 +55,8 @@ export default function Environments() {
 
     // Initialize environments from userData
     useEffect(() => {
-
-
         const fetchUserData = async () => {
-            const {user, userData} = await getUserDetails();
+            const { user, userData } = await getUserDetails();
             const teams = await getUserTeams(user?.uid || '');
             setUserid(user?.uid);
             setEmail(user?.email || '');
@@ -65,10 +64,11 @@ export default function Environments() {
             setDisplayName(user?.displayName || '');
             setUsername(user?.username || '');
             setInitials(getInitials(user?.displayName || ''));
+            setPhotoURL(user?.photoURL || '');
             setTeams(teams);
         }
         fetchUserData();
-        if(userData) {
+        if (userData) {
             const personalEnvironments = !teamMode ? userData.personalEnvironments || [] : teamMode.environments || [];
             setEnvironments(personalEnvironments);
             if (personalEnvironments.length > 0 && !activeEnvironment) {
@@ -88,12 +88,12 @@ export default function Environments() {
 
     const handleEnvironmentAdd = async (newEnv: Environment) => {
         const updatedEnvs = [...environments, newEnv];
-        const {user} = await getUserDetails();
+        const { user } = await getUserDetails();
         setEnvironments(updatedEnvs);
         setActiveEnvironment(newEnv);
 
-        if(teamMode){
-            const intermediateTeamMode = {...teamMode, environments: updatedEnvs};
+        if (teamMode) {
+            const intermediateTeamMode = { ...teamMode, environments: updatedEnvs };
             setTeamMode(intermediateTeamMode);
             updateTeamEnvironments(teamMode.teamId, updatedEnvs);
         }
@@ -106,7 +106,7 @@ export default function Environments() {
         setShowAddModal(false);
         setEditForm({});
         console.log("The updated Envs are: ", updatedEnvs, " and the user id is: ", userid);
-        if(!user?.uid) throw new Error('No User is logged in right now');
+        if (!user?.uid) throw new Error('No User is logged in right now');
         savePersonalEnvironments(user?.uid, updatedEnvs);
     };
 
@@ -115,24 +115,24 @@ export default function Environments() {
         const updatedEnvs = environments.filter(e => e.id !== envId);
         setEnvironments(updatedEnvs);
 
-        if(teamMode){
-            const intermediateTeamMode = {...teamMode, environments: updatedEnvs};
+        if (teamMode) {
+            const intermediateTeamMode = { ...teamMode, environments: updatedEnvs };
             setTeamMode(intermediateTeamMode);
             updateTeamEnvironments(teamMode.teamId, updatedEnvs);
         }
-    
+
         // Update Firebase
         if (userData && !teamMode) {
             const updatedData = updatePersonalEnvironments(userData, updatedEnvs); // 🔧 fallback
             updateUserData(updatedData);
         }
-    
+
         if (activeEnvironment?.id === envId) {
             setActiveEnvironment(updatedEnvs[0] || null);
         }
-    
+
         setShowDeleteConfirm(false);
-    };    
+    };
 
     const handleEnvironmentUpdate = (updatedEnv: Environment) => {
         const updatedEnvs = environments.map(e =>
@@ -142,8 +142,8 @@ export default function Environments() {
         setEnvironments(updatedEnvs);
         setActiveEnvironment(updatedEnv);
 
-        if(teamMode){
-            const intermediateTeamMode = {...teamMode, environments: updatedEnvs};
+        if (teamMode) {
+            const intermediateTeamMode = { ...teamMode, environments: updatedEnvs };
             setTeamMode(intermediateTeamMode);
             updateTeamEnvironments(teamMode.teamId, updatedEnvs);
         }
@@ -259,7 +259,27 @@ export default function Environments() {
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Top Header */}
-                <HeaderComponent toSearch={false} parentComponent={'Request Builder'} onAddCollection={() => {}} environments={environments} initials={initials} username={username} email={email} displayName={displayName} teams={teams} autoSave={autoSave} setAutoSave={setAutoSave} activeEnvironmentId={activeEnvironment?.id || ''} onEnvironmentSelect={() => {}} onExitTeamMode={handleExitTeamMode} onTeamSelect={handleTeamSelect} setShowTeams={setShowTeamsDropdown} showTeams={showTeamsDropdown} teamMode={teamMode} />
+                <HeaderComponent
+                    toSearch={false}
+                    parentComponent={'Request Builder'}
+                    onAddCollection={() => { }}
+                    environments={environments}
+                    initials={initials}
+                    username={username}
+                    email={email}
+                    displayName={displayName}
+                    teams={teams}
+                    autoSave={autoSave}
+                    setAutoSave={setAutoSave}
+                    activeEnvironmentId={activeEnvironment?.id || ''}
+                    onEnvironmentSelect={() => { }}
+                    onExitTeamMode={handleExitTeamMode}
+                    onTeamSelect={handleTeamSelect}
+                    setShowTeams={setShowTeamsDropdown}
+                    showTeams={showTeamsDropdown}
+                    teamMode={teamMode}
+                    photoURL={photoURL}
+                />
 
                 {/* Environments Content */}
                 <main className="flex-1 overflow-hidden flex">

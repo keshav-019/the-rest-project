@@ -50,6 +50,7 @@ export default function RequestBuilder() {
     const [user, setUser] = useState<User | null>(null);
     const [initials, setInitials] = useState<string>('');
     const [username, setUsername] = useState<string>('');
+    const [photoURL, setPhotoURL] = useState<string>('');
     const [email, setEmail] = useState<string>('');
     const [displayName, setDisplayName] = useState<string>('');
     const [userId, setUserId] = useState<string>('');
@@ -102,6 +103,7 @@ export default function RequestBuilder() {
                 setUserId(user.uid);
                 setInitials(getInitials(user.displayName));
                 setUsername(user.username || '');
+                setPhotoURL(user.photoURL)
                 setEmail(user.email || '');
                 setDisplayName(user.displayName || '');
                 setAutoSave(userDetails.userData?.autoSave || true);
@@ -591,6 +593,7 @@ export default function RequestBuilder() {
                 setShowTeams={setShowTeamsDropdown}
                 activeEnvironmentId={activeEnvironmentId}
                 onEnvironmentSelect={handleEnvironmentSelect}
+                photoURL={photoURL}
             />
 
             {/* Main Content Area */}

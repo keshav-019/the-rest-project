@@ -24,6 +24,7 @@ export default function SettingsPage() {
     const [email, setEmail] = useState<string>('');
     const [username, setUsername] = useState<string>('');
     const [initials, setInitials] = useState<string>('');
+    const [photoURL, setPhotoURL] = useState<string>('');
     const [teams, setTeams] = useState<Team[]>([]);
     const [bio, setBio] = useState<string>('');
     const [teamMode, setTeamMode] = useState<Team | null>(null);
@@ -36,14 +37,18 @@ export default function SettingsPage() {
             setEmail(user?.email || '');
             setAutoSave(userData?.autoSave || true);
             setDisplayName(user?.displayName || '');
-            setUsername(user?.username || '');
+            setUsername(userData?.username || '');
             setInitials(getInitials(user?.displayName || ''));
             setName(user?.displayName || '');
+            setPhotoURL(user?.photoURL || '');
             setTeams(teams);
             setBio(userData?.bio || '');
         }
         fetchUserData();
-    });
+
+        console.log("The username is: ", username);
+        console.log("The displayname is: ", displayName);
+    }, []);
 
     // Add this handler for exiting team mode
     const handleExitTeamMode = () => {
@@ -85,6 +90,7 @@ export default function SettingsPage() {
                 setShowTeams={setShowTeamsDropdown}
                 showTeams={showTeamsDropdown}
                 teamMode={teamMode}
+                photoURL={photoURL}
             />
             
             {/* Main content area with sidebar and content */}
@@ -102,7 +108,7 @@ export default function SettingsPage() {
                     <div className="max-w-3xl mx-auto">
                         {/* Profile Tab */}
                         {activeTab === 'profile' && (
-                            <ProfileTab setName={setName} bio={bio} email={email} name={name} setBio={setBio} setEmail={setEmail} setLocalName={setName} />
+                            <ProfileTab setName={setName} bio={bio} email={email} name={name} setBio={setBio} setEmail={setEmail} setLocalName={setName} setUserName={setUsername} userName={username} />
                         )}
 
                         {/* Security Tab */}

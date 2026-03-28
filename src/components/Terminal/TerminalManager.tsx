@@ -28,6 +28,7 @@ export default function TerminalManager() {
     const [username, setUsername] = useState<string>('');
     const [initials, setInitials] = useState<string>('');
     const [teams, setTeams] = useState<Team[]>([]);
+    const [photoURL, setPhotoURL] = useState<string>('');
     /* eslint-disable @typescript-eslint/no-unused-vars */
     const [teamMode, setTeamMode] = useState<Team | null>(null);
     const [showTeamsDropdown, setShowTeamsDropdown] = useState(false);
@@ -36,13 +37,14 @@ export default function TerminalManager() {
     // Initialize environments from userData
     useEffect(() => {
         const fetchUserData = async () => {
-            const {user, userData} = await getUserDetails();
+            const { user, userData } = await getUserDetails();
             const teams = await getUserTeams(user?.uid || '');
             setEmail(user?.email || '');
             setAutoSave(userData?.autoSave || true);
             setDisplayName(user?.displayName || '');
             setUsername(user?.username || '');
             setInitials(getInitials(user?.displayName || ''));
+            setPhotoURL(user?.photoURL || '');
             setTeams(teams);
         }
         fetchUserData();
@@ -110,7 +112,27 @@ export default function TerminalManager() {
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-            <HeaderComponent parentComponent={"Dashboard"} toSearch={false} onAddCollection={() => {}} environments={[]} autoSave={autoSave} displayName={displayName} email={email} initials={initials} setAutoSave={setAutoSave} username={username} teams={teams} activeEnvironmentId={''} onEnvironmentSelect={() => {}} onExitTeamMode={() => {}} onTeamSelect={() => {}} setShowTeams={setShowTeamsDropdown} showTeams={showTeamsDropdown} teamMode={teamMode} />
+            <HeaderComponent
+                parentComponent={"Dashboard"}
+                toSearch={false}
+                onAddCollection={() => { }}
+                environments={[]}
+                autoSave={autoSave}
+                displayName={displayName}
+                email={email}
+                initials={initials}
+                setAutoSave={setAutoSave}
+                username={username}
+                teams={teams}
+                activeEnvironmentId={''}
+                onEnvironmentSelect={() => { }}
+                onExitTeamMode={() => { }}
+                onTeamSelect={() => { }}
+                setShowTeams={setShowTeamsDropdown}
+                showTeams={showTeamsDropdown}
+                teamMode={teamMode}
+                photoURL={photoURL}
+            />
 
             {/* Tab bar */}
             <div className="flex items-center border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4">
@@ -119,8 +141,8 @@ export default function TerminalManager() {
                         <div
                             key={tab.id}
                             className={`flex items-center px-4 py-2 border-r border-gray-200 dark:border-gray-700 cursor-pointer ${activeTab === tab.id
-                                    ? 'bg-gray-100 dark:bg-gray-700'
-                                    : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                                ? 'bg-gray-100 dark:bg-gray-700'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                                 }`}
                             onClick={() => setActiveTab(tab.id)}
                         >
@@ -133,7 +155,7 @@ export default function TerminalManager() {
                             <span className="text-sm font-medium">
                                 {tab.id === 'welcome' ? 'Welcome' :
                                     tab.type === 'local' ? 'Local Terminal' :
-                                        tab.connection?.name || 'SSH Connection'} 
+                                        tab.connection?.name || 'SSH Connection'}
                             </span>
                             {tab.id !== 'welcome' && (
                                 <button
@@ -143,7 +165,7 @@ export default function TerminalManager() {
                                     }}
                                     className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                                 >
-                                    <X className="h-4 w-4" /> 
+                                    <X className="h-4 w-4" />
                                 </button>
                             )}
                         </div>
@@ -176,7 +198,7 @@ export default function TerminalManager() {
                                     currentTheme={currentTheme}
                                     onChangeTheme={changeTheme}
                                     themes={Object.keys(themes)}
-                                    // isActive={activeTab === tab.id}
+                                // isActive={activeTab === tab.id}
                                 />
                             )}
                     </div>
