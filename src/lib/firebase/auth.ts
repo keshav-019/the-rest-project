@@ -12,7 +12,6 @@ import { doc, setDoc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { User } from '@/types/User';
 import { auth, db } from './client';
 import { UserData } from '@/types/User';
-import * as speakeasy from 'speakeasy';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -443,43 +442,4 @@ export const getInitials = (name: string | undefined): string => {
     }
 
     return (words[0][0] + words[1][0] + words[words.length - 1][0]).toUpperCase();
-};
-
-export const verifyTwoFactorCode = async (userId: string, code: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-        // Get user's 2FA secret
-        const userDoc = await getDoc(doc(db, 'users', userId));
-        if (!userDoc.exists()) {
-            return { success: false, error: 'User not found' };
-        }
-
-        const userData = userDoc.data() as UserData;
-        
-        if (!userData.twoFactorSecret) {
-            return { success: false, error: '2FA not set up for this user' };
-        }
-
-        // First check backup codes
-        if (userData.twoFactorBackupCodes?.includes(code)) {
-            // Remove used backup code
-            const updatedCodes = userData.twoFactorBackupCodes.filter(c => c !== code);
-            await updateDoc(doc(db, 'users', userId), {
-                twoFactorBackupCodes: updatedCodes
-            });
-            return { success: true };
-        }
-
-        // Then check TOTP code
-        const verified = speakeasy.totp.verify({
-            secret: userData.twoFactorSecret,
-            encoding: 'base32',
-            token: code,
-            window: 1
-        });
-
-        return { success: verified, error: verified ? undefined : 'Invalid verification code' };
-    } catch (error) {
-        console.error('2FA verification error:', error);
-        return { success: false, error: 'Verification failed' };
-    }
 };

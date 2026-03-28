@@ -1,25 +1,42 @@
-'use client'
+'use client';
 import { ErrorType } from "@/types/Collections";
 import { useState } from "react";
+import {
+    getAuth,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
+    updatePassword,
+} from "firebase/auth";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// Password Change Component
-export default function PasswordChangeModal({ isOpen, onClose, onSave }: {isOpen: boolean, onClose: () => void, onSave: (oldValue: string, newValue: string) => void}) {
+export default function PasswordChangeModal({
+    isOpen,
+    onClose
+}: {
+    isOpen: boolean,
+    onClose: () => void
+}) {
+
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+
     const [showPasswords, setShowPasswords] = useState({
         current: false,
         new: false,
         confirm: false
     });
+
     const [errors, setErrors] = useState<ErrorType>({
         current: '',
         new: '',
         confirm: '',
         message: ''
     });
+
+    const [loading, setLoading] = useState(false);
+    const [success, setSuccess] = useState('');
 
     const validateForm = () => {
         const newErrors: ErrorType = {
@@ -28,29 +45,76 @@ export default function PasswordChangeModal({ isOpen, onClose, onSave }: {isOpen
             confirm: '',
             message: ''
         };
-        
+
         if (!currentPassword) newErrors.current = 'Current password is required';
+
         if (!newPassword) newErrors.new = 'New password is required';
-        if (newPassword.length < 8) newErrors.new = 'Password must be at least 8 characters';
-        if (newPassword !== confirmPassword) newErrors.confirm = 'Passwords do not match';
-        
+        else if (newPassword.length < 8)
+            newErrors.new = 'Password must be at least 8 characters';
+
+        if (newPassword !== confirmPassword)
+            newErrors.confirm = 'Passwords do not match';
+
         setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+
+        return !newErrors.current && !newErrors.new && !newErrors.confirm;
     };
 
-    const handleSubmit = (e: any) => {
+    const handleSubmit = async (e: any) => {
         e.preventDefault();
-        if (validateForm()) {
-            onSave(currentPassword, newPassword);
+
+        setErrors({
+            current: '',
+            new: '',
+            confirm: '',
+            message: ''
+        });
+        setSuccess('');
+
+        if (!validateForm()) return;
+
+        try {
+            setLoading(true);
+
+            const auth = getAuth();
+            const user = auth.currentUser;
+
+            if (!user || !user.email) {
+                throw new Error("User not authenticated");
+            }
+
+            const credential = EmailAuthProvider.credential(
+                user.email,
+                currentPassword
+            );
+
+            await reauthenticateWithCredential(user, credential);
+            await updatePassword(user, newPassword);
+
+            setSuccess("Password updated successfully!");
+
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
-            setErrors({
-                current: '',
-                new: '',
-                confirm: '',
-                message: ''
-            });
+
+            setTimeout(() => {
+                onClose();
+            }, 1200);
+
+        } catch (err: any) {
+            console.error(err);
+
+            if (err.code === "auth/wrong-password") {
+                setErrors(prev => ({ ...prev, current: "Incorrect current password" }));
+            } else if (err.code === "auth/requires-recent-login") {
+                setErrors(prev => ({ ...prev, message: "Please log in again" }));
+            } else if (err.code === "auth/too-many-requests") {
+                setErrors(prev => ({ ...prev, message: "Too many attempts. Try later." }));
+            } else {
+                setErrors(prev => ({ ...prev, message: err.message || "Something went wrong" }));
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -67,14 +131,15 @@ export default function PasswordChangeModal({ isOpen, onClose, onSave }: {isOpen
                         </svg>
                     </button>
                 </div>
-                
+
                 <div className="space-y-4">
+                    {/* Current Password */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Current Password
                         </label>
                         <div className="relative">
-                            <input title="setcurrentpassword"
+                            <input
                                 type={showPasswords.current ? "text" : "password"}
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -86,19 +151,24 @@ export default function PasswordChangeModal({ isOpen, onClose, onSave }: {isOpen
                                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
                             >
                                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={showPasswords.current ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                        d={showPasswords.current
+                                            ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7..."
+                                            : "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5..."}
+                                    />
                                 </svg>
                             </button>
                         </div>
                         {errors.current && <p className="text-red-500 text-sm mt-1">{errors.current}</p>}
                     </div>
 
+                    {/* New Password */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             New Password
                         </label>
                         <div className="relative">
-                            <input title='setnewpassword'
+                            <input
                                 type={showPasswords.new ? "text" : "password"}
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
@@ -109,20 +179,19 @@ export default function PasswordChangeModal({ isOpen, onClose, onSave }: {isOpen
                                 onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
                                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
                             >
-                                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={showPasswords.new ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} />
-                                </svg>
+                                👁
                             </button>
                         </div>
                         {errors.new && <p className="text-red-500 text-sm mt-1">{errors.new}</p>}
                     </div>
 
+                    {/* Confirm Password */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Confirm New Password
                         </label>
                         <div className="relative">
-                            <input title="setconfirmpassword"
+                            <input
                                 type={showPasswords.confirm ? "text" : "password"}
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -133,18 +202,27 @@ export default function PasswordChangeModal({ isOpen, onClose, onSave }: {isOpen
                                 onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
                                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
                             >
-                                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={showPasswords.confirm ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} />
-                                </svg>
+                                👁
                             </button>
                         </div>
                         {errors.confirm && <p className="text-red-500 text-sm mt-1">{errors.confirm}</p>}
                     </div>
 
+                    {/* Global Error */}
+                    {errors.message && (
+                        <p className="text-red-500 text-sm">{errors.message}</p>
+                    )}
+
+                    {/* Success */}
+                    {success && (
+                        <p className="text-green-600 text-sm">{success}</p>
+                    )}
+
                     <div className="flex justify-end space-x-3 pt-4">
                         <button
                             type="button"
                             onClick={onClose}
+                            disabled={loading}
                             className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
                         >
                             Cancel
@@ -152,9 +230,13 @@ export default function PasswordChangeModal({ isOpen, onClose, onSave }: {isOpen
                         <button
                             type="button"
                             onClick={handleSubmit}
-                            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            disabled={loading}
+                            className={`px-4 py-2 text-sm font-medium rounded-md text-white ${loading
+                                    ? "bg-blue-400 cursor-not-allowed"
+                                    : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                                }`}
                         >
-                            Update Password
+                            {loading ? "Updating..." : "Update Password"}
                         </button>
                     </div>
                 </div>

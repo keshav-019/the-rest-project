@@ -95,14 +95,11 @@ export default function SecurityTab() {
             <PasswordChangeModal 
                 isOpen={passwordModalOpen}
                 onClose={() => setPasswordModalOpen(false)}
-                onSave={handlePasswordSave}
             />
             
             <TwoFactorModal 
                 isOpen={twoFactorModalOpen}
                 onClose={() => setTwoFactorModalOpen(false)}
-                isEnabled={twoFactorEnabled}
-                onToggle={setTwoFactorEnabled}
             />
             
             {/* <ActiveSessionsModal 
