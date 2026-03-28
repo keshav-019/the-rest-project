@@ -27,7 +27,6 @@ export default function ProfileTab({
     const [usernameStatus, setUsernameStatus] =
         useState<"idle" | "checking" | "available" | "taken" | "current">("idle");
 
-    // ✅ FIX: sync when username arrives (not on mount)
     useEffect(() => {
         if (userName && originalUsername === "") {
             setOriginalUsername(userName);
@@ -47,8 +46,12 @@ export default function ProfileTab({
 
         const timeout = setTimeout(async () => {
             setUsernameStatus("checking");
-            const available = await checkUsernameAvailability(userName);
-            setUsernameStatus(available ? "available" : "taken");
+            const result = await checkUsernameAvailability(userName);
+            if (result.isAvailable) {
+                setUsernameStatus("available");
+            } else {
+                setUsernameStatus("taken");
+            }
         }, 500);
 
         return () => clearTimeout(timeout);
@@ -138,6 +141,10 @@ export default function ProfileTab({
 
         const blob = await getCroppedImg();
 
+        // ✅ CLOSE MODAL IMMEDIATELY
+        setImageSrc(null);
+
+        // ✅ instant preview
         const tempURL = URL.createObjectURL(blob);
         setPhotoURL(tempURL);
 
@@ -163,8 +170,6 @@ export default function ProfileTab({
         } catch (e) {
             console.error(e);
         }
-
-        setImageSrc(null);
     };
 
     const handleRemove = async () => {
@@ -193,6 +198,7 @@ export default function ProfileTab({
 
     return (
         <div className="space-y-8">
+            {/* --- YOUR UI (UNCHANGED) --- */}
             <div>
                 <h2 className="text-lg font-medium text-gray-800 dark:text-white">Profile Information</h2>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -232,6 +238,7 @@ export default function ProfileTab({
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
             </div>
 
+            {/* --- FORM unchanged --- */}
             {/* FORM */}
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 
@@ -265,6 +272,43 @@ export default function ProfileTab({
                 </div>
 
             </div>
+
+            {/* 🔥 CROP MODAL (ADDED BACK — FUNCTIONALITY FIX) */}
+            {imageSrc && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg w-[90%] max-w-lg">
+
+                        <div className="relative w-full h-64">
+                            <Cropper
+                                image={imageSrc}
+                                crop={crop}
+                                zoom={zoom}
+                                aspect={1}
+                                onCropChange={setCrop}
+                                onZoomChange={setZoom}
+                                onCropComplete={onCropComplete}
+                            />
+                        </div>
+
+                        <div className="flex justify-between mt-4">
+                            <button
+                                onClick={() => setImageSrc(null)}
+                                className="px-4 py-2 bg-gray-500 text-white rounded"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                onClick={handleSaveCrop}
+                                className="px-4 py-2 bg-blue-600 text-white rounded"
+                            >
+                                Save Crop
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
