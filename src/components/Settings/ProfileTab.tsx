@@ -136,6 +136,32 @@ export default function ProfileTab({
         return data.secure_url;
     };
 
+    const handleSave = async () => {
+        try {
+            await updateUserProfileData({
+                name,
+                username: userName,
+                bio,
+                email,
+                photoURL
+            });
+
+            // optional: persist locally
+            const existing = JSON.parse(localStorage.getItem("currentUser") || "{}");
+            localStorage.setItem("currentUser", JSON.stringify({
+                ...existing,
+                displayName: name,
+                username: userName,
+                bio,
+                email,
+                photoURL
+            }));
+
+        } catch (e) {
+            console.error("Failed to save profile:", e);
+        }
+    };
+
     const handleSaveCrop = async () => {
         if (!croppedAreaPixels) return;
 
@@ -271,6 +297,16 @@ export default function ProfileTab({
                         className="block w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm placeholder-gray-400 dark:placeholder-gray-500 resize-none" />
                 </div>
 
+            </div>
+
+            {/* Save */}
+            <div className="flex justify-end">
+                <button
+                    onClick={handleSave}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-700 active:scale-95 transition-all duration-150"
+                >
+                    Save changes
+                </button>
             </div>
 
             {/* 🔥 CROP MODAL (ADDED BACK — FUNCTIONALITY FIX) */}
