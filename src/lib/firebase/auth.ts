@@ -7,7 +7,8 @@ import {
     setPersistence,
     browserSessionPersistence,
     browserLocalPersistence,
-    sendPasswordResetEmail} from 'firebase/auth';
+    sendPasswordResetEmail
+} from 'firebase/auth';
 import { doc, setDoc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { User } from '@/types/User';
 import { auth, db } from './client';
@@ -221,7 +222,7 @@ export const loginWithEmail = async (email: string, password: string) => {
             return {
                 success: 'requires-2fa',
                 userId: userCredential.user.uid,
-                user: null
+                secret: userData.twoFactorSecret // 🔥 ADD THIS
             };
         }
 

@@ -76,13 +76,14 @@ export default function TwoFactorModal({
             await enableTwoFactor(secret);
 
             // 🔥 Save to localStorage (your requirement)
-            const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+            const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
 
             localStorage.setItem(
                 "user",
                 JSON.stringify({
                     ...currentUser,
                     twoFactorEnabled: true,
+                    twoFactorSecret: secret // 🔥 THIS WAS MISSING
                 })
             );
 
@@ -119,8 +120,8 @@ export default function TwoFactorModal({
                         onClick={handleGenerate}
                         disabled={loading}
                         className={`w-full px-4 py-2 rounded-md text-white ${loading
-                                ? "bg-blue-400"
-                                : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                            ? "bg-blue-400"
+                            : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
                             }`}
                     >
                         {loading ? "Generating..." : "Generate QR Code"}
@@ -163,8 +164,8 @@ export default function TwoFactorModal({
                             onClick={handleVerify}
                             disabled={loading}
                             className={`w-full px-4 py-2 rounded-md text-white ${loading
-                                    ? "bg-blue-400"
-                                    : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                                ? "bg-blue-400"
+                                : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
                                 }`}
                         >
                             {loading ? "Verifying..." : "Verify"}

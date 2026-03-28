@@ -7,6 +7,8 @@ export async function POST(req: Request) {
     try {
         const { token, secret } = await req.json();
 
+        console.log("The token and secret are: ", token, secret);
+
         if (!token || !secret) {
             throw new Error("Missing token or secret");
         }
