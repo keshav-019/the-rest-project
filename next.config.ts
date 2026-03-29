@@ -1,11 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
+    experimental: {
+        appDir: true,
+    },
     images: {
         unoptimized: true,
     },
     turbopack: {},
-    webpack: (config: any, { isServer }: {isServer: any}) => {
+    webpack: (config: any, { isServer }: { isServer: any }) => {
         // Handle node modules that need to be ignored in the browser
         if (!isServer) {
             config.resolve.fallback = {
