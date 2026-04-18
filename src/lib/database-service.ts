@@ -112,7 +112,10 @@ class DatabaseService {
         return await response.json();
     }
 
-    async getDatabaseStructure(connectionId: string, databaseOverride?: string): Promise<{
+    async getDatabaseStructure(
+        connectionId: string,
+        options: { databaseOverride?: string; includeTables?: boolean } = {}
+    ): Promise<{
         databases: Array<{
             name: string;
             schemas: Array<{
@@ -127,6 +130,14 @@ class DatabaseService {
         const connection = this.connections.find(c => c.id === connectionId);
         if (!connection) throw new Error('Connection not found');
 
+        const includeTables = options.includeTables ?? false;
+        const database =
+            options.databaseOverride !== undefined
+                ? options.databaseOverride
+                : includeTables
+                    ? connection.database
+                    : undefined;
+
         const response = await fetch('/api/database-structure', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -136,7 +147,8 @@ class DatabaseService {
                 port: connection.port,
                 username: connection.username,
                 password: connection.password,
-                database: databaseOverride || connection.database
+                database,
+                includeTables,
             }),
         });
 

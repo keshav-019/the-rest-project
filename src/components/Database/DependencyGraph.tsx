@@ -3,12 +3,12 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react';
 import ReactFlow, {
+    Background,
+    Controls,
     useNodesState,
     useEdgesState,
     MarkerType
 } from 'reactflow';
-import Controls from "reactflow";
-import Background from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
@@ -48,7 +48,6 @@ export const DependencyGraph = ({
 
             const formattedNodes = dbNodes.map((node: any) => ({
                 id: node.id,
-                type: 'table',
                 position: node.position,
                 data: {
                     label: node.label,
@@ -63,22 +62,26 @@ export const DependencyGraph = ({
                 }
             }));
 
-            const formattedEdges = dbEdges.map((edge: any) => ({
-                id: edge.id,
-                source: edge.source,
-                target: edge.target,
-                markerEnd: {
-                    type: MarkerType.ArrowClosed,
-                },
-                style: {
-                    stroke: '#64748b'
-                },
-                label: edge.label,
-                labelStyle: {
-                    fill: '#94a3b8',
-                    fontSize: '0.8rem'
-                }
-            }));
+            const nodeIds = new Set(formattedNodes.map((node: any) => node.id));
+            const formattedEdges = dbEdges
+                .filter((edge: any) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+                .map((edge: any) => ({
+                    id: edge.id,
+                    source: edge.source,
+                    target: edge.target,
+                    type: 'smoothstep',
+                    markerEnd: {
+                        type: MarkerType.ArrowClosed,
+                    },
+                    style: {
+                        stroke: '#64748b'
+                    },
+                    label: edge.label,
+                    labelStyle: {
+                        fill: '#94a3b8',
+                        fontSize: '0.8rem'
+                    }
+                }));
 
             setNodes(formattedNodes);
             setEdges(formattedEdges);
@@ -97,19 +100,20 @@ export const DependencyGraph = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-6xl h-[80vh]">
+            <DialogContent className="max-w-6xl h-[80vh] grid-rows-[auto,minmax(0,1fr)]">
                 <DialogHeader>
                     <DialogTitle>
                         Dependency Graph: {schema}.{table}
                     </DialogTitle>
                 </DialogHeader>
-                <div className="flex-1">
+                <div className="min-h-0">
                     {isLoading ? (
                         <div className="flex items-center justify-center h-full">
                             <Loader2 className="h-8 w-8 animate-spin" />
                         </div>
                     ) : (
                         <ReactFlow
+                            className="h-full w-full"
                             nodes={nodes}
                             edges={edges}
                             onNodesChange={onNodesChange}

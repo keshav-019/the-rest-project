@@ -11,8 +11,9 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const connection = parseConnectionPayload(body);
+        const includeTables = body?.includeTables === true;
         const structure = await getDatabaseStructureSummary(connection, {
-            includeTables: Boolean(connection.database),
+            includeTables,
         });
         return NextResponse.json(structure);
     } catch (error) {

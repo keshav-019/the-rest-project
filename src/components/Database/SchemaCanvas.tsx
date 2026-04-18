@@ -3,10 +3,13 @@ import { memo, useCallback, useEffect, useMemo } from 'react';
 import ReactFlow, {
     Background,
     Controls,
+    Edge,
+    Handle,
     MiniMap,
     MarkerType,
     Node,
     NodeProps,
+    Position,
     useEdgesState,
     useNodesState,
 } from 'reactflow';
@@ -33,6 +36,18 @@ const TableNode = memo(({ id, data }: NodeProps<TableNodeData>) => {
             className="min-w-[220px] max-w-[320px] rounded-lg border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-sm"
             onClick={() => data.onToggle(id)}
         >
+            <Handle
+                id="target"
+                type="target"
+                position={Position.Top}
+                className="!h-2 !w-2 !border-0 !bg-slate-400 dark:!bg-slate-500"
+            />
+            <Handle
+                id="source"
+                type="source"
+                position={Position.Bottom}
+                className="!h-2 !w-2 !border-0 !bg-slate-400 dark:!bg-slate-500"
+            />
             <div className="px-3 py-2 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-900 rounded-t-lg">
                 <p className="text-sm font-semibold text-slate-900 dark:text-gray-100 truncate">{data.tableName}</p>
                 <p className="text-[11px] text-slate-500 dark:text-gray-400">
@@ -81,21 +96,53 @@ const nodeTypes = {
     tableNode: TableNode,
 };
 
-const buildEdges = (tables: SchemaObject[]) =>
-    tables.flatMap((table) => {
-        const columns = table.columns || [];
-        return columns
-            .filter((column) => column.foreignKey?.table)
-            .map((column) => ({
-                id: `${table.name}-${column.name}->${column.foreignKey?.table}`,
+const normalizeTableIdentifier = (value: string): string => {
+    const stripped = value.replace(/["`\[\]]/g, '').trim();
+    if (!stripped) {
+        return '';
+    }
+
+    const parts = stripped.split('.').map((part) => part.trim()).filter(Boolean);
+    return parts.length > 0 ? parts[parts.length - 1] : stripped;
+};
+
+const buildEdges = (tables: SchemaObject[]): Edge[] => {
+    const tableNameByLower = new Map<string, string>();
+    for (const table of tables) {
+        tableNameByLower.set(table.name.toLowerCase(), table.name);
+    }
+
+    const edges: Edge[] = [];
+    for (const table of tables) {
+        for (const column of table.columns || []) {
+            const foreignTableRaw = column.foreignKey?.table;
+            if (!foreignTableRaw) {
+                continue;
+            }
+
+            const normalizedForeignTable = normalizeTableIdentifier(foreignTableRaw).toLowerCase();
+            const targetTable = tableNameByLower.get(normalizedForeignTable);
+            if (!targetTable) {
+                continue;
+            }
+
+            edges.push({
+                id: `${table.name}:${column.name}->${targetTable}`,
                 source: table.name,
-                target: column.foreignKey?.table || '',
-                label: `${column.name} → ${column.foreignKey?.column}`,
+                sourceHandle: 'source',
+                target: targetTable,
+                targetHandle: 'target',
+                type: 'smoothstep',
+                label: `${column.name} → ${column.foreignKey?.column ?? 'id'}`,
                 markerEnd: { type: MarkerType.ArrowClosed },
                 style: { stroke: '#64748b' },
                 labelStyle: { fill: '#64748b', fontSize: 11 },
-            }));
-    });
+            });
+        }
+    }
+
+    return edges;
+};
 
 export const SchemaCanvas = ({ connection, database, schema, tables }: SchemaCanvasProps) => {
     const [nodes, setNodes, onNodesChange] = useNodesState<TableNodeData>([]);
@@ -162,25 +209,28 @@ export const SchemaCanvas = ({ connection, database, schema, tables }: SchemaCan
     }
 
     return (
-        <div className="h-full w-full bg-slate-50 dark:bg-gray-900">
-            <div className="px-4 py-2 border-b border-slate-200 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
+        <div className="h-full w-full min-h-0 bg-slate-50 dark:bg-gray-900 flex flex-col">
+            <div className="shrink-0 px-4 py-2 border-b border-slate-200 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
                 {connection} / {database} / {schema} • Drag tables to organize your ERD canvas.
             </div>
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                nodeTypes={nodeTypes}
-                fitView
-                fitViewOptions={{ padding: 0.2 }}
-                minZoom={0.2}
-                maxZoom={2}
-            >
-                <Controls />
-                <MiniMap />
-                <Background />
-            </ReactFlow>
+            <div className="flex-1 min-h-0">
+                <ReactFlow
+                    className="h-full w-full"
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    nodeTypes={nodeTypes}
+                    fitView
+                    fitViewOptions={{ padding: 0.2 }}
+                    minZoom={0.2}
+                    maxZoom={2}
+                >
+                    <Controls />
+                    <MiniMap />
+                    <Background />
+                </ReactFlow>
+            </div>
         </div>
     );
 };

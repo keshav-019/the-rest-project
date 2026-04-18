@@ -112,7 +112,9 @@ export const DatabaseSidebar = ({
 
         try {
             const dbService = DatabaseService.getInstance();
-            const structure = await dbService.getDatabaseStructure(connectionId);
+            const structure = await dbService.getDatabaseStructure(connectionId, {
+                includeTables: false,
+            });
 
             setDatabaseStructures(prev => ({
                 ...prev,
@@ -163,7 +165,10 @@ export const DatabaseSidebar = ({
 
         try {
             const dbService = DatabaseService.getInstance();
-            const structure = await dbService.getDatabaseStructure(connectionId, databaseName);
+            const structure = await dbService.getDatabaseStructure(connectionId, {
+                databaseOverride: databaseName,
+                includeTables: true,
+            });
             const resolvedDatabase =
                 structure.databases.find((entry) => entry.name === databaseName) ||
                 structure.databases[0];
