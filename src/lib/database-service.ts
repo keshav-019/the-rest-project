@@ -112,7 +112,7 @@ class DatabaseService {
         return await response.json();
     }
 
-    async getDatabaseStructure(connectionId: string): Promise<{
+    async getDatabaseStructure(connectionId: string, databaseOverride?: string): Promise<{
         databases: Array<{
             name: string;
             schemas: Array<{
@@ -136,7 +136,7 @@ class DatabaseService {
                 port: connection.port,
                 username: connection.username,
                 password: connection.password,
-                database: connection.database
+                database: databaseOverride || connection.database
             }),
         });
 

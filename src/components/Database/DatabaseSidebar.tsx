@@ -5,7 +5,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Database, Search, ChevronRight, ChevronDown, Circle,
     Plus, RefreshCw, Trash2, Eye,
@@ -44,6 +43,8 @@ interface DatabaseStructure {
     }>;
 }
 
+const STRUCTURE_CACHE_TTL_MS = 5 * 60 * 1000;
+
 export const DatabaseSidebar = ({
     connections,
     loading,
@@ -77,25 +78,37 @@ export const DatabaseSidebar = ({
     });
     const [databaseStructures, setDatabaseStructures] = useState<Record<string, DatabaseStructure>>({});
     const [loadingStructures, setLoadingStructures] = useState<Record<string, boolean>>({});
-    const [loadingTables, setLoadingTables] = useState<Record<string, boolean>>({});
+    const [fetchingStructures, setFetchingStructures] = useState<Record<string, boolean>>({});
+    const [loadingDatabaseDetails, setLoadingDatabaseDetails] = useState<Record<string, boolean>>({});
+    const [structureLoadedAt, setStructureLoadedAt] = useState<Record<string, number>>({});
+    const [databaseDetailsLoaded, setDatabaseDetailsLoaded] = useState<Record<string, boolean>>({});
     const [filteredDatabases, setFilteredDatabases] = useState<Record<string, string[]>>({});
     const [showTableDescription, setShowTableDescription] = useState({
         isOpen: false,
         table: null as SchemaObject | null
     });
 
-    const toggleConnection = async (connectionId: string) => {
-        if (expandedConnections.includes(connectionId)) {
-            setExpandedConnections(prev => prev.filter(id => id !== connectionId));
-            setExpandedDatabases(prev => prev.filter(id => !id.startsWith(`${connectionId}-`)));
-        } else {
-            setExpandedConnections(prev => [...prev, connectionId]);
-            await loadDatabaseStructure(connectionId);
-        }
-    };
+    const loadDatabaseStructure = async (
+        connectionId: string,
+        options: { force?: boolean; showSpinner?: boolean } = {}
+    ) => {
+        const { force = false, showSpinner = true } = options;
+        const now = Date.now();
+        const loadedAt = structureLoadedAt[connectionId] || 0;
+        const hasFreshCache = Boolean(databaseStructures[connectionId]?.databases) && now - loadedAt < STRUCTURE_CACHE_TTL_MS;
 
-    const loadDatabaseStructure = async (connectionId: string) => {
-        setLoadingStructures(prev => ({ ...prev, [connectionId]: true }));
+        if (fetchingStructures[connectionId]) {
+            return;
+        }
+
+        if (!force && hasFreshCache) {
+            return;
+        }
+
+        if (showSpinner) {
+            setLoadingStructures(prev => ({ ...prev, [connectionId]: true }));
+        }
+        setFetchingStructures(prev => ({ ...prev, [connectionId]: true }));
 
         try {
             const dbService = DatabaseService.getInstance();
@@ -105,6 +118,19 @@ export const DatabaseSidebar = ({
                 ...prev,
                 [connectionId]: structure
             }));
+            setStructureLoadedAt(prev => ({
+                ...prev,
+                [connectionId]: Date.now(),
+            }));
+            setDatabaseDetailsLoaded(prev => {
+                const next = { ...prev };
+                Object.keys(next).forEach((key) => {
+                    if (key.startsWith(`${connectionId}-`)) {
+                        delete next[key];
+                    }
+                });
+                return next;
+            });
         } catch (error: any) {
             toast({
                 title: "Failed to load structure",
@@ -112,17 +138,104 @@ export const DatabaseSidebar = ({
                 variant: "destructive",
             });
         } finally {
-            setLoadingStructures(prev => ({ ...prev, [connectionId]: false }));
+            if (showSpinner) {
+                setLoadingStructures(prev => ({ ...prev, [connectionId]: false }));
+            }
+            setFetchingStructures(prev => ({ ...prev, [connectionId]: false }));
         }
     };
 
-    const toggleDatabase = (connectionId: string, databaseName: string) => {
+    const loadDatabaseDetails = async (
+        connectionId: string,
+        databaseName: string,
+        options: { force?: boolean } = {}
+    ) => {
+        const { force = false } = options;
+        const databaseKey = `${connectionId}-${databaseName}`;
+        if (loadingDatabaseDetails[databaseKey]) {
+            return;
+        }
+        if (!force && databaseDetailsLoaded[databaseKey]) {
+            return;
+        }
+
+        setLoadingDatabaseDetails(prev => ({ ...prev, [databaseKey]: true }));
+
+        try {
+            const dbService = DatabaseService.getInstance();
+            const structure = await dbService.getDatabaseStructure(connectionId, databaseName);
+            const resolvedDatabase =
+                structure.databases.find((entry) => entry.name === databaseName) ||
+                structure.databases[0];
+
+            if (!resolvedDatabase) {
+                return;
+            }
+
+            setDatabaseStructures(prev => {
+                const existing = prev[connectionId]?.databases || [];
+                const nextDatabases = existing.some((entry) => entry.name === databaseName)
+                    ? existing.map((entry) => (entry.name === databaseName ? resolvedDatabase : entry))
+                    : [...existing, resolvedDatabase];
+
+                return {
+                    ...prev,
+                    [connectionId]: {
+                        databases: nextDatabases.sort((a, b) => a.name.localeCompare(b.name)),
+                    },
+                };
+            });
+
+            setDatabaseDetailsLoaded(prev => ({
+                ...prev,
+                [databaseKey]: true,
+            }));
+        } catch (error: any) {
+            toast({
+                title: "Failed to load tables",
+                description: error.message,
+                variant: "destructive",
+            });
+        } finally {
+            setLoadingDatabaseDetails(prev => ({ ...prev, [databaseKey]: false }));
+        }
+    };
+
+    const toggleConnection = async (connectionId: string) => {
+        if (expandedConnections.includes(connectionId)) {
+            setExpandedConnections(prev => prev.filter(id => id !== connectionId));
+            setExpandedDatabases(prev => prev.filter(id => !id.startsWith(`${connectionId}-`)));
+            return;
+        }
+
+        setExpandedConnections(prev => [...prev, connectionId]);
+
+        const hasExistingStructure = Boolean(databaseStructures[connectionId]?.databases);
+        if (!hasExistingStructure) {
+            await loadDatabaseStructure(connectionId, { showSpinner: true });
+            return;
+        }
+
+        const now = Date.now();
+        const loadedAt = structureLoadedAt[connectionId] || 0;
+        const isStale = now - loadedAt >= STRUCTURE_CACHE_TTL_MS;
+        if (isStale) {
+            void loadDatabaseStructure(connectionId, { showSpinner: false });
+        }
+    };
+
+    const toggleDatabase = async (connectionId: string, databaseName: string) => {
         const dbId = `${connectionId}-${databaseName}`;
+        const isExpanded = expandedDatabases.includes(dbId);
         setExpandedDatabases(prev =>
-            prev.includes(dbId)
+            isExpanded
                 ? prev.filter(id => id !== dbId)
                 : [...prev, dbId]
         );
+
+        if (!isExpanded) {
+            await loadDatabaseDetails(connectionId, databaseName);
+        }
     };
 
     const toggleSchema = (connectionId: string, databaseName: string, schemaName: string) => {
@@ -289,7 +402,7 @@ export const DatabaseSidebar = ({
 
                 {/* Connection list */}
                 <div className="flex-1 min-h-0 relative"> {/* Add min-h-0 and overflow-hidden */}
-                    <ScrollArea className="absolute inset-0">
+                    <div className="absolute inset-0 overflow-y-auto overflow-x-hidden">
                         {loading ? (
                             <div className="flex items-center justify-center p-4">
                                 <RefreshCw className="h-4 w-4 animate-spin mr-2" />
@@ -308,7 +421,7 @@ export const DatabaseSidebar = ({
                                             onClick={() => {
                                                 setSelectedConnectionId(connection.id);
                                                 onConnectionSelect(connection);
-                                                toggleConnection(connection.id);
+                                                void toggleConnection(connection.id);
                                             }}
                                         >
                                             <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -332,7 +445,8 @@ export const DatabaseSidebar = ({
                                                             className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-700"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                refreshConnections();
+                                                                void refreshConnections();
+                                                                void loadDatabaseStructure(connection.id, { force: true, showSpinner: true });
                                                             }}
                                                         >
                                                             <RefreshCw className="h-3 w-3" />
@@ -385,18 +499,24 @@ export const DatabaseSidebar = ({
                                                             !filteredDatabases[connection.id] ||
                                                             filteredDatabases[connection.id].includes(db.name)
                                                         )
-                                                        .map(database => (
-                                                            <div key={`${connection.id}-${database.name}`} className="space-y-1">
+                                                        .map(database => {
+                                                            const databaseId = `${connection.id}-${database.name}`;
+                                                            const isDatabaseExpanded = expandedDatabases.includes(databaseId);
+                                                            const isDatabaseLoading = Boolean(loadingDatabaseDetails[databaseId]);
+                                                            const hasSchemas = (database.schemas?.length || 0) > 0;
+
+                                                            return (
+                                                            <div key={databaseId} className="space-y-1">
                                                                 {/* Database header with actions */}
                                                                 <div
                                                                     className="flex items-center gap-2 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-gray-700/60 cursor-pointer group/database border border-transparent hover:border-slate-200 dark:hover:border-gray-600"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        toggleDatabase(connection.id, database.name);
+                                                                        void toggleDatabase(connection.id, database.name);
                                                                     }}
                                                                 >
                                                                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                                        {expandedDatabases.includes(`${connection.id}-${database.name}`) ? (
+                                                                        {isDatabaseExpanded ? (
                                                                             <ChevronDown className="h-3 w-3 shrink-0" />
                                                                         ) : (
                                                                             <ChevronRight className="h-3 w-3 shrink-0" />
@@ -405,7 +525,7 @@ export const DatabaseSidebar = ({
                                                                         <span className="text-sm truncate min-w-0" title={database.name}>{database.name}</span>
                                                                     </div>
 
-                                                                    <div className="flex items-center gap-1 opacity-0 group-hover/database:opacity-100">
+                                                                    <div className="flex items-center justify-end gap-1 w-14 shrink-0 opacity-0 group-hover/database:opacity-100 transition-opacity">
                                                                         <Tooltip>
                                                                             <TooltipTrigger asChild>
                                                                                 <Button
@@ -448,122 +568,133 @@ export const DatabaseSidebar = ({
                                                                 </div>
 
                                                                 {/* Schema content when expanded */}
-                                                                {expandedDatabases.includes(`${connection.id}-${database.name}`) && (
+                                                                {isDatabaseExpanded && (
                                                                     <div className="ml-6 space-y-2">
-                                                                        {database.schemas?.map(schema => {
-                                                                            const schemaTables = schema.tables || [];
-                                                                            return (
-                                                                            <div key={`${connection.id}-${database.name}-${schema.name}`} className="space-y-1">
-                                                                                <div
-                                                                                    className="flex items-center justify-between p-2 bg-muted/50 rounded-md cursor-pointer group/schema"
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        toggleSchema(connection.id, database.name, schema.name);
-                                                                                    }}
-                                                                                >
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        {expandedSchemas.includes(`${connection.id}-${database.name}-${schema.name}`) ? (
-                                                                                            <ChevronDown className="h-3 w-3" />
-                                                                                        ) : (
-                                                                                            <ChevronRight className="h-3 w-3" />
-                                                                                        )}
-                                                                                        <span className="font-medium">{schema.name}</span>
-                                                                                    </div>
-                                                                                    <SchemaActions
-                                                                                        onAddTable={() => handleAddTable(connection.id, database.name, schema.name)}
-                                                                                        onDeleteSchema={() => handleDeleteSchema(connection.id, database.name, schema.name)}
-                                                                                        onShowDependencies={() => setShowDependencyGraph({
-                                                                                            isOpen: true,
-                                                                                            schema: schema.name,
-                                                                                            table: schema.tables[0]?.name || '',
-                                                                                            connectionId: connection.id,
-                                                                                            database: database.name,
-                                                                                        })}
-                                                                                    />
-                                                                                </div>
+                                                                        {isDatabaseLoading ? (
+                                                                            <div className="flex items-center p-2 text-sm text-muted-foreground">
+                                                                                <RefreshCw className="h-3 w-3 animate-spin mr-2" />
+                                                                                Loading tables...
+                                                                            </div>
+                                                                        ) : hasSchemas ? (
+                                                                            database.schemas?.map((schema) => {
+                                                                                const schemaId = `${connection.id}-${database.name}-${schema.name}`;
+                                                                                const isSchemaExpanded = expandedSchemas.includes(schemaId);
+                                                                                const schemaTables = schema.tables || [];
 
-                                                                                {expandedSchemas.includes(`${connection.id}-${database.name}-${schema.name}`) && (
-                                                                                    <div className="ml-4 space-y-1">
-                                                                                        <button
-                                                                                            type="button"
-                                                                                            className="w-full flex items-center justify-between p-2 rounded-md border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:border-blue-700/40 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-300"
+                                                                                return (
+                                                                                    <div key={schemaId} className="space-y-1">
+                                                                                        <div
+                                                                                            className="flex items-center justify-between gap-2 p-2 bg-muted/50 rounded-md cursor-pointer group/schema"
                                                                                             onClick={(e) => {
                                                                                                 e.stopPropagation();
-                                                                                                onOpenTab({
-                                                                                                    id: `schema-${connection.id}-${database.name}-${schema.name}`,
-                                                                                                    title: `${schema.name} Schema`,
-                                                                                                    type: 'schema',
-                                                                                                    connection: connection.id,
-                                                                                                    database: database.name,
-                                                                                                    schema: schema.name,
-                                                                                                    schemaObjects: schemaTables,
-                                                                                                });
+                                                                                                toggleSchema(connection.id, database.name, schema.name);
                                                                                             }}
                                                                                         >
-                                                                                            <span className="flex items-center gap-2 text-xs font-semibold">
-                                                                                                <Workflow className="h-4 w-4" />
-                                                                                                Schema Canvas
-                                                                                            </span>
-                                                                                            <span className="text-[11px] opacity-80">
-                                                                                                {schemaTables.length} tables
-                                                                                            </span>
-                                                                                        </button>
-                                                                                        {loadingTables[`${connection.id}-${database.name}-${schema.name}`] ? (
-                                                                                            <div className="flex items-center p-2 text-sm text-muted-foreground">
-                                                                                                <RefreshCw className="h-3 w-3 animate-spin mr-2" />
-                                                                                                Loading tables...
+                                                                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                                                                {isSchemaExpanded ? (
+                                                                                                    <ChevronDown className="h-3 w-3" />
+                                                                                                ) : (
+                                                                                                    <ChevronRight className="h-3 w-3" />
+                                                                                                )}
+                                                                                                <span className="font-medium truncate min-w-0" title={schema.name}>
+                                                                                                    {schema.name}
+                                                                                                </span>
                                                                                             </div>
-                                                                                        ) : (
-                                                                                            schemaTables.map(table => (
-                                                                                                // Update the table item rendering in DatabaseSidebar.tsx
-                                                                                                <div
-                                                                                                    key={table.name}
-                                                                                                    className="flex items-center p-2 rounded-md hover:bg-accent/50 group/table"
+                                                                                            <div className="shrink-0">
+                                                                                                <SchemaActions
+                                                                                                    onAddTable={() => handleAddTable(connection.id, database.name, schema.name)}
+                                                                                                    onDeleteSchema={() => handleDeleteSchema(connection.id, database.name, schema.name)}
+                                                                                                    onShowDependencies={() => setShowDependencyGraph({
+                                                                                                        isOpen: true,
+                                                                                                        schema: schema.name,
+                                                                                                        table: schema.tables[0]?.name || '',
+                                                                                                        connectionId: connection.id,
+                                                                                                        database: database.name,
+                                                                                                    })}
+                                                                                                />
+                                                                                            </div>
+                                                                                        </div>
+
+                                                                                        {isSchemaExpanded && (
+                                                                                            <div className="ml-4 space-y-1">
+                                                                                                <button
+                                                                                                    type="button"
+                                                                                                    className="w-full flex items-center gap-2 p-2 rounded-md border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:border-blue-700/40 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-300"
+                                                                                                    onClick={(e) => {
+                                                                                                        e.stopPropagation();
+                                                                                                        onOpenTab({
+                                                                                                            id: `schema-${connection.id}-${database.name}-${schema.name}`,
+                                                                                                            title: `${schema.name} Schema`,
+                                                                                                            type: 'schema',
+                                                                                                            connection: connection.id,
+                                                                                                            database: database.name,
+                                                                                                            schema: schema.name,
+                                                                                                            schemaObjects: schemaTables,
+                                                                                                        });
+                                                                                                    }}
                                                                                                 >
-                                                                                                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                                                                        <TableIcon className="h-4 w-4 text-blue-400 flex-shrink-0" />
-                                                                                                        <span
-                                                                                                            className="text-sm truncate transition-all duration-100 group-hover/table:max-w-[calc(100%-100px)]"
-                                                                                                            title={table.name}
-                                                                                                        >
-                                                                                                            {table.name}
-                                                                                                        </span>
+                                                                                                    <span className="min-w-0 flex-1 flex items-center gap-2 text-xs font-semibold">
+                                                                                                        <Workflow className="h-4 w-4" />
+                                                                                                        <span className="truncate">Schema Canvas</span>
+                                                                                                    </span>
+                                                                                                    <span className="text-[11px] opacity-80 shrink-0">
+                                                                                                        {schemaTables.length} tables
+                                                                                                    </span>
+                                                                                                </button>
+                                                                                                {schemaTables.map((table) => (
+                                                                                                    <div
+                                                                                                        key={table.name}
+                                                                                                        className="flex items-center gap-2 p-2 rounded-md hover:bg-accent/50 group/table overflow-hidden"
+                                                                                                    >
+                                                                                                        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                                                                                                            <TableIcon className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                                                                                                            <span
+                                                                                                                className="text-sm truncate min-w-0"
+                                                                                                                title={table.name}
+                                                                                                            >
+                                                                                                                {table.name}
+                                                                                                            </span>
+                                                                                                        </div>
+                                                                                                        <div className="ml-2 w-[92px] flex justify-end shrink-0 opacity-0 group-hover/table:opacity-100 transition-opacity">
+                                                                                                            <TableActions
+                                                                                                                onOpenQueryEditor={() => onOpenTab({
+                                                                                                                    id: `${connection.id}-${database.name}-${schema.name}-${table.name}`,
+                                                                                                                    title: table.name,
+                                                                                                                    type: 'table',
+                                                                                                                    connection: connection.id,
+                                                                                                                    database: database.name,
+                                                                                                                    schema: schema.name
+                                                                                                                })}
+                                                                                                                onShowDescription={() => setShowTableDescription({
+                                                                                                                    isOpen: true,
+                                                                                                                    table: table
+                                                                                                                })}
+                                                                                                                onShowDependencies={() => setShowDependencyGraph({
+                                                                                                                    isOpen: true,
+                                                                                                                    schema: schema.name,
+                                                                                                                    table: table.name,
+                                                                                                                    connectionId: connection.id,
+                                                                                                                    database: database.name,
+                                                                                                                })}
+                                                                                                                onDeleteTable={() => handleDeleteTable(connection.id, database.name, schema.name, table.name)}
+                                                                                                            />
+                                                                                                        </div>
                                                                                                     </div>
-                                                                                                    <div className="flex-shrink-0 opacity-0 group-hover/table:opacity-100 ml-2">
-                                                                                                        <TableActions
-                                                                                                            onOpenQueryEditor={() => onOpenTab({
-                                                                                                                id: `${connection.id}-${database.name}-${schema.name}-${table.name}`,
-                                                                                                                title: table.name,
-                                                                                                                type: 'table',
-                                                                                                                connection: connection.id,
-                                                                                                                database: database.name,
-                                                                                                                schema: schema.name
-                                                                                                            })}
-                                                                                                            onShowDescription={() => setShowTableDescription({
-                                                                                                                isOpen: true,
-                                                                                                                table: table
-                                                                                                            })}
-                                                                                                            onShowDependencies={() => setShowDependencyGraph({
-                                                                                                                isOpen: true,
-                                                                                                                schema: schema.name,
-                                                                                                                table: table.name,
-                                                                                                                connectionId: connection.id,
-                                                                                                                database: database.name,
-                                                                                                            })}
-                                                                                                            onDeleteTable={() => handleDeleteTable(connection.id, database.name, schema.name, table.name)}
-                                                                                                        />
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            ))
+                                                                                                ))}
+                                                                                            </div>
                                                                                         )}
                                                                                     </div>
-                                                                                )}
+                                                                                );
+                                                                            })
+                                                                        ) : (
+                                                                            <div className="text-sm text-muted-foreground p-2">
+                                                                                No tables found
                                                                             </div>
-                                                                        )})}
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                        ))
+                                                        )})
                                                 ) : (
                                                     <div className="text-sm text-muted-foreground p-2">
                                                         No databases found
@@ -575,7 +706,7 @@ export const DatabaseSidebar = ({
                                 ))}
                             </div>
                         )}
-                    </ScrollArea>
+                    </div>
                 </div>
 
                 {/* Keep all dialog components the same as before */}

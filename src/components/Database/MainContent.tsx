@@ -106,7 +106,8 @@ export const MainContent = ({
                         <TabsContent
                             key={tab.id}
                             value={tab.id}
-                            className="flex-1 m-0 min-h-0 overflow-hidden"
+                            forceMount
+                            className="flex-1 m-0 min-h-0 overflow-hidden data-[state=inactive]:hidden"
                         >
                             {tab.type === 'table' && (
                                 <TableViewer

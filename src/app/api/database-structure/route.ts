@@ -11,7 +11,9 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const connection = parseConnectionPayload(body);
-        const structure = await getDatabaseStructureSummary(connection);
+        const structure = await getDatabaseStructureSummary(connection, {
+            includeTables: Boolean(connection.database),
+        });
         return NextResponse.json(structure);
     } catch (error) {
         const apiError = toApiErrorResponse(error);

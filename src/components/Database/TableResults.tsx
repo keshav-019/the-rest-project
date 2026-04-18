@@ -88,8 +88,7 @@ export default function TableResults({
     };
 
     return (
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-auto">
+        <div className="flex-1 min-h-0 overflow-auto">
                 <Table className="w-full table-fixed">
                     <TableHeader className="sticky top-0 bg-slate-100 dark:bg-gray-800 border-b border-slate-200 dark:border-gray-700 z-20">
                         <TableRow>
@@ -290,7 +289,6 @@ export default function TableResults({
                         )}
                     </TableBody>
                 </Table>
-            </div>
         </div>
     );
 }

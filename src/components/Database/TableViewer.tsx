@@ -44,6 +44,31 @@ type EditedRows = Record<number, Record<string, string>>;
 
 const DEFAULT_COLUMN_WIDTH = 220;
 const PAGE_LIMIT = 100;
+const TABLE_PAGE_CACHE_TTL_MS = 30 * 1000;
+
+interface TablePageCacheEntry {
+    totalRows: number;
+    rows: any[];
+    columns: TableColumn[];
+    cachedAt: number;
+}
+
+const TABLE_PAGE_CACHE = new Map<string, TablePageCacheEntry>();
+
+const getTableCachePrefix = (connection: string, database: string, tableName: string) =>
+    `${connection}::${database}::${tableName}::`;
+
+const getTableCacheKey = (connection: string, database: string, tableName: string, page: number) =>
+    `${getTableCachePrefix(connection, database, tableName)}${page}`;
+
+const invalidateTableCache = (connection: string, database: string, tableName: string) => {
+    const prefix = getTableCachePrefix(connection, database, tableName);
+    for (const key of TABLE_PAGE_CACHE.keys()) {
+        if (key.startsWith(prefix)) {
+            TABLE_PAGE_CACHE.delete(key);
+        }
+    }
+};
 
 const extractRows = (result: any): any[] => {
     if (Array.isArray(result?.dbResult?.rows)) return result.dbResult.rows;
@@ -123,6 +148,21 @@ export const TableViewer = ({ tableName, connection, database }: TableViewerProp
         setIsLoading(true);
 
         try {
+            const cacheKey = getTableCacheKey(connection, database, tableName, page);
+            const cachedEntry = TABLE_PAGE_CACHE.get(cacheKey);
+            if (cachedEntry && Date.now() - cachedEntry.cachedAt < TABLE_PAGE_CACHE_TTL_MS) {
+                setTotalRows(cachedEntry.totalRows);
+                setData(cachedEntry.rows);
+                setColumns(cachedEntry.columns);
+                const cachedOffset = (page - 1) * PAGE_LIMIT;
+                setSqlQuery(`SELECT * FROM ${tableName} LIMIT ${PAGE_LIMIT} OFFSET ${cachedOffset}`);
+                setIsCustomResult(false);
+                setEditedRows({});
+                setSelectedRows(new Set());
+                setEditingCell(null);
+                return;
+            }
+
             const dbService = DatabaseService.getInstance();
 
             const countResult = await dbService.executeQuery(
@@ -152,13 +192,21 @@ export const TableViewer = ({ tableName, connection, database }: TableViewerProp
             );
 
             const rows = extractRows(result);
+            const nextColumns = buildColumnsFromRows(rows);
             setData(rows);
-            setColumns(buildColumnsFromRows(rows));
+            setColumns(nextColumns);
             setSqlQuery(`SELECT * FROM ${tableName} LIMIT ${PAGE_LIMIT} OFFSET ${offset}`);
             setIsCustomResult(false);
             setEditedRows({});
             setSelectedRows(new Set());
             setEditingCell(null);
+
+            TABLE_PAGE_CACHE.set(cacheKey, {
+                totalRows: safeTotal,
+                rows,
+                columns: nextColumns,
+                cachedAt: Date.now(),
+            });
         } catch (error: any) {
             toast({
                 title: 'Failed to load table data',
@@ -326,6 +374,7 @@ export const TableViewer = ({ tableName, connection, database }: TableViewerProp
                 await dbService.executeQuery(connection, updateQuery, database);
             }
 
+            invalidateTableCache(connection, database, tableName);
             toast({
                 title: 'Changes saved',
                 description: 'Updated rows were written to the database.',
@@ -394,6 +443,7 @@ export const TableViewer = ({ tableName, connection, database }: TableViewerProp
                 await dbService.executeQuery(connection, deleteQuery, database);
             }
 
+            invalidateTableCache(connection, database, tableName);
             toast({
                 title: 'Rows deleted',
                 description: `${selectedRows.size} row(s) deleted.`,
@@ -419,6 +469,7 @@ export const TableViewer = ({ tableName, connection, database }: TableViewerProp
             const dbService = DatabaseService.getInstance();
             await dbService.executeQuery(connection, `DELETE FROM ${tableName};`, database);
 
+            invalidateTableCache(connection, database, tableName);
             toast({
                 title: 'All rows deleted',
                 description: `Cleared table ${tableName}.`,

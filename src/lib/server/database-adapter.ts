@@ -58,6 +58,10 @@ export interface DependencyGraphResponse {
     }>;
 }
 
+export interface DatabaseStructureSummaryOptions {
+    includeTables?: boolean;
+}
+
 const DEFAULT_PORTS: Record<SupportedDatabaseType, number> = {
     postgresql: 5432,
     mysql: 3306,
@@ -590,7 +594,9 @@ const getPostgresStructure = async (
             { ...connection, database: databaseName },
             `SELECT schema_name
              FROM information_schema.schemata
-             WHERE schema_name NOT IN ('pg_catalog', 'information_schema')
+             WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+               AND schema_name NOT LIKE 'pg_temp_%'
+               AND schema_name NOT LIKE 'pg_toast_temp_%'
              ORDER BY schema_name`,
             databaseName
         );
@@ -611,7 +617,9 @@ const getPostgresStructure = async (
                 data_type,
                 is_nullable
              FROM information_schema.columns
-             WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+             WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+               AND table_schema NOT LIKE 'pg_temp_%'
+               AND table_schema NOT LIKE 'pg_toast_temp_%'
              ORDER BY table_schema, table_name, ordinal_position`,
             databaseName
         );
@@ -653,7 +661,9 @@ const getPostgresStructure = async (
                ON tc.constraint_name = ccu.constraint_name
               AND tc.table_schema = ccu.table_schema
              WHERE tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY')
-               AND tc.table_schema NOT IN ('pg_catalog', 'information_schema')`,
+               AND tc.table_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+               AND tc.table_schema NOT LIKE 'pg_temp_%'
+               AND tc.table_schema NOT LIKE 'pg_toast_temp_%'`,
             databaseName
         );
 
@@ -690,7 +700,9 @@ const getPostgresStructure = async (
             `SELECT table_schema, table_name
              FROM information_schema.tables
              WHERE table_type = 'BASE TABLE'
-               AND table_schema NOT IN ('pg_catalog', 'information_schema')
+               AND table_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+               AND table_schema NOT LIKE 'pg_temp_%'
+               AND table_schema NOT LIKE 'pg_toast_temp_%'
              ORDER BY table_schema, table_name`,
             databaseName
         );
@@ -713,7 +725,9 @@ const getPostgresStructure = async (
             { ...connection, database: databaseName },
             `SELECT table_schema, table_name
              FROM information_schema.views
-             WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+             WHERE table_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+               AND table_schema NOT LIKE 'pg_temp_%'
+               AND table_schema NOT LIKE 'pg_toast_temp_%'
              ORDER BY table_schema, table_name`,
             databaseName
         );
@@ -736,7 +750,9 @@ const getPostgresStructure = async (
             { ...connection, database: databaseName },
             `SELECT routine_schema, routine_name, routine_type
              FROM information_schema.routines
-             WHERE routine_schema NOT IN ('pg_catalog', 'information_schema')
+             WHERE routine_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+               AND routine_schema NOT LIKE 'pg_temp_%'
+               AND routine_schema NOT LIKE 'pg_toast_temp_%'
              ORDER BY routine_schema, routine_name`,
             databaseName
         );
@@ -1362,10 +1378,20 @@ const toSortedSchemas = (schemaMap: Map<string, ReturnType<typeof makeSchemaBuck
 };
 
 const getPostgresStructureSummary = async (
-    connection: DatabaseConnectionPayload
+    connection: DatabaseConnectionPayload,
+    includeTables: boolean
 ): Promise<DatabaseStructureResponse> => {
     const databases: DatabaseStructureResponse['databases'] = [];
     const databaseNames = await listPostgresDatabases(connection);
+
+    if (!includeTables) {
+        return {
+            databases: databaseNames.map((name) => ({
+                name,
+                schemas: [],
+            })),
+        };
+    }
 
     for (const databaseName of databaseNames) {
         const schemaMap = new Map<string, ReturnType<typeof makeSchemaBucket>>();
@@ -1376,7 +1402,9 @@ const getPostgresStructureSummary = async (
                 `SELECT table_schema, table_name
                  FROM information_schema.tables
                  WHERE table_type = 'BASE TABLE'
-                   AND table_schema NOT IN ('pg_catalog', 'information_schema')
+                   AND table_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+                   AND table_schema NOT LIKE 'pg_temp_%'
+                   AND table_schema NOT LIKE 'pg_toast_temp_%'
                  ORDER BY table_schema, table_name`,
                 databaseName
             );
@@ -1409,10 +1437,20 @@ const getPostgresStructureSummary = async (
 };
 
 const getMysqlStructureSummary = async (
-    connection: DatabaseConnectionPayload
+    connection: DatabaseConnectionPayload,
+    includeTables: boolean
 ): Promise<DatabaseStructureResponse> => {
     const databases: DatabaseStructureResponse['databases'] = [];
     const databaseNames = await listMysqlDatabases(connection);
+
+    if (!includeTables) {
+        return {
+            databases: databaseNames.map((name) => ({
+                name,
+                schemas: [],
+            })),
+        };
+    }
 
     for (const databaseName of databaseNames) {
         const schemaMap = new Map<string, ReturnType<typeof makeSchemaBucket>>();
@@ -1455,10 +1493,20 @@ const getMysqlStructureSummary = async (
 };
 
 const getSqlServerStructureSummary = async (
-    connection: DatabaseConnectionPayload
+    connection: DatabaseConnectionPayload,
+    includeTables: boolean
 ): Promise<DatabaseStructureResponse> => {
     const databases: DatabaseStructureResponse['databases'] = [];
     const databaseNames = await listSqlServerDatabases(connection);
+
+    if (!includeTables) {
+        return {
+            databases: databaseNames.map((name) => ({
+                name,
+                schemas: [],
+            })),
+        };
+    }
 
     for (const databaseName of databaseNames) {
         const schemaMap = new Map<string, ReturnType<typeof makeSchemaBucket>>();
@@ -1502,9 +1550,21 @@ const getSqlServerStructureSummary = async (
 };
 
 const getOracleStructureSummary = async (
-    connection: DatabaseConnectionPayload
+    connection: DatabaseConnectionPayload,
+    includeTables: boolean
 ): Promise<DatabaseStructureResponse> => {
     const databaseName = connection.database || connection.username || 'oracle';
+    if (!includeTables) {
+        return {
+            databases: [
+                {
+                    name: databaseName,
+                    schemas: [],
+                },
+            ],
+        };
+    }
+
     const schemaMap = new Map<string, ReturnType<typeof makeSchemaBucket>>();
 
     let schemaName = 'DEFAULT';
@@ -1570,18 +1630,20 @@ export const getDatabaseStructure = async (
 };
 
 export const getDatabaseStructureSummary = async (
-    payload: DatabaseConnectionPayload
+    payload: DatabaseConnectionPayload,
+    options: DatabaseStructureSummaryOptions = {}
 ): Promise<DatabaseStructureResponse> => {
     const normalized = normalizeConnection(payload);
+    const includeTables = options.includeTables ?? true;
     switch (normalized.type) {
         case 'postgresql':
-            return getPostgresStructureSummary(normalized);
+            return getPostgresStructureSummary(normalized, includeTables);
         case 'mysql':
-            return getMysqlStructureSummary(normalized);
+            return getMysqlStructureSummary(normalized, includeTables);
         case 'sqlserver':
-            return getSqlServerStructureSummary(normalized);
+            return getSqlServerStructureSummary(normalized, includeTables);
         case 'oracle':
-            return getOracleStructureSummary(normalized);
+            return getOracleStructureSummary(normalized, includeTables);
         default:
             throw new DatabaseAdapterError(`Unsupported database type: ${normalized.type}`, 400);
     }
