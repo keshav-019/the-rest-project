@@ -51,7 +51,7 @@ export default function TerminalTab({
             convertEol: true,
             disableStdin: false,
             allowTransparency: false,
-            windowsMode: process.platform === 'win32'
+            windowsMode: typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent)
         });
 
         terminal.current = term;

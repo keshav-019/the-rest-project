@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import CollectionsTree from '@/components/RequestBuilder/CollectionsTree';
 import CollectionDetails from '@/components/Collections/CollectionDetails';
 import RequestTabs from '@/components/RequestBuilder/RequestTabs';
@@ -24,7 +24,7 @@ import {
     withCollectionShareId,
 } from '@/lib/collections-utils';
 
-export default function CollectionsPage() {
+function CollectionsPageContent() {
     const [collections, setCollections] = useState<Collection[]>([]);
     const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
     const [activeTabs, setActiveTabs] = useState<{ id: string; request: Request }[]>([]);
@@ -586,5 +586,17 @@ export default function CollectionsPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+function CollectionsPageFallback() {
+    return <div className="h-screen bg-gray-50 dark:bg-gray-900" />;
+}
+
+export default function CollectionsPage() {
+    return (
+        <Suspense fallback={<CollectionsPageFallback />}>
+            <CollectionsPageContent />
+        </Suspense>
     );
 }

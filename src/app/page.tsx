@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useClipboard } from '@/hooks/useClipboard';
 import { saveAs } from 'file-saver';
 import {
@@ -55,7 +55,7 @@ const defaultHeaders: Header[] = [
     { enabled: false, key: '', value: '' },
 ];
 
-export default function RequestBuilder() {
+function RequestBuilderContent() {
     const [activeRequestTab, setActiveRequestTab] = useState<TabType>('Params');
     const [teamMode, setTeamMode] = useState<Team | null>(null);
     const [activeResponseTab, setActiveResponseTab] = useState<ActiveResponseTab>('Response');
@@ -884,5 +884,17 @@ export default function RequestBuilder() {
 
             {teamMode && <TeamModeWelcome team={teamMode} />}
         </div>
+    );
+}
+
+function RequestBuilderFallback() {
+    return <div className="h-screen bg-gray-50 dark:bg-gray-900" />;
+}
+
+export default function RequestBuilder() {
+    return (
+        <Suspense fallback={<RequestBuilderFallback />}>
+            <RequestBuilderContent />
+        </Suspense>
     );
 }
