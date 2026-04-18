@@ -374,6 +374,68 @@ export const DatabaseSidebar = ({
         }
     };
 
+    const handleOpenSchemaCanvas = async (
+        connectionId: string,
+        databaseName: string,
+        schemaName: string,
+        fallbackTables: SchemaObject[]
+    ) => {
+        let schemaTables = fallbackTables;
+
+        try {
+            const dbService = DatabaseService.getInstance();
+            const structure = await dbService.getDatabaseStructure(connectionId, {
+                databaseOverride: databaseName,
+                includeTables: true,
+            });
+
+            const resolvedDatabase =
+                structure.databases.find((entry) => entry.name === databaseName) ||
+                structure.databases[0];
+            const resolvedSchema = resolvedDatabase?.schemas?.find((entry) => entry.name === schemaName);
+
+            if (resolvedSchema?.tables) {
+                schemaTables = resolvedSchema.tables;
+            }
+
+            if (resolvedDatabase) {
+                setDatabaseStructures(prev => {
+                    const existing = prev[connectionId]?.databases || [];
+                    const nextDatabases = existing.some((entry) => entry.name === databaseName)
+                        ? existing.map((entry) => (entry.name === databaseName ? resolvedDatabase : entry))
+                        : [...existing, resolvedDatabase];
+
+                    return {
+                        ...prev,
+                        [connectionId]: {
+                            databases: nextDatabases.sort((a, b) => a.name.localeCompare(b.name)),
+                        },
+                    };
+                });
+                setDatabaseDetailsLoaded(prev => ({
+                    ...prev,
+                    [`${connectionId}-${databaseName}`]: true,
+                }));
+            }
+        } catch (error: any) {
+            toast({
+                title: "Using cached schema snapshot",
+                description: error.message || 'Could not refresh schema metadata before opening canvas.',
+                variant: "destructive",
+            });
+        }
+
+        onOpenTab({
+            id: `schema-${connectionId}-${databaseName}-${schemaName}`,
+            title: `${schemaName} Schema`,
+            type: 'schema',
+            connection: connectionId,
+            database: databaseName,
+            schema: schemaName,
+            schemaObjects: schemaTables,
+        });
+    };
+
     const filteredConnections = connections.filter(conn =>
         conn.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -625,17 +687,14 @@ export const DatabaseSidebar = ({
                                                                                                 <button
                                                                                                     type="button"
                                                                                                     className="w-full flex items-center gap-2 p-2 rounded-md border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:border-blue-700/40 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-300"
-                                                                                                    onClick={(e) => {
+                                                                                                    onClick={async (e) => {
                                                                                                         e.stopPropagation();
-                                                                                                        onOpenTab({
-                                                                                                            id: `schema-${connection.id}-${database.name}-${schema.name}`,
-                                                                                                            title: `${schema.name} Schema`,
-                                                                                                            type: 'schema',
-                                                                                                            connection: connection.id,
-                                                                                                            database: database.name,
-                                                                                                            schema: schema.name,
-                                                                                                            schemaObjects: schemaTables,
-                                                                                                        });
+                                                                                                        await handleOpenSchemaCanvas(
+                                                                                                            connection.id,
+                                                                                                            database.name,
+                                                                                                            schema.name,
+                                                                                                            schemaTables
+                                                                                                        );
                                                                                                     }}
                                                                                                 >
                                                                                                     <span className="min-w-0 flex-1 flex items-center gap-2 text-xs font-semibold">

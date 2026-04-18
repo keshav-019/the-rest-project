@@ -111,7 +111,7 @@ const buildEdges = (relations: TableRelation[]): Edge[] =>
         targetHandle: 'target',
         type: 'smoothstep',
         animated: true,
-        label: `${relation.sourceColumn} -> ${relation.targetColumn}`,
+        label: `${relation.sourceTable}.${relation.sourceColumn} -> ${relation.targetTable}.${relation.targetColumn}`,
         markerEnd: { type: MarkerType.ArrowClosed, color: '#38bdf8' },
         style: { stroke: '#38bdf8', strokeWidth: 1.4 },
         labelStyle: { fill: '#64748b', fontSize: 11, fontWeight: 500 },

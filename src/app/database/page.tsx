@@ -53,10 +53,16 @@ const DatabaseScreen = () => {
     }, [])
 
     const handleOpenTab = (tab: WindowTab) => {
-        const existingTab = openTabs.find(t => t.id === tab.id);
-        if (!existingTab) {
-            setOpenTabs(prev => [...prev, tab]);
-        }
+        setOpenTabs((prev) => {
+            const existingIndex = prev.findIndex((entry) => entry.id === tab.id);
+            if (existingIndex === -1) {
+                return [...prev, tab];
+            }
+
+            const next = [...prev];
+            next[existingIndex] = { ...next[existingIndex], ...tab };
+            return next;
+        });
         setActiveTab(tab.id);
     };
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
+    getDatabaseStructure,
     getDatabaseStructureSummary,
     parseConnectionPayload,
     toApiErrorResponse,
@@ -12,9 +13,11 @@ export async function POST(request: Request) {
         const body = await request.json();
         const connection = parseConnectionPayload(body);
         const includeTables = body?.includeTables === true;
-        const structure = await getDatabaseStructureSummary(connection, {
-            includeTables,
-        });
+        const structure = includeTables
+            ? await getDatabaseStructure(connection)
+            : await getDatabaseStructureSummary(connection, {
+                includeTables: false,
+            });
         return NextResponse.json(structure);
     } catch (error) {
         const apiError = toApiErrorResponse(error);
