@@ -147,7 +147,7 @@ const DatabaseScreen = () => {
                                 </Suspense>
                             </ResizablePanel>
                             <ResizableHandle withHandle className="bg-slate-200 hover:bg-slate-300 dark:bg-gray-700 dark:hover:bg-gray-600" />
-                            <ResizablePanel defaultSize={75} className="bg-white dark:bg-gray-900 min-h-0">
+                            <ResizablePanel defaultSize={75} className="bg-white dark:bg-gray-900 min-h-0 flex flex-col">
                                 <MainContent
                                     activeTab={activeTab}
                                     openTabs={openTabs}

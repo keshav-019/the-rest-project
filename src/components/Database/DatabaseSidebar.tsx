@@ -407,7 +407,7 @@ export const DatabaseSidebar = ({
 
                 {/* Connection list */}
                 <div className="flex-1 min-h-0 relative"> {/* Add min-h-0 and overflow-hidden */}
-                    <div className="absolute inset-0 overflow-y-auto overflow-x-hidden">
+                    <div className="absolute inset-0 overflow-y-auto overflow-x-hidden ui-scrollbar">
                         {loading ? (
                             <div className="flex items-center justify-center p-4">
                                 <RefreshCw className="h-4 w-4 animate-spin mr-2" />

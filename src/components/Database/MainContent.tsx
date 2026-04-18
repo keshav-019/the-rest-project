@@ -59,9 +59,9 @@ export const MainContent = ({
 
     return (
         <>
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <Tabs value={activeTab || ''} onValueChange={onTabChange} className="flex-1 flex flex-col min-h-0">
-                    <TabsList className="h-auto p-2 bg-slate-50 dark:bg-gray-900 border-b border-slate-200 dark:border-gray-700 rounded-none w-full justify-start gap-2 overflow-x-auto">
+            <div className="h-full min-h-0 flex flex-col overflow-hidden">
+                <Tabs value={activeTab || ''} onValueChange={onTabChange} className="h-full min-h-0 flex flex-col">
+                    <TabsList className="h-auto p-2 bg-slate-50 dark:bg-gray-900 border-b border-slate-200 dark:border-gray-700 rounded-none w-full justify-start gap-2 overflow-x-auto ui-scrollbar">
                         {openTabs.map(tab => (
                             <div
                                 key={tab.id}
@@ -135,6 +135,7 @@ export const MainContent = ({
                                     database={tab.database}
                                     schema={tab.schema || 'default'}
                                     tables={tab.schemaObjects || []}
+                                    isActive={activeTab === tab.id}
                                 />
                             )}
                         </TabsContent>
