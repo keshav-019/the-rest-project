@@ -20,6 +20,7 @@ interface DependencyGraphProps {
     schema: string;
     table: string;
     connectionId: string;
+    database?: string;
 }
 
 export const DependencyGraph = ({
@@ -27,7 +28,8 @@ export const DependencyGraph = ({
     onClose,
     schema,
     table,
-    connectionId
+    connectionId,
+    database
 }: DependencyGraphProps) => {
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -40,7 +42,8 @@ export const DependencyGraph = ({
             const { nodes: dbNodes, edges: dbEdges } = await dbService.getTableDependencies(
                 connectionId,
                 schema,
-                table
+                table,
+                database
             );
 
             const formattedNodes = dbNodes.map((node: any) => ({
@@ -84,7 +87,7 @@ export const DependencyGraph = ({
         } finally {
             setIsLoading(false);
         }
-    }, [connectionId, schema, table]);
+    }, [connectionId, schema, table, database]);
 
     useEffect(() => {
         if (isOpen) {

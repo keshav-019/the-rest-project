@@ -154,17 +154,12 @@ export const MainContent = ({
                                     <div>Database: {showDetails.database}</div>
                                     <div>Connection: {showDetails.connection}</div>
                                     <div>Type: SQL Database</div>
-                                    <div>Tables: 15</div>
-                                    <div>Size: 128 MB</div>
                                 </div>
                             </div>
                             <div>
                                 <h3 className="font-medium mb-2">Statistics</h3>
                                 <div className="space-y-1 text-sm">
-                                    <div>Total Records: 45,230</div>
-                                    <div>Active Connections: 3</div>
-                                    <div>Last Backup: 2 hours ago</div>
-                                    <div>Created: Jan 15, 2024</div>
+                                    <div>Live statistics are loaded from your connected database in the table and query views.</div>
                                 </div>
                             </div>
                         </div>
@@ -177,7 +172,7 @@ export const MainContent = ({
                 onClose={onCloseDependencyGraph}
                 schema={showDependencyGraph.database}
                 table={''}
-                connectionId={''}
+                connectionId={showDependencyGraph.connection}
             />
         </>
     );

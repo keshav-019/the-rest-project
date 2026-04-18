@@ -17,6 +17,7 @@ import { ConnectionConfig, SchemaObject, WindowTab } from '@/types/Connection';
 import { SchemaActions } from './SchemaActions';
 import { TableActions } from './TableActions';
 import { useToast } from '@/hooks/useToast';
+import { DependencyGraph } from './DependencyGraph';
 
 interface DatabaseSidebarProps {
     connections: ConnectionConfig[];
@@ -71,7 +72,8 @@ export const DatabaseSidebar = ({
         isOpen: false,
         schema: '',
         table: '',
-        connectionId: ''
+        connectionId: '',
+        database: '',
     });
     const [databaseStructures, setDatabaseStructures] = useState<Record<string, DatabaseStructure>>({});
     const [loadingStructures, setLoadingStructures] = useState<Record<string, boolean>>({});
@@ -473,8 +475,9 @@ export const DatabaseSidebar = ({
                                                                                         onShowDependencies={() => setShowDependencyGraph({
                                                                                             isOpen: true,
                                                                                             schema: schema.name,
-                                                                                            table: '',
-                                                                                            connectionId: connection.id
+                                                                                            table: schema.tables[0]?.name || '',
+                                                                                            connectionId: connection.id,
+                                                                                            database: database.name,
                                                                                         })}
                                                                                     />
                                                                                 </div>
@@ -544,7 +547,8 @@ export const DatabaseSidebar = ({
                                                                                                                 isOpen: true,
                                                                                                                 schema: schema.name,
                                                                                                                 table: table.name,
-                                                                                                                connectionId: connection.id
+                                                                                                                connectionId: connection.id,
+                                                                                                                database: database.name,
                                                                                                             })}
                                                                                                             onDeleteTable={() => handleDeleteTable(connection.id, database.name, schema.name, table.name)}
                                                                                                         />
@@ -575,6 +579,20 @@ export const DatabaseSidebar = ({
                 </div>
 
                 {/* Keep all dialog components the same as before */}
+                <DependencyGraph
+                    isOpen={showDependencyGraph.isOpen}
+                    onClose={() => setShowDependencyGraph({
+                        isOpen: false,
+                        schema: '',
+                        table: '',
+                        connectionId: '',
+                        database: '',
+                    })}
+                    schema={showDependencyGraph.schema}
+                    table={showDependencyGraph.table}
+                    connectionId={showDependencyGraph.connectionId}
+                    database={showDependencyGraph.database}
+                />
             </div>
         </TooltipProvider>
     );
