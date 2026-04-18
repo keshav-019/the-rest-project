@@ -1,5 +1,5 @@
 'use client'
-import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
     Background,
     Controls,
@@ -12,6 +12,7 @@ import ReactFlow, {
     Panel,
     Position,
     ReactFlowInstance,
+    useUpdateNodeInternals,
     useEdgesState,
     useNodesState,
 } from 'reactflow';
@@ -33,7 +34,11 @@ interface TableNodeData {
     expanded: boolean;
     relationCount: number;
     isIsolated: boolean;
+    linkedPrimaryColumns: string[];
+    linkedForeignColumns: string[];
+    isFocused: boolean;
     onToggle: (nodeId: string) => void;
+    onFocus: (nodeId: string) => void;
 }
 
 interface TableRelation {
@@ -41,6 +46,7 @@ interface TableRelation {
     targetTable: string;
     sourceColumn: string;
     targetColumn: string;
+    sourceIsPrimaryKey: boolean;
 }
 
 const COMPONENT_GRID_WIDTH = 2200;
@@ -51,6 +57,10 @@ const NODE_GAP_Y = 280;
 const COMPONENT_GAP_X = 430;
 const COMPONENT_GAP_Y = 380;
 const ISOLATED_COLUMNS = 3;
+
+const toHandleSafeId = (value: string) => encodeURIComponent(value.toLowerCase().replace(/\s+/g, '_'));
+const sourceHandleIdForColumn = (columnName: string) => `source-col-${toHandleSafeId(columnName)}`;
+const targetHandleIdForColumn = (columnName: string) => `target-col-${toHandleSafeId(columnName)}`;
 
 const normalizeTableIdentifier = (value: string): string => {
     const stripped = value.replace(/["`\[\]]/g, '').trim();
@@ -64,37 +74,49 @@ const normalizeTableIdentifier = (value: string): string => {
 
 const buildRelationships = (tables: SchemaObject[]): TableRelation[] => {
     const tableNameByLower = new Map<string, string>();
+    const columnsByTableLower = new Map<string, Map<string, ColumnDefinition>>();
+
     for (const table of tables) {
         tableNameByLower.set(table.name.toLowerCase(), table.name);
+        columnsByTableLower.set(
+            table.name.toLowerCase(),
+            new Map((table.columns || []).map((column) => [column.name.toLowerCase(), column]))
+        );
     }
 
     const seen = new Set<string>();
     const relations: TableRelation[] = [];
 
-    for (const table of tables) {
-        for (const column of table.columns || []) {
+    for (const fkTable of tables) {
+        for (const column of fkTable.columns || []) {
             const foreignTableRaw = column.foreignKey?.table;
             if (!foreignTableRaw) {
                 continue;
             }
 
             const normalizedForeignTable = normalizeTableIdentifier(foreignTableRaw).toLowerCase();
-            const targetTable = tableNameByLower.get(normalizedForeignTable);
-            if (!targetTable) {
+            const pkTable = tableNameByLower.get(normalizedForeignTable);
+            if (!pkTable) {
                 continue;
             }
 
-            const relationKey = `${table.name}:${column.name}->${targetTable}:${column.foreignKey?.column || 'id'}`;
+            const foreignColumn = column.foreignKey?.column || 'id';
+            const sourceColumnMeta = columnsByTableLower.get(pkTable.toLowerCase())?.get(foreignColumn.toLowerCase());
+            const sourceColumn = sourceColumnMeta?.name || foreignColumn;
+            const sourceIsPrimaryKey = sourceColumnMeta?.isPrimaryKey ?? false;
+
+            const relationKey = `${pkTable}:${sourceColumn}->${fkTable.name}:${column.name}`;
             if (seen.has(relationKey)) {
                 continue;
             }
 
             seen.add(relationKey);
             relations.push({
-                sourceTable: table.name,
-                targetTable,
-                sourceColumn: column.name,
-                targetColumn: column.foreignKey?.column || 'id',
+                sourceTable: pkTable,
+                targetTable: fkTable.name,
+                sourceColumn,
+                targetColumn: column.name,
+                sourceIsPrimaryKey,
             });
         }
     }
@@ -102,18 +124,25 @@ const buildRelationships = (tables: SchemaObject[]): TableRelation[] => {
     return relations;
 };
 
-const buildEdges = (relations: TableRelation[]): Edge[] =>
+const buildEdges = (relations: TableRelation[], expandedByTable: Map<string, boolean>): Edge[] =>
     relations.map((relation, index) => ({
         id: `fk-${relation.sourceTable}-${relation.sourceColumn}-${relation.targetTable}-${relation.targetColumn}-${index}`,
         source: relation.sourceTable,
-        sourceHandle: 'source',
+        sourceHandle: expandedByTable.get(relation.sourceTable)
+            ? sourceHandleIdForColumn(relation.sourceColumn)
+            : 'source',
         target: relation.targetTable,
-        targetHandle: 'target',
+        targetHandle: expandedByTable.get(relation.targetTable)
+            ? targetHandleIdForColumn(relation.targetColumn)
+            : 'target',
         type: 'smoothstep',
         animated: true,
-        label: `${relation.sourceTable}.${relation.sourceColumn} -> ${relation.targetTable}.${relation.targetColumn}`,
+        label: `${relation.sourceIsPrimaryKey ? 'PK' : 'REF'} ${relation.sourceTable}.${relation.sourceColumn} -> FK ${relation.targetTable}.${relation.targetColumn}`,
         markerEnd: { type: MarkerType.ArrowClosed, color: '#38bdf8' },
-        style: { stroke: '#38bdf8', strokeWidth: 1.4 },
+        style: {
+            stroke: relation.sourceIsPrimaryKey ? '#22c55e' : '#38bdf8',
+            strokeWidth: relation.sourceIsPrimaryKey ? 2.1 : 1.8,
+        },
         labelStyle: { fill: '#64748b', fontSize: 11, fontWeight: 500 },
         labelBgStyle: { fill: '#f8fafc', fillOpacity: 0.92, rx: 4, ry: 4 },
         labelBgPadding: [6, 3],
@@ -225,8 +254,18 @@ const createLayoutPositions = (tables: SchemaObject[], relations: TableRelation[
 };
 
 const TableNode = memo(({ id, data }: NodeProps<TableNodeData>) => {
+    const linkedPrimaryColumns = new Set(data.linkedPrimaryColumns.map((column) => column.toLowerCase()));
+    const linkedForeignColumns = new Set(data.linkedForeignColumns.map((column) => column.toLowerCase()));
+
     return (
-        <div className="min-w-[300px] max-w-[340px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 shadow-[0_10px_34px_-20px_rgba(15,23,42,0.95)] backdrop-blur-sm">
+        <div
+            className={`min-w-[300px] max-w-[340px] rounded-xl border bg-white/95 dark:bg-slate-900/95 shadow-[0_10px_34px_-20px_rgba(15,23,42,0.95)] backdrop-blur-sm transition-[box-shadow,border-color] ${
+                data.isFocused
+                    ? 'border-sky-400 dark:border-sky-500 shadow-[0_16px_42px_-20px_rgba(2,132,199,0.85)]'
+                    : 'border-slate-200 dark:border-slate-700'
+            }`}
+            onMouseDown={() => data.onFocus(id)}
+        >
             <Handle
                 id="target"
                 type="target"
@@ -243,7 +282,10 @@ const TableNode = memo(({ id, data }: NodeProps<TableNodeData>) => {
             <button
                 type="button"
                 className="w-full px-4 py-3 text-left border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 rounded-t-xl hover:from-sky-50 hover:to-cyan-50 dark:hover:from-slate-900 dark:hover:to-slate-800 transition-colors"
-                onClick={() => data.onToggle(id)}
+                onClick={() => {
+                    data.onFocus(id);
+                    data.onToggle(id);
+                }}
             >
                 <div className="flex items-start gap-3">
                     <div className="mt-0.5 text-slate-500 dark:text-slate-300">
@@ -267,39 +309,87 @@ const TableNode = memo(({ id, data }: NodeProps<TableNodeData>) => {
             </button>
 
             {data.expanded ? (
-                <div className="max-h-72 overflow-y-auto px-3 py-3 space-y-1.5 ui-scrollbar">
-                    {data.columns.map((column) => (
-                        <div
-                            key={`${data.tableName}-${column.name}`}
-                            className="rounded-md border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 px-2.5 py-2"
-                        >
-                            <div className="flex items-start justify-between gap-2">
-                                <span className="font-medium text-xs text-slate-800 dark:text-slate-200 truncate">{column.name}</span>
-                                <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
-                                    {column.type}
-                                </span>
+                <div
+                    className="max-h-72 overflow-y-auto px-3 py-3 space-y-1.5 ui-scrollbar"
+                    onWheelCapture={(event) => {
+                        if (data.isFocused) {
+                            event.stopPropagation();
+                        }
+                    }}
+                >
+                    {data.columns.map((column) => {
+                        const normalizedColumnName = column.name.toLowerCase();
+                        const isEdgeSource = linkedPrimaryColumns.has(normalizedColumnName);
+                        const isEdgeTarget = linkedForeignColumns.has(normalizedColumnName);
+
+                        return (
+                            <div
+                                key={`${data.tableName}-${column.name}`}
+                                className={`relative rounded-md border bg-white dark:bg-slate-900 px-2.5 py-2 ${
+                                    isEdgeSource
+                                        ? 'border-emerald-300 dark:border-emerald-700/70'
+                                        : isEdgeTarget
+                                          ? 'border-sky-300 dark:border-sky-700/70'
+                                          : 'border-slate-200/80 dark:border-slate-800'
+                                }`}
+                            >
+                                <Handle
+                                    id={targetHandleIdForColumn(column.name)}
+                                    type="target"
+                                    position={Position.Left}
+                                    className={`!h-2.5 !w-2.5 !border-2 !border-white dark:!border-slate-900 ${
+                                        isEdgeTarget ? '!bg-sky-500' : '!bg-slate-400'
+                                    }`}
+                                    style={{ top: '50%', transform: 'translateY(-50%)' }}
+                                />
+                                <Handle
+                                    id={sourceHandleIdForColumn(column.name)}
+                                    type="source"
+                                    position={Position.Right}
+                                    className={`!h-2.5 !w-2.5 !border-2 !border-white dark:!border-slate-900 ${
+                                        isEdgeSource ? '!bg-emerald-500' : '!bg-slate-400'
+                                    }`}
+                                    style={{ top: '50%', transform: 'translateY(-50%)' }}
+                                />
+
+                                <div className="flex items-start justify-between gap-2">
+                                    <span className="font-medium text-xs text-slate-800 dark:text-slate-200 truncate">{column.name}</span>
+                                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
+                                        {column.type}
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1 mt-1.5 text-[10px]">
+                                    {column.isPrimaryKey ? (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                            <KeyRound className="h-2.5 w-2.5" />
+                                            PK
+                                        </span>
+                                    ) : null}
+                                    {column.foreignKey ? (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+                                            <Link2 className="h-2.5 w-2.5" />
+                                            FK: {column.foreignKey.table}.{column.foreignKey.column}
+                                        </span>
+                                    ) : null}
+                                    {isEdgeSource ? (
+                                        <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                            relation source
+                                        </span>
+                                    ) : null}
+                                    {isEdgeTarget ? (
+                                        <span className="px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+                                            relation target
+                                        </span>
+                                    ) : null}
+                                    {!column.isNullable ? (
+                                        <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
+                                            NOT NULL
+                                        </span>
+                                    ) : null}
+                                </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-1 mt-1.5 text-[10px]">
-                                {column.isPrimaryKey ? (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                        <KeyRound className="h-2.5 w-2.5" />
-                                        PK
-                                    </span>
-                                ) : null}
-                                {column.foreignKey ? (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
-                                        <Link2 className="h-2.5 w-2.5" />
-                                        FK: {column.foreignKey.table}.{column.foreignKey.column}
-                                    </span>
-                                ) : null}
-                                {!column.isNullable ? (
-                                    <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
-                                        NOT NULL
-                                    </span>
-                                ) : null}
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             ) : (
                 <div className="px-4 py-2.5 text-[11px] text-slate-500 dark:text-slate-400">Click table name to expand columns</div>
@@ -319,6 +409,8 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const flowWrapperRef = useRef<HTMLDivElement | null>(null);
     const flowRef = useRef<ReactFlowInstance | null>(null);
+    const updateNodeInternals = useUpdateNodeInternals();
+    const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
 
     const relationships = useMemo(() => buildRelationships(tables), [tables]);
     const layoutPositions = useMemo(() => createLayoutPositions(tables, relationships), [tables, relationships]);
@@ -334,6 +426,33 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
         }
         return counts;
     }, [tables, relationships]);
+
+    const linkedColumnsByTable = useMemo(() => {
+        const map = new Map<string, { source: Set<string>; target: Set<string> }>();
+
+        for (const table of tables) {
+            map.set(table.name, { source: new Set(), target: new Set() });
+        }
+
+        for (const relation of relationships) {
+            if (!map.has(relation.sourceTable)) {
+                map.set(relation.sourceTable, { source: new Set(), target: new Set() });
+            }
+            if (!map.has(relation.targetTable)) {
+                map.set(relation.targetTable, { source: new Set(), target: new Set() });
+            }
+
+            map.get(relation.sourceTable)!.source.add(relation.sourceColumn);
+            map.get(relation.targetTable)!.target.add(relation.targetColumn);
+        }
+
+        return map;
+    }, [tables, relationships]);
+
+    const expandedByTable = useMemo(
+        () => new Map(nodes.map((node) => [node.id, Boolean(node.data?.expanded)])),
+        [nodes]
+    );
 
     const isolatedCount = useMemo(
         () => tables.filter((table) => (relationCountByTable.get(table.name) || 0) === 0).length,
@@ -355,8 +474,17 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
         [isActive, tables.length]
     );
 
+    const focusNode = useCallback((nodeId: string) => {
+        setFocusedNodeId(nodeId);
+    }, []);
+
+    const clearFocusedNode = useCallback(() => {
+        setFocusedNodeId(null);
+    }, []);
+
     const toggleNode = useCallback(
         (nodeId: string) => {
+            setFocusedNodeId(nodeId);
             setNodes((previousNodes) =>
                 previousNodes.map((node) =>
                     node.id === nodeId
@@ -370,8 +498,11 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
                         : node
                 )
             );
+            window.requestAnimationFrame(() => {
+                updateNodeInternals(nodeId);
+            });
         },
-        [setNodes]
+        [setNodes, updateNodeInternals]
     );
 
     useEffect(() => {
@@ -391,17 +522,32 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
                         expanded: previousNode?.data?.expanded || false,
                         relationCount: relationCountByTable.get(table.name) || 0,
                         isIsolated: (relationCountByTable.get(table.name) || 0) === 0,
+                        linkedPrimaryColumns: Array.from(linkedColumnsByTable.get(table.name)?.source || []),
+                        linkedForeignColumns: Array.from(linkedColumnsByTable.get(table.name)?.target || []),
+                        isFocused: focusedNodeId === table.name,
                         onToggle: toggleNode,
+                        onFocus: focusNode,
                     },
                     draggable: true,
                 } satisfies Node<TableNodeData>;
             });
         });
-    }, [tables, layoutPositions, relationCountByTable, toggleNode, setNodes]);
+    }, [tables, layoutPositions, relationCountByTable, linkedColumnsByTable, focusedNodeId, toggleNode, focusNode, setNodes]);
 
     useEffect(() => {
-        setEdges(buildEdges(relationships));
-    }, [relationships, setEdges]);
+        setEdges(buildEdges(relationships, expandedByTable));
+    }, [relationships, expandedByTable, setEdges]);
+
+    useEffect(() => {
+        if (!isActive) {
+            setFocusedNodeId(null);
+            return;
+        }
+
+        if (focusedNodeId && !tables.some((table) => table.name === focusedNodeId)) {
+            setFocusedNodeId(null);
+        }
+    }, [isActive, focusedNodeId, tables]);
 
     useEffect(() => {
         if (!isActive || tables.length === 0) {
@@ -456,6 +602,8 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
                     edges={edges}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
+                    onPaneClick={clearFocusedNode}
+                    onEdgeClick={clearFocusedNode}
                     nodeTypes={nodeTypes}
                     onInit={(instance) => {
                         flowRef.current = instance;
@@ -470,12 +618,16 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
                         markerEnd: { type: MarkerType.ArrowClosed, color: '#38bdf8' },
                         style: { stroke: '#38bdf8', strokeWidth: 1.4 },
                     }}
+                    zoomOnScroll={!focusedNodeId}
+                    zoomOnPinch={!focusedNodeId}
+                    panOnScroll={!focusedNodeId}
                 >
                     <Panel position="top-right">
                         <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 px-3 py-2 text-[11px] text-slate-600 dark:text-slate-300 shadow-sm backdrop-blur-sm">
                             <div>{tables.length} tables</div>
                             <div>{relationships.length} relationships</div>
                             <div>{isolatedCount} isolated</div>
+                            <div>{focusedNodeId ? `focus: ${focusedNodeId}` : 'focus: canvas'}</div>
                         </div>
                     </Panel>
                     <Controls className="!bg-white/85 dark:!bg-slate-900/85 !border !border-slate-200 dark:!border-slate-700 !rounded-lg !shadow-sm" />
