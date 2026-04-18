@@ -111,7 +111,7 @@ export default function TerminalManager() {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col h-screen bg-slate-50 dark:bg-gray-900">
             <HeaderComponent
                 parentComponent={"Dashboard"}
                 toSearch={false}
@@ -135,24 +135,24 @@ export default function TerminalManager() {
             />
 
             {/* Tab bar */}
-            <div className="flex items-center border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4">
-                <div className="flex overflow-x-auto flex-1">
+            <div className="border-b border-slate-200 dark:border-gray-700 bg-white/95 dark:bg-gray-800 px-3 py-2 backdrop-blur">
+                <div className="flex overflow-x-auto flex-1 gap-2">
                     {tabs.map(tab => (
                         <div
                             key={tab.id}
-                            className={`flex items-center px-4 py-2 border-r border-gray-200 dark:border-gray-700 cursor-pointer ${activeTab === tab.id
-                                ? 'bg-gray-100 dark:bg-gray-700'
-                                : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                            className={`group flex items-center min-w-[180px] max-w-[280px] px-3 py-2 rounded-xl border cursor-pointer transition-all ${activeTab === tab.id
+                                ? 'bg-blue-50 border-blue-200 text-blue-800 shadow-sm dark:bg-blue-900/20 dark:border-blue-700/40 dark:text-blue-100'
+                                : 'bg-slate-100/70 border-slate-200 text-slate-700 hover:bg-slate-100 dark:bg-gray-700/50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700'
                                 }`}
                             onClick={() => setActiveTab(tab.id)}
                         >
                             {tab.type === 'local' ?
                                 (
-                                    <Monitor className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
+                                    <Monitor className={`h-4 w-4 mr-2 shrink-0 ${activeTab === tab.id ? 'text-blue-600 dark:text-blue-300' : 'text-slate-500 dark:text-gray-300'}`} />
                                 ) : (
-                                    <Server className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
+                                    <Server className={`h-4 w-4 mr-2 shrink-0 ${activeTab === tab.id ? 'text-blue-600 dark:text-blue-300' : 'text-slate-500 dark:text-gray-300'}`} />
                                 )}
-                            <span className="text-sm font-medium">
+                            <span className="text-sm font-medium truncate">
                                 {tab.id === 'welcome' ? 'Welcome' :
                                     tab.type === 'local' ? 'Local Terminal' :
                                         tab.connection?.name || 'SSH Connection'}
@@ -163,7 +163,10 @@ export default function TerminalManager() {
                                         e.stopPropagation();
                                         closeTab(tab.id);
                                     }}
-                                    className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                    className={`ml-2 shrink-0 rounded-md p-1 transition-colors ${activeTab === tab.id
+                                        ? 'text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:text-blue-300 dark:hover:bg-blue-900/40'
+                                        : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-600'
+                                        }`}
                                 >
                                     <X className="h-4 w-4" />
                                 </button>

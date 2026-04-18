@@ -1,4 +1,16 @@
-import { ActiveResponseTab, Auth, Collection, Header, Param, Request, RequestType, ResponseData, TabType } from "@/types/Collections";
+import {
+    ActiveResponseTab,
+    Auth,
+    Collection,
+    Header,
+    Param,
+    Request,
+    RequestProtocol,
+    RequestTestCase,
+    RequestType,
+    ResponseData,
+    TabType,
+} from "@/types/Collections";
 import CollectionsTree from "./CollectionsTree";
 import RequestTabContent from "./RequestTabContent";
 import RequestURLBar from "./RequestUrlBar";
@@ -11,12 +23,14 @@ import { Team, Environment } from "@/types/User";
 export type MainContentProps = {
     collections: Collection[],
     handleAddRequest: (collectionId: string, folderId?: string) => void,
+    handleDuplicateRequest: (request: Request) => void,
     handleAddFolder: (collectionId: string) => void,
     renameItem: (id: string, newName: string) => void,
     deleteItem: (value: string) => void,
     openRequestInTab: (request: Request) => void,
     handleAddCollection: (name: string) => Promise<void>,
     handleExportCollections: () => void,
+    handleImportCollections?: () => void,
     activeTabs: { id: string; request: Request; }[],
     setActiveTabId: (value: React.SetStateAction<string | null>) => void,
     closeTab: (value: string) => void,
@@ -25,8 +39,10 @@ export type MainContentProps = {
     handleSendRequest: () => void,
     isLoading: boolean,
     isStarred: boolean,
+    protocol: RequestProtocol,
     method: RequestType,
-    setIsStarred: React.Dispatch<React.SetStateAction<boolean>>,
+    setIsStarred: (value: boolean) => void,
+    setProtocol: (value: RequestProtocol) => void,
     setMethod: React.Dispatch<React.SetStateAction<RequestType>>,
     setUrl: (value: string) => void,
     url: string,
@@ -48,6 +64,8 @@ export type MainContentProps = {
     setPreRequestScript: React.Dispatch<React.SetStateAction<string>>,
     setTests: React.Dispatch<React.SetStateAction<string>>,
     tests: string,
+    testCases: RequestTestCase[],
+    setTestCases: React.Dispatch<React.SetStateAction<RequestTestCase[]>>,
     activeResponseTab: ActiveResponseTab,
     cookies: { name: string; value: string; domain: string; path: string; }[],
     copyToClipboard: (text: string) => void,
@@ -60,11 +78,74 @@ export type MainContentProps = {
     setActiveResponseTab: React.Dispatch<React.SetStateAction<ActiveResponseTab>>,
     teamMode: Team | null,
     environments: Environment[],
-    activeEnvironmentId: string | null
+    activeEnvironmentId: string | null,
+    onSelectCollection?: (collection: Collection) => void,
+    selectedCollectionId?: string | null,
 }
 
 
-export default function MainContent({ collections, handleAddRequest, handleAddFolder, renameItem, deleteItem, openRequestInTab, handleAddCollection, handleExportCollections, activeTabs, setActiveTabId, closeTab, activeTabId, handleShareRequest, handleSendRequest, isLoading, isStarred, method, setIsStarred, setMethod, setUrl, url, activeRequestTab, setActiveRequestTab, auth, body, handleAddHeader, handleAddParam, handleRemoveHeader, handleRemoveParam, handleUpdateHeader, handleUpdateParam, headers, params, preRequestScript, setAuth, setBody, setPreRequestScript, setTests, tests, activeResponseTab, cookies, copyToClipboard, error, handleCopyResponse, handleDownloadResponse, response, responseHeaders, timeline, setActiveResponseTab, teamMode, environments, activeEnvironmentId }: MainContentProps) {
+export default function MainContent({
+    collections,
+    handleAddRequest,
+    handleDuplicateRequest,
+    handleAddFolder,
+    renameItem,
+    deleteItem,
+    openRequestInTab,
+    handleAddCollection,
+    handleExportCollections,
+    handleImportCollections,
+    activeTabs,
+    setActiveTabId,
+    closeTab,
+    activeTabId,
+    handleShareRequest,
+    handleSendRequest,
+    isLoading,
+    isStarred,
+    protocol,
+    method,
+    setIsStarred,
+    setProtocol,
+    setMethod,
+    setUrl,
+    url,
+    activeRequestTab,
+    setActiveRequestTab,
+    auth,
+    body,
+    handleAddHeader,
+    handleAddParam,
+    handleRemoveHeader,
+    handleRemoveParam,
+    handleUpdateHeader,
+    handleUpdateParam,
+    headers,
+    params,
+    preRequestScript,
+    setAuth,
+    setBody,
+    setPreRequestScript,
+    setTests,
+    tests,
+    testCases,
+    setTestCases,
+    activeResponseTab,
+    cookies,
+    copyToClipboard,
+    error,
+    handleCopyResponse,
+    handleDownloadResponse,
+    response,
+    responseHeaders,
+    timeline,
+    setActiveResponseTab,
+    teamMode,
+    environments,
+    activeEnvironmentId,
+    onSelectCollection,
+    selectedCollectionId,
+}: MainContentProps) {
     return (
         <div className="flex flex-1 overflow-hidden">
             {/* Collections Tree Sidebar */}
@@ -76,12 +157,14 @@ export default function MainContent({ collections, handleAddRequest, handleAddFo
                     onRenameItem={renameItem}
                     onDeleteItem={deleteItem}
                     onDuplicateRequest={(request) => {
-                        const [collectionId, folderId] = request.id.split('-');
-                        handleAddRequest(collectionId, folderId === 'root' ? undefined : folderId);
+                        handleDuplicateRequest(request);
                     }}
                     onSelectRequest={openRequestInTab}
                     onAddCollection={handleAddCollection}
                     onExportCollections={handleExportCollections}
+                    onImportCollections={handleImportCollections}
+                    onSelectCollection={onSelectCollection}
+                    selectedCollectionId={selectedCollectionId}
                 />
             }
 
@@ -122,14 +205,16 @@ export default function MainContent({ collections, handleAddRequest, handleAddFo
                                 handleSendRequest={handleSendRequest}
                                 isLoading={isLoading}
                                 isStarred={isStarred}
+                                protocol={protocol}
                                 method={method}
                                 setIsStarred={setIsStarred}
+                                setProtocol={setProtocol}
                                 setMethod={setMethod}
                                 setUrl={setUrl}
                                 url={url}
                                 teamMode={teamMode}
-                                environments={[]}
-                                activeEnvironmentId={''}
+                                environments={environments}
+                                activeEnvironmentId={activeEnvironmentId}
                             />
 
                             <div className="flex flex-col md:flex-row h-[calc(100%-4rem)]">
@@ -159,6 +244,8 @@ export default function MainContent({ collections, handleAddRequest, handleAddFo
                                             setPreRequestScript={setPreRequestScript}
                                             setTests={setTests}
                                             tests={tests}
+                                            testCases={testCases}
+                                            setTestCases={setTestCases}
                                             environments={environments}
                                             activeEnvironmentId={activeEnvironmentId}
                                         />
@@ -207,5 +294,3 @@ export default function MainContent({ collections, handleAddRequest, handleAddFo
         </div>
     );
 }
-
-

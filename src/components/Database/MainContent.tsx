@@ -5,6 +5,7 @@ import { TableViewer } from './TableViewer';
 import { CollectionViewer } from './CollectionViewer';
 import { QueryEditorSQL } from './QueryEditorSQL';
 import { DependencyGraph } from './DependencyGraph';
+import { SchemaCanvas } from './SchemaCanvas';
 import { Database, X, Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { WindowTab } from '@/types/Connection';
@@ -34,19 +35,18 @@ export const MainContent = ({
 }: MainContentProps) => {
     if (openTabs.length === 0) {
         return (
-            <div className="flex-1 flex items-center justify-center bg-gray-900">
-                <div className="text-center space-y-6 p-8 max-w-md mx-auto">
-                    <div className="inline-flex items-center justify-center bg-gray-800 p-6 rounded-full">
-                        <Database className="h-12 w-12 text-blue-400" />
+            <div className="h-full w-full grid place-items-center bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-900 p-6">
+                <div className="text-center space-y-5 p-8 max-w-xl mx-auto rounded-2xl border border-slate-200 dark:border-gray-700 bg-white/90 dark:bg-gray-800/80 shadow-sm">
+                    <div className="inline-flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 p-6 rounded-2xl">
+                        <Database className="h-11 w-11 text-blue-600 dark:text-blue-300" />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-100">Welcome to DatabasePro</h2>
-                    <p className="text-gray-400">
+                    <h2 className="text-3xl font-bold text-slate-900 dark:text-gray-100">Welcome to Database Pro</h2>
+                    <p className="text-slate-600 dark:text-gray-300 leading-relaxed">
                         Connect to your databases and start exploring your data.
                         Double-click on any table in the sidebar to get started.
                     </p>
                     <Button
-                        variant="outline"
-                        className="mt-6 bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-200"
+                        className="mt-3 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
                         onClick={() => setShowConnectionDialog(true)}
                     >
                         <Plus className="h-4 w-4 mr-2" />
@@ -61,30 +61,36 @@ export const MainContent = ({
         <>
             <div className="flex-1 flex flex-col overflow-hidden">
                 <Tabs value={activeTab || ''} onValueChange={onTabChange} className="flex-1 flex flex-col min-h-0">
-                    <TabsList className="h-auto p-0 bg-transparent border-b rounded-none w-full justify-start">
+                    <TabsList className="h-auto p-2 bg-slate-50 dark:bg-gray-900 border-b border-slate-200 dark:border-gray-700 rounded-none w-full justify-start gap-2 overflow-x-auto">
                         {openTabs.map(tab => (
                             <div
                                 key={tab.id}
-                                className={`group flex items-center min-w-0 relative ${activeTab === tab.id
-                                    ? 'bg-background border-b-2 border-primary'
-                                    : 'hover:bg-accent/50'
+                                className={`group flex items-center min-w-[180px] max-w-[280px] rounded-lg border relative ${activeTab === tab.id
+                                    ? 'bg-white border-blue-200 text-blue-800 shadow-sm dark:bg-gray-800 dark:border-blue-700/40 dark:text-blue-100'
+                                    : 'bg-slate-100 border-slate-200 hover:bg-slate-200 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700'
                                     }`}
                             >
                                 <TabsTrigger
                                     value={tab.id}
-                                    className="flex-1 px-4 py-3 text-left border-0 bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none min-w-0 h-auto"
+                                    className="flex-1 px-3 py-2 text-left border-0 bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none min-w-0 h-auto"
                                 >
                                     <div className="flex items-center gap-2 min-w-0">
-                                        <span className="truncate font-medium">{tab.title}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {tab.type === 'table' ? '📊' : tab.type === 'collection' ? '📁' : '⚡'}
+                                        <span className="truncate font-medium text-sm">{tab.title}</span>
+                                        <span className="text-xs text-slate-500 dark:text-gray-400">
+                                            {tab.type === 'table'
+                                                ? '📊'
+                                                : tab.type === 'collection'
+                                                  ? '📁'
+                                                  : tab.type === 'schema'
+                                                    ? '🗺️'
+                                                    : '⚡'}
                                         </span>
                                     </div>
                                 </TabsTrigger>
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 mr-2 shrink-0"
+                                    className="h-6 w-6 p-0 opacity-60 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 mr-2 shrink-0"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onCloseTab(tab.id);
@@ -120,6 +126,14 @@ export const MainContent = ({
                                 <QueryEditorSQL
                                     connection={tab.connection}
                                     database={tab.database}
+                                />
+                            )}
+                            {tab.type === 'schema' && (
+                                <SchemaCanvas
+                                    connection={tab.connection}
+                                    database={tab.database}
+                                    schema={tab.schema || 'default'}
+                                    tables={tab.schemaObjects || []}
                                 />
                             )}
                         </TabsContent>

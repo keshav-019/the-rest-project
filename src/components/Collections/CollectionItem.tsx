@@ -15,6 +15,8 @@ interface CollectionItemProps {
     onRenameItem: (id: string, newName: string) => void;
     onDeleteItem: (id: string) => void;
     onDuplicateRequest: (request: Request) => void;
+    onSelectCollection?: (collection: Collection) => void;
+    isSelected?: boolean;
 }
 
 const CollectionItem: React.FC<CollectionItemProps> = ({
@@ -25,6 +27,8 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
     onRenameItem,
     onDeleteItem,
     onDuplicateRequest,
+    onSelectCollection,
+    isSelected = false,
 }) => {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isRenaming, setIsRenaming] = useState(false);
@@ -39,14 +43,24 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
 
     return (
         <div className="relative">
-            <div className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+            <div
+                className={`flex items-center justify-between p-2 rounded cursor-pointer ${
+                    isSelected
+                        ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/40'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+            >
                 <div
                     className="flex items-center flex-1 min-w-0"
-                    onClick={() => setIsExpanded(!isExpanded)}
+                    onClick={() => {
+                        setIsExpanded((previous) => !previous);
+                        onSelectCollection?.(collection);
+                    }}
                 >
                     <ChevronIcon expanded={isExpanded} />
                     {isRenaming ? (
-                        <input title='rename-input'
+                        <input
+                            title="rename-input"
                             type="text"
                             value={renameInput}
                             onChange={(e) => setRenameInput(e.target.value)}
@@ -62,9 +76,7 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
                             autoFocus
                         />
                     ) : (
-                        <span
-                            className="ml-2 text-gray-800 dark:text-white font-medium truncate flex-1"
-                        >
+                        <span className="ml-2 text-gray-800 dark:text-white font-medium truncate flex-1">
                             {collection.name}
                         </span>
                     )}
@@ -138,7 +150,6 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
 
             {isExpanded && (
                 <div className="ml-4 space-y-1">
-                    {/* Render folders */}
                     {collection.folders.map((folder) => (
                         <FolderItem
                             key={folder.id}
@@ -153,7 +164,6 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
                         />
                     ))}
 
-                    {/* Render direct requests */}
                     {collection.requests.map((request) => (
                         <RequestItem
                             key={request.id}

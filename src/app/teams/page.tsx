@@ -71,6 +71,7 @@ export default function TeamManagement() {
             const {user, userData} = await getUserDetails();
             if(!user?.uid) throw new Error('No user is logged in');
             const teams = await getUserTeams(user?.uid || '');
+            setUser(user);
             setEmail(user?.email || '');
             setAutoSave(userData?.autoSave || true);
             setDisplayName(user?.displayName || '');
@@ -80,6 +81,11 @@ export default function TeamManagement() {
             setName(user?.displayName || '');
             setTeams(teams);
             setBio(userData?.bio || '');
+
+            const savedTeamMode = getTeamMode();
+            if (savedTeamMode) {
+                setTeamMode(savedTeamMode);
+            }
         }
 
         setTeamsFromDatabase();
@@ -88,10 +94,6 @@ export default function TeamManagement() {
             if (user?.uid) {
                 try {
                     const { invitations } = await getUserInvitations(user.uid);
-                    console.log("The invitations are: ", invitations, " and date of invitation is: ", 
-                        invitations[0]?.date, " and the new Date value would be: ", 
-                        invitations[0]?.date instanceof Date ? invitations[0].date : 'Invalid date'
-                    );
                     setInvitations(invitations || []);
                 } catch (error) {
                     console.error('Error fetching invitations:', error);
@@ -103,19 +105,26 @@ export default function TeamManagement() {
             fetchInvitations();
         }
 
-        const getTeamDetails = getTeamMode();
-
         return () => {
             document.body.style.overflow = 'auto';
             document.removeEventListener('keydown', handleKeyDown);
         };
     }, [showCreateTeamModal, showInviteMembersModal, showTeamDetailsModal, activeTab, user?.uid]);
 
-    const handleCreateTeam = (newTeam: Team) => {
-        setTeams([...teams, newTeam]);
-        setShowCreateTeamModal(false);
-        if(user?.uid === undefined) throw new Error('No logged in User Found');
-        createTeam(newTeam, user?.uid);
+    const handleCreateTeam = async (newTeam: Team) => {
+        if (!user?.uid) {
+            return;
+        }
+
+        try {
+            await createTeam(newTeam, user.uid);
+            const refreshedTeams = await getUserTeams(user.uid);
+            setTeams(refreshedTeams);
+        } catch (error) {
+            console.error('Failed to create team:', error);
+        } finally {
+            setShowCreateTeamModal(false);
+        }
     };
 
     const handleViewTeamDetails = (team: Team) => {
@@ -128,10 +137,10 @@ export default function TeamManagement() {
         try {
             if (!user?.uid) return;
             
-            const { success, team } = await acceptTeamInvitation(user.uid, invitationId);
-            if (success && team) {
-                // Update teams list if invitation was accepted
-                setTeams(prev => [...prev, team]);
+            const { success } = await acceptTeamInvitation(user.uid, invitationId);
+            if (success) {
+                const refreshedTeams = await getUserTeams(user.uid);
+                setTeams(refreshedTeams);
                 // Remove the invitation from local state
                 setInvitations(prev => prev.filter(inv => inv.invitationId !== invitationId));
             }
@@ -167,7 +176,11 @@ export default function TeamManagement() {
     // Add this handler for team selection
     const handleTeamSelect = (team: Team | null) => {
         setTeamMode(team);
-        localStorage.setItem('teamMode', JSON.stringify(team));
+        if (team) {
+            localStorage.setItem('teamMode', JSON.stringify(team));
+        } else {
+            localStorage.removeItem('teamMode');
+        }
         setShowTeamsDropdown(false);
         localStorage.removeItem('activeEnvironmentId');
     };
@@ -246,8 +259,15 @@ export default function TeamManagement() {
             )}
 
             {/* Team Details Modal */}
-            {showTeamDetailsModal && (
-                selectedTeam?.name && <TeamDetailsModal isOpen={true} selectedTeamName={selectedTeam?.name} setShowInviteMembersModal={setShowInviteMembersModal} setShowTeamDetailsModal={setShowTeamDetailsModal} teamDetailsModalRef={teamDetailsModalRef} />
+            {showTeamDetailsModal && selectedTeam && (
+                <TeamDetailsModal
+                    isOpen={true}
+                    selectedTeam={selectedTeam}
+                    currentUserId={user?.uid || ''}
+                    setShowInviteMembersModal={setShowInviteMembersModal}
+                    setShowTeamDetailsModal={setShowTeamDetailsModal}
+                    teamDetailsModalRef={teamDetailsModalRef}
+                />
             )}
         </div>
     );

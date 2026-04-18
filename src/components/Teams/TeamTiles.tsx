@@ -4,10 +4,9 @@ import { Team } from "@/types/User";
 export default function TeamTiles({handleViewTeamDetails, setSelectedTeamName, setShowInviteMembersModal, setShowCreateTeamModal, teams}: {handleViewTeamDetails: (team: Team) => void, setSelectedTeamName: (value: string) => void, setShowInviteMembersModal: (value: boolean) => void, setShowCreateTeamModal: (value: boolean) => void, teams: Team[]}) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {teams.map((team, index) => {
-                console.log("The team is: ", team);
+            {teams.map((team) => {
                 return (
-                    <TeamTile key={index} handleViewTeamDetails={handleViewTeamDetails} setSelectedTeamName={setSelectedTeamName} setShowInviteMembersModal={setShowInviteMembersModal} teamDescription={team.description} teamTitle={team.name} team={team} />
+                    <TeamTile key={team.teamId} handleViewTeamDetails={handleViewTeamDetails} setSelectedTeamName={setSelectedTeamName} setShowInviteMembersModal={setShowInviteMembersModal} teamDescription={team.description} teamTitle={team.name} team={team} />
                 );
             })}
 

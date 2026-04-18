@@ -36,6 +36,9 @@ export default function RequestItem({
                 className="flex items-center flex-1 min-w-0"
                 onClick={() => onSelectRequest(request)}
             >
+                <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 mr-2 uppercase">
+                    {(request.protocol || 'http').replace('socketio', 'socket.io')}
+                </span>
                 <span
                     className={`px-2 py-1 text-xs font-medium rounded mr-2 ${request.method === 'GET'
                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
