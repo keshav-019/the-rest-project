@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
-    getDatabaseStructure,
+    getDatabaseStructureSummary,
     parseConnectionPayload,
     toApiErrorResponse,
 } from '@/lib/server/database-adapter';
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const connection = parseConnectionPayload(body);
-        const structure = await getDatabaseStructure(connection);
+        const structure = await getDatabaseStructureSummary(connection);
         return NextResponse.json(structure);
     } catch (error) {
         const apiError = toApiErrorResponse(error);

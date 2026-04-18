@@ -17,6 +17,8 @@ docker compose up --build
 
 The app is mapped to port `1500` by default.
 
+If your database runs on your Windows host machine, keep using `localhost` in the app connection form. Inside Docker this is auto-mapped to `host.docker.internal`.
+
 ## Useful Docker Commands
 
 Stop containers:

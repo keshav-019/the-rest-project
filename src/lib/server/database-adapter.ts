@@ -66,9 +66,12 @@ const DEFAULT_PORTS: Record<SupportedDatabaseType, number> = {
 };
 
 const MAX_DATABASES = 20;
+const DEFAULT_CONNECT_TIMEOUT_MS = 10000;
+const DEFAULT_QUERY_TIMEOUT_MS = 30000;
 const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_$]*$/;
 const SAFE_COLUMN_TYPE = /^[A-Za-z0-9_\s(),.\[\]-]+$/;
 const SAFE_CONSTRAINT = /^[A-Za-z0-9_\s(),.\[\]-]+$/;
+const LOCALHOST_ALIASES = new Set(['localhost', '127.0.0.1', '::1']);
 
 type ColumnMap = Map<string, Map<string, ColumnDefinition>>;
 type DynamicImport = (modulePath: string) => Promise<any>;
@@ -82,6 +85,20 @@ const loadNodeModule = async <T = any>(modulePath: string): Promise<T> => {
     return dynamicImport(modulePath) as Promise<T>;
 };
 
+const toPositiveInteger = (value: string | undefined, fallback: number): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+};
+
+const CONNECT_TIMEOUT_MS = toPositiveInteger(
+    process.env.DB_CONNECT_TIMEOUT_MS,
+    DEFAULT_CONNECT_TIMEOUT_MS
+);
+const QUERY_TIMEOUT_MS = toPositiveInteger(
+    process.env.DB_QUERY_TIMEOUT_MS,
+    DEFAULT_QUERY_TIMEOUT_MS
+);
+
 class DatabaseAdapterError extends Error {
     status: number;
 
@@ -93,6 +110,47 @@ class DatabaseAdapterError extends Error {
 }
 
 const asString = (value: unknown): string => String(value ?? '').trim();
+
+const withTimeout = async <T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    message: string
+): Promise<T> => {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+        return await Promise.race([
+            promise,
+            new Promise<T>((_, reject) => {
+                timer = setTimeout(() => {
+                    reject(new DatabaseAdapterError(message, 504));
+                }, timeoutMs);
+            }),
+        ]);
+    } finally {
+        if (timer) {
+            clearTimeout(timer);
+        }
+    }
+};
+
+const resolveHostForRuntime = (host: string): string => {
+    const trimmedHost = host.trim();
+    if (!trimmedHost) {
+        return trimmedHost;
+    }
+
+    const runningInDocker = process.env.RUNNING_IN_DOCKER === 'true';
+    if (!runningInDocker) {
+        return trimmedHost;
+    }
+
+    const normalizedHost = trimmedHost.toLowerCase();
+    if (LOCALHOST_ALIASES.has(normalizedHost)) {
+        return process.env.DOCKER_HOST_ALIAS || 'host.docker.internal';
+    }
+
+    return trimmedHost;
+};
 
 const getRowValue = (row: Record<string, any>, key: string): any => {
     if (key in row) {
@@ -177,7 +235,7 @@ const normalizeConnection = (
     databaseOverride?: string
 ): NormalizedDatabaseConnection => {
     const type = normalizeDatabaseType(payload.type);
-    const host = asString(payload.host);
+    const host = resolveHostForRuntime(asString(payload.host));
 
     if (!host) {
         throw new DatabaseAdapterError('Database host is required', 400);
@@ -236,13 +294,24 @@ const executePostgresQuery = async (
         user: connection.username,
         password: connection.password,
         database: connection.database || 'postgres',
+        connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
+        query_timeout: QUERY_TIMEOUT_MS,
+        statement_timeout: QUERY_TIMEOUT_MS,
     });
 
     const startedAt = Date.now();
-    await client.connect();
+    await withTimeout(
+        client.connect(),
+        CONNECT_TIMEOUT_MS,
+        `Connection timed out while connecting to ${connection.host}:${connection.port}`
+    );
 
     try {
-        const result = await client.query(query);
+        const result = await withTimeout<any>(
+            client.query(query),
+            QUERY_TIMEOUT_MS,
+            `Query timed out after ${QUERY_TIMEOUT_MS}ms`
+        );
         return {
             rows: result.rows.map((row: any) => toPlainRow(row)),
             fields: (result.fields || []).map((field: any) => ({ name: field.name })),
@@ -261,18 +330,30 @@ const executeMysqlQuery = async (
     const mysqlModule = await loadNodeModule<any>('mysql2/promise');
     const mysql = (mysqlModule as any).default ?? mysqlModule;
 
-    const mysqlConnection = await mysql.createConnection({
-        host: connection.host,
-        port: connection.port,
-        user: connection.username,
-        password: connection.password,
-        database: connection.database,
-    });
+    const mysqlConnection = await withTimeout<any>(
+        mysql.createConnection({
+            host: connection.host,
+            port: connection.port,
+            user: connection.username,
+            password: connection.password,
+            database: connection.database,
+            connectTimeout: CONNECT_TIMEOUT_MS,
+        }),
+        CONNECT_TIMEOUT_MS,
+        `Connection timed out while connecting to ${connection.host}:${connection.port}`
+    );
 
     const startedAt = Date.now();
 
     try {
-        const [rows, fields] = await mysqlConnection.query(query);
+        const [rows, fields] = await withTimeout<[any, any]>(
+            mysqlConnection.query({
+                sql: query,
+                timeout: QUERY_TIMEOUT_MS,
+            }),
+            QUERY_TIMEOUT_MS,
+            `Query timed out after ${QUERY_TIMEOUT_MS}ms`
+        );
         const normalizedRows = Array.isArray(rows)
             ? rows.map((row: any) => toPlainRow(row))
             : [];
@@ -300,23 +381,33 @@ const executeSqlServerQuery = async (
     const mssqlModule = await loadNodeModule<any>('mssql');
     const sql = (mssqlModule as any).default ?? mssqlModule;
 
-    const pool = await new sql.ConnectionPool({
-        server: connection.host,
-        port: connection.port,
-        user: connection.username,
-        password: connection.password,
-        database: connection.database || 'master',
-        options: {
-            encrypt: false,
-            trustServerCertificate: true,
-            enableArithAbort: true,
-        },
-    }).connect();
+    const pool = await withTimeout<any>(
+        new sql.ConnectionPool({
+            server: connection.host,
+            port: connection.port,
+            user: connection.username,
+            password: connection.password,
+            database: connection.database || 'master',
+            connectionTimeout: CONNECT_TIMEOUT_MS,
+            requestTimeout: QUERY_TIMEOUT_MS,
+            options: {
+                encrypt: false,
+                trustServerCertificate: true,
+                enableArithAbort: true,
+            },
+        }).connect(),
+        CONNECT_TIMEOUT_MS,
+        `Connection timed out while connecting to ${connection.host}:${connection.port}`
+    );
 
     const startedAt = Date.now();
 
     try {
-        const result = await pool.request().query(query);
+        const result = await withTimeout<any>(
+            pool.request().query(query),
+            QUERY_TIMEOUT_MS,
+            `Query timed out after ${QUERY_TIMEOUT_MS}ms`
+        );
         const rows = Array.isArray(result.recordset)
             ? result.recordset.map((row: any) => toPlainRow(row))
             : [];
@@ -352,18 +443,31 @@ const executeOracleQuery = async (
     const oracleModule = await loadNodeModule<any>('oracledb');
     const oracledb = (oracleModule as any).default ?? oracleModule;
 
-    const oracleConnection = await oracledb.getConnection({
-        user: connection.username,
-        password: connection.password,
-        connectString: buildOracleConnectString(connection),
-    });
+    const oracleConnection = await withTimeout<any>(
+        oracledb.getConnection({
+            user: connection.username,
+            password: connection.password,
+            connectString: buildOracleConnectString(connection),
+        }),
+        CONNECT_TIMEOUT_MS,
+        `Connection timed out while connecting to ${connection.host}:${connection.port}`
+    );
 
     const startedAt = Date.now();
+    try {
+        oracleConnection.callTimeout = QUERY_TIMEOUT_MS;
+    } catch {
+        // Ignore when driver/runtime does not support callTimeout.
+    }
 
     try {
-        const result = await oracleConnection.execute(query, [], {
-            outFormat: oracledb.OUT_FORMAT_OBJECT,
-        });
+        const result = await withTimeout<any>(
+            oracleConnection.execute(query, [], {
+                outFormat: oracledb.OUT_FORMAT_OBJECT,
+            }),
+            QUERY_TIMEOUT_MS,
+            `Query timed out after ${QUERY_TIMEOUT_MS}ms`
+        );
 
         const rows = Array.isArray(result.rows)
             ? result.rows.map((row: any) => toPlainRow(row))
@@ -1247,6 +1351,206 @@ const getOracleStructure = async (
     };
 };
 
+const toSortedSchemas = (schemaMap: Map<string, ReturnType<typeof makeSchemaBucket>>) => {
+    return Array.from(schemaMap.values()).map((schema) => ({
+        ...schema,
+        tables: schema.tables.sort((a, b) => a.name.localeCompare(b.name)),
+        views: schema.views.sort((a, b) => a.name.localeCompare(b.name)),
+        functions: schema.functions.sort((a, b) => a.name.localeCompare(b.name)),
+        procedures: schema.procedures.sort((a, b) => a.name.localeCompare(b.name)),
+    })).sort((a, b) => a.name.localeCompare(b.name));
+};
+
+const getPostgresStructureSummary = async (
+    connection: DatabaseConnectionPayload
+): Promise<DatabaseStructureResponse> => {
+    const databases: DatabaseStructureResponse['databases'] = [];
+    const databaseNames = await listPostgresDatabases(connection);
+
+    for (const databaseName of databaseNames) {
+        const schemaMap = new Map<string, ReturnType<typeof makeSchemaBucket>>();
+
+        try {
+            const tablesResult = await executeDatabaseQuery(
+                { ...connection, database: databaseName },
+                `SELECT table_schema, table_name
+                 FROM information_schema.tables
+                 WHERE table_type = 'BASE TABLE'
+                   AND table_schema NOT IN ('pg_catalog', 'information_schema')
+                 ORDER BY table_schema, table_name`,
+                databaseName
+            );
+
+            for (const row of tablesResult.rows) {
+                const schemaName = asString(getRowValue(row, 'table_schema'));
+                const tableName = asString(getRowValue(row, 'table_name'));
+                if (!schemaName || !tableName) {
+                    continue;
+                }
+
+                const schema = ensureSchemaBucket(schemaMap, schemaName);
+                schema.tables.push({
+                    name: tableName,
+                    type: 'table',
+                    columns: [],
+                });
+            }
+        } catch {
+            // Skip inaccessible databases but keep them listed.
+        }
+
+        databases.push({
+            name: databaseName,
+            schemas: toSortedSchemas(schemaMap),
+        });
+    }
+
+    return { databases };
+};
+
+const getMysqlStructureSummary = async (
+    connection: DatabaseConnectionPayload
+): Promise<DatabaseStructureResponse> => {
+    const databases: DatabaseStructureResponse['databases'] = [];
+    const databaseNames = await listMysqlDatabases(connection);
+
+    for (const databaseName of databaseNames) {
+        const schemaMap = new Map<string, ReturnType<typeof makeSchemaBucket>>();
+
+        try {
+            const tablesResult = await executeDatabaseQuery(
+                { ...connection, database: databaseName },
+                `SELECT TABLE_NAME
+                 FROM information_schema.TABLES
+                 WHERE TABLE_SCHEMA = ${toSqlLiteral(databaseName)}
+                   AND TABLE_TYPE = 'BASE TABLE'
+                 ORDER BY TABLE_NAME`,
+                databaseName
+            );
+
+            const schema = ensureSchemaBucket(schemaMap, databaseName);
+            for (const row of tablesResult.rows) {
+                const tableName = asString(getRowValue(row, 'TABLE_NAME'));
+                if (!tableName) {
+                    continue;
+                }
+
+                schema.tables.push({
+                    name: tableName,
+                    type: 'table',
+                    columns: [],
+                });
+            }
+        } catch {
+            // Skip inaccessible databases but keep them listed.
+        }
+
+        databases.push({
+            name: databaseName,
+            schemas: toSortedSchemas(schemaMap),
+        });
+    }
+
+    return { databases };
+};
+
+const getSqlServerStructureSummary = async (
+    connection: DatabaseConnectionPayload
+): Promise<DatabaseStructureResponse> => {
+    const databases: DatabaseStructureResponse['databases'] = [];
+    const databaseNames = await listSqlServerDatabases(connection);
+
+    for (const databaseName of databaseNames) {
+        const schemaMap = new Map<string, ReturnType<typeof makeSchemaBucket>>();
+
+        try {
+            const tablesResult = await executeDatabaseQuery(
+                { ...connection, database: databaseName },
+                `SELECT TABLE_SCHEMA, TABLE_NAME
+                 FROM INFORMATION_SCHEMA.TABLES
+                 WHERE TABLE_TYPE = 'BASE TABLE'
+                   AND TABLE_SCHEMA NOT IN ('sys', 'INFORMATION_SCHEMA')
+                 ORDER BY TABLE_SCHEMA, TABLE_NAME`,
+                databaseName
+            );
+
+            for (const row of tablesResult.rows) {
+                const schemaName = asString(getRowValue(row, 'TABLE_SCHEMA'));
+                const tableName = asString(getRowValue(row, 'TABLE_NAME'));
+                if (!schemaName || !tableName) {
+                    continue;
+                }
+
+                const schema = ensureSchemaBucket(schemaMap, schemaName);
+                schema.tables.push({
+                    name: tableName,
+                    type: 'table',
+                    columns: [],
+                });
+            }
+        } catch {
+            // Skip inaccessible databases but keep them listed.
+        }
+
+        databases.push({
+            name: databaseName,
+            schemas: toSortedSchemas(schemaMap),
+        });
+    }
+
+    return { databases };
+};
+
+const getOracleStructureSummary = async (
+    connection: DatabaseConnectionPayload
+): Promise<DatabaseStructureResponse> => {
+    const databaseName = connection.database || connection.username || 'oracle';
+    const schemaMap = new Map<string, ReturnType<typeof makeSchemaBucket>>();
+
+    let schemaName = 'DEFAULT';
+    try {
+        const schemaResult = await executeDatabaseQuery(
+            { ...connection, database: connection.database || undefined },
+            'SELECT USER AS SCHEMA_NAME FROM dual'
+        );
+        schemaName = asString(getRowValue(schemaResult.rows[0] || {}, 'SCHEMA_NAME')) || 'DEFAULT';
+    } catch {
+        // keep DEFAULT schema fallback
+    }
+
+    const schema = ensureSchemaBucket(schemaMap, schemaName);
+    try {
+        const tablesResult = await executeDatabaseQuery(
+            { ...connection, database: connection.database || undefined },
+            'SELECT TABLE_NAME FROM USER_TABLES ORDER BY TABLE_NAME'
+        );
+
+        for (const row of tablesResult.rows) {
+            const tableName = asString(getRowValue(row, 'TABLE_NAME'));
+            if (!tableName) {
+                continue;
+            }
+
+            schema.tables.push({
+                name: tableName,
+                type: 'table',
+                columns: [],
+            });
+        }
+    } catch {
+        // keep database visible even when table discovery fails
+    }
+
+    return {
+        databases: [
+            {
+                name: databaseName,
+                schemas: toSortedSchemas(schemaMap),
+            },
+        ],
+    };
+};
+
 export const getDatabaseStructure = async (
     payload: DatabaseConnectionPayload
 ): Promise<DatabaseStructureResponse> => {
@@ -1260,6 +1564,24 @@ export const getDatabaseStructure = async (
             return getSqlServerStructure(normalized);
         case 'oracle':
             return getOracleStructure(normalized);
+        default:
+            throw new DatabaseAdapterError(`Unsupported database type: ${normalized.type}`, 400);
+    }
+};
+
+export const getDatabaseStructureSummary = async (
+    payload: DatabaseConnectionPayload
+): Promise<DatabaseStructureResponse> => {
+    const normalized = normalizeConnection(payload);
+    switch (normalized.type) {
+        case 'postgresql':
+            return getPostgresStructureSummary(normalized);
+        case 'mysql':
+            return getMysqlStructureSummary(normalized);
+        case 'sqlserver':
+            return getSqlServerStructureSummary(normalized);
+        case 'oracle':
+            return getOracleStructureSummary(normalized);
         default:
             throw new DatabaseAdapterError(`Unsupported database type: ${normalized.type}`, 400);
     }
