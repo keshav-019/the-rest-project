@@ -1,0 +1,13 @@
+services:
+  app:
+    container_name: the-rest-project
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: "1500"
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "1500:1500"
+    restart: unless-stopped
