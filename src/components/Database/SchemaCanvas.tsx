@@ -12,13 +12,13 @@ import ReactFlow, {
     Panel,
     Position,
     ReactFlowInstance,
-    useUpdateNodeInternals,
     useEdgesState,
     useNodesState,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { ChevronDown, ChevronRight, CircleOff, KeyRound, Link2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, CircleOff, KeyRound, Link2, Loader2 } from 'lucide-react';
 import { ColumnDefinition, SchemaObject } from '@/types/Connection';
+import DatabaseService from '@/lib/database-service';
 
 interface SchemaCanvasProps {
     connection: string;
@@ -32,6 +32,9 @@ interface TableNodeData {
     tableName: string;
     columns: ColumnDefinition[];
     expanded: boolean;
+    columnsLoaded: boolean;
+    loading: boolean;
+    error?: string;
     relationCount: number;
     isIsolated: boolean;
     linkedPrimaryColumns: string[];
@@ -47,6 +50,13 @@ interface TableRelation {
     sourceColumn: string;
     targetColumn: string;
     sourceIsPrimaryKey: boolean;
+}
+
+interface TableMetadataState {
+    columns: ColumnDefinition[];
+    loaded: boolean;
+    loading: boolean;
+    error?: string;
 }
 
 const COMPONENT_GRID_WIDTH = 2200;
@@ -124,15 +134,21 @@ const buildRelationships = (tables: SchemaObject[]): TableRelation[] => {
     return relations;
 };
 
-const buildEdges = (relations: TableRelation[], expandedByTable: Map<string, boolean>): Edge[] =>
+const buildEdges = (
+    relations: TableRelation[],
+    expandedByTable: Map<string, boolean>,
+    availableColumnsByTable: Map<string, Set<string>>
+): Edge[] =>
     relations.map((relation, index) => ({
         id: `fk-${relation.sourceTable}-${relation.sourceColumn}-${relation.targetTable}-${relation.targetColumn}-${index}`,
         source: relation.sourceTable,
         sourceHandle: expandedByTable.get(relation.sourceTable)
+            && availableColumnsByTable.get(relation.sourceTable)?.has(relation.sourceColumn.toLowerCase())
             ? sourceHandleIdForColumn(relation.sourceColumn)
             : 'source',
         target: relation.targetTable,
         targetHandle: expandedByTable.get(relation.targetTable)
+            && availableColumnsByTable.get(relation.targetTable)?.has(relation.targetColumn.toLowerCase())
             ? targetHandleIdForColumn(relation.targetColumn)
             : 'target',
         type: 'smoothstep',
@@ -294,7 +310,13 @@ const TableNode = memo(({ id, data }: NodeProps<TableNodeData>) => {
                     <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{data.tableName}</p>
                         <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                            <span>{data.columns.length} cols</span>
+                            <span>
+                                {data.loading
+                                    ? 'loading columns...'
+                                    : data.columnsLoaded
+                                      ? `${data.columns.length} cols`
+                                      : 'expand to load columns'}
+                            </span>
                             <span>•</span>
                             <span>{data.relationCount} links</span>
                             {data.isIsolated ? (
@@ -317,7 +339,20 @@ const TableNode = memo(({ id, data }: NodeProps<TableNodeData>) => {
                         }
                     }}
                 >
-                    {data.columns.map((column) => {
+                    {data.loading ? (
+                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 px-1 py-2">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Loading table metadata...
+                        </div>
+                    ) : data.error ? (
+                        <div className="text-xs text-rose-600 dark:text-rose-300 px-1 py-2">
+                            {data.error}
+                        </div>
+                    ) : data.columns.length === 0 ? (
+                        <div className="text-xs text-slate-500 dark:text-slate-400 px-1 py-2">
+                            No columns discovered.
+                        </div>
+                    ) : data.columns.map((column) => {
                         const normalizedColumnName = column.name.toLowerCase();
                         const isEdgeSource = linkedPrimaryColumns.has(normalizedColumnName);
                         const isEdgeTarget = linkedForeignColumns.has(normalizedColumnName);
@@ -409,15 +444,56 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const flowWrapperRef = useRef<HTMLDivElement | null>(null);
     const flowRef = useRef<ReactFlowInstance | null>(null);
-    const updateNodeInternals = useUpdateNodeInternals();
     const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
+    const [tableMetadataByName, setTableMetadataByName] = useState<Record<string, TableMetadataState>>({});
 
-    const relationships = useMemo(() => buildRelationships(tables), [tables]);
-    const layoutPositions = useMemo(() => createLayoutPositions(tables, relationships), [tables, relationships]);
+    useEffect(() => {
+        setTableMetadataByName((previous) => {
+            const next: Record<string, TableMetadataState> = {};
+
+            for (const table of tables) {
+                const previousEntry = previous[table.name];
+                const initialColumns = table.columns || [];
+
+                if (previousEntry?.loaded || previousEntry?.loading) {
+                    next[table.name] = previousEntry;
+                    continue;
+                }
+
+                if (initialColumns.length > 0) {
+                    next[table.name] = {
+                        columns: initialColumns,
+                        loaded: true,
+                        loading: false,
+                    };
+                } else {
+                    next[table.name] = {
+                        columns: [],
+                        loaded: false,
+                        loading: false,
+                    };
+                }
+            }
+
+            return next;
+        });
+    }, [tables]);
+
+    const hydratedTables = useMemo(
+        () =>
+            tables.map((table) => ({
+                ...table,
+                columns: tableMetadataByName[table.name]?.columns || table.columns || [],
+            })),
+        [tables, tableMetadataByName]
+    );
+
+    const relationships = useMemo(() => buildRelationships(hydratedTables), [hydratedTables]);
+    const layoutPositions = useMemo(() => createLayoutPositions(hydratedTables, relationships), [hydratedTables, relationships]);
 
     const relationCountByTable = useMemo(() => {
         const counts = new Map<string, number>();
-        for (const table of tables) {
+        for (const table of hydratedTables) {
             counts.set(table.name, 0);
         }
         for (const relation of relationships) {
@@ -425,12 +501,12 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
             counts.set(relation.targetTable, (counts.get(relation.targetTable) || 0) + 1);
         }
         return counts;
-    }, [tables, relationships]);
+    }, [hydratedTables, relationships]);
 
     const linkedColumnsByTable = useMemo(() => {
         const map = new Map<string, { source: Set<string>; target: Set<string> }>();
 
-        for (const table of tables) {
+        for (const table of hydratedTables) {
             map.set(table.name, { source: new Set(), target: new Set() });
         }
 
@@ -447,16 +523,35 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
         }
 
         return map;
-    }, [tables, relationships]);
+    }, [hydratedTables, relationships]);
 
     const expandedByTable = useMemo(
         () => new Map(nodes.map((node) => [node.id, Boolean(node.data?.expanded)])),
         [nodes]
     );
 
+    const availableColumnsByTable = useMemo(() => {
+        const map = new Map<string, Set<string>>();
+        for (const table of hydratedTables) {
+            map.set(
+                table.name,
+                new Set((table.columns || []).map((column) => column.name.toLowerCase()))
+            );
+        }
+        return map;
+    }, [hydratedTables]);
+
     const isolatedCount = useMemo(
-        () => tables.filter((table) => (relationCountByTable.get(table.name) || 0) === 0).length,
-        [tables, relationCountByTable]
+        () => hydratedTables.filter((table) => (relationCountByTable.get(table.name) || 0) === 0).length,
+        [hydratedTables, relationCountByTable]
+    );
+
+    const loadingTables = useMemo(
+        () =>
+            Object.entries(tableMetadataByName)
+                .filter(([, metadata]) => metadata.loading)
+                .map(([tableName]) => tableName),
+        [tableMetadataByName]
     );
 
     const fitGraph = useCallback(
@@ -482,35 +577,97 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
         setFocusedNodeId(null);
     }, []);
 
+    const loadTableMetadata = useCallback(
+        async (tableName: string) => {
+            let shouldFetch = false;
+
+            setTableMetadataByName((previous) => {
+                const current = previous[tableName];
+                if (!current || current.loaded || current.loading) {
+                    return previous;
+                }
+
+                shouldFetch = true;
+                return {
+                    ...previous,
+                    [tableName]: {
+                        ...current,
+                        loading: true,
+                        error: undefined,
+                    },
+                };
+            });
+
+            if (!shouldFetch) {
+                return;
+            }
+
+            try {
+                const dbService = DatabaseService.getInstance();
+                const description = await dbService.getTableDescription(
+                    connection,
+                    database,
+                    schema,
+                    tableName
+                );
+
+                setTableMetadataByName((previous) => ({
+                    ...previous,
+                    [tableName]: {
+                        columns: description.columns || [],
+                        loaded: true,
+                        loading: false,
+                        error: undefined,
+                    },
+                }));
+            } catch (error: any) {
+                setTableMetadataByName((previous) => ({
+                    ...previous,
+                    [tableName]: {
+                        columns: previous[tableName]?.columns || [],
+                        loaded: false,
+                        loading: false,
+                        error: error?.message || 'Failed to load table metadata.',
+                    },
+                }));
+            }
+        },
+        [connection, database, schema]
+    );
+
     const toggleNode = useCallback(
         (nodeId: string) => {
             setFocusedNodeId(nodeId);
-            setNodes((previousNodes) =>
-                previousNodes.map((node) =>
-                    node.id === nodeId
-                        ? {
-                              ...node,
-                              data: {
-                                  ...node.data,
-                                  expanded: !node.data.expanded,
-                              },
-                          }
-                        : node
-                )
-            );
-            window.requestAnimationFrame(() => {
-                updateNodeInternals(nodeId);
-            });
+            let shouldExpand = false;
+            setNodes((previousNodes) => previousNodes.map((node) => {
+                if (node.id !== nodeId) {
+                    return node;
+                }
+
+                shouldExpand = !node.data.expanded;
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        expanded: shouldExpand,
+                    },
+                };
+            }));
+
+            if (shouldExpand) {
+                void loadTableMetadata(nodeId);
+            }
         },
-        [setNodes, updateNodeInternals]
+        [setNodes, loadTableMetadata]
     );
 
     useEffect(() => {
         setNodes((previousNodes) => {
             const previousById = new Map(previousNodes.map((node) => [node.id, node]));
 
-            return tables.map((table) => {
+            return hydratedTables.map((table) => {
                 const previousNode = previousById.get(table.name) as Node<TableNodeData> | undefined;
+                const metadata = tableMetadataByName[table.name];
 
                 return {
                     id: table.name,
@@ -518,8 +675,11 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
                     position: previousNode?.position || layoutPositions.get(table.name) || { x: BASE_X, y: BASE_Y },
                     data: {
                         tableName: table.name,
-                        columns: table.columns || [],
+                        columns: metadata?.columns || table.columns || [],
                         expanded: previousNode?.data?.expanded || false,
+                        columnsLoaded: metadata?.loaded || false,
+                        loading: metadata?.loading || false,
+                        error: metadata?.error,
                         relationCount: relationCountByTable.get(table.name) || 0,
                         isIsolated: (relationCountByTable.get(table.name) || 0) === 0,
                         linkedPrimaryColumns: Array.from(linkedColumnsByTable.get(table.name)?.source || []),
@@ -532,11 +692,36 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
                 } satisfies Node<TableNodeData>;
             });
         });
-    }, [tables, layoutPositions, relationCountByTable, linkedColumnsByTable, focusedNodeId, toggleNode, focusNode, setNodes]);
+    }, [
+        hydratedTables,
+        tableMetadataByName,
+        layoutPositions,
+        relationCountByTable,
+        linkedColumnsByTable,
+        focusedNodeId,
+        toggleNode,
+        focusNode,
+        setNodes,
+    ]);
 
     useEffect(() => {
-        setEdges(buildEdges(relationships, expandedByTable));
-    }, [relationships, expandedByTable, setEdges]);
+        setEdges(buildEdges(relationships, expandedByTable, availableColumnsByTable));
+    }, [relationships, expandedByTable, availableColumnsByTable, setEdges]);
+
+    useEffect(() => {
+        for (const [tableName, isExpanded] of expandedByTable.entries()) {
+            if (!isExpanded) {
+                continue;
+            }
+
+            const metadata = tableMetadataByName[tableName];
+            if (!metadata || metadata.loaded || metadata.loading) {
+                continue;
+            }
+
+            void loadTableMetadata(tableName);
+        }
+    }, [expandedByTable, tableMetadataByName, loadTableMetadata]);
 
     useEffect(() => {
         if (!isActive) {
@@ -544,10 +729,10 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
             return;
         }
 
-        if (focusedNodeId && !tables.some((table) => table.name === focusedNodeId)) {
+        if (focusedNodeId && !hydratedTables.some((table) => table.name === focusedNodeId)) {
             setFocusedNodeId(null);
         }
-    }, [isActive, focusedNodeId, tables]);
+    }, [isActive, focusedNodeId, hydratedTables]);
 
     useEffect(() => {
         if (!isActive || tables.length === 0) {
@@ -622,6 +807,14 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
                     zoomOnPinch={!focusedNodeId}
                     panOnScroll={!focusedNodeId}
                 >
+                    {loadingTables.length > 0 ? (
+                        <Panel position="top-left">
+                            <div className="rounded-lg border border-sky-200 dark:border-sky-700/50 bg-sky-50/95 dark:bg-sky-950/45 px-3 py-2 text-[11px] text-sky-800 dark:text-sky-200 shadow-sm backdrop-blur-sm flex items-center gap-2">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Loading links for {loadingTables.length === 1 ? loadingTables[0] : `${loadingTables.length} tables`}...
+                            </div>
+                        </Panel>
+                    ) : null}
                     <Panel position="top-right">
                         <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 px-3 py-2 text-[11px] text-slate-600 dark:text-slate-300 shadow-sm backdrop-blur-sm">
                             <div>{tables.length} tables</div>
