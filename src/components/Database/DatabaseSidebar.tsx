@@ -641,7 +641,7 @@ export const DatabaseSidebar = ({
                                                                                             <div className="ml-4 space-y-1">
                                                                                                 <button
                                                                                                     type="button"
-                                                                                                    className="w-full flex items-center gap-2 p-2 rounded-md border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:border-blue-700/40 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-300"
+                                                                                                    className="w-full flex items-center gap-2 p-2 rounded-md border border-blue-200 bg-blue-50 hover:bg-blue-100 active:scale-[0.99] transition-transform text-blue-700 dark:border-blue-700/40 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-300 cursor-pointer"
                                                                                                     onClick={(e) => {
                                                                                                         e.stopPropagation();
                                                                                                         handleOpenSchemaCanvas(
