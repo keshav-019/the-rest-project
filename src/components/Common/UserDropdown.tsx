@@ -1,6 +1,6 @@
 // Updated UserDropdown.tsx with team dropdown and scrollable section
 'use client'
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Menu, MenuButton, MenuItems, Transition } from '@headlessui/react';
 import {
     DashboardIcon,
@@ -36,17 +36,25 @@ export interface UserDropdownProps {
 
 const UserDropdown = ({ initials, email, username, displayName, autoSave, setAutoSave, teamMode, setTeamMode, onExitTeamMode, showTeams, setShowTeams, teams, photoURL }: UserDropdownProps) => {
     const router = useRouter();
+    const [isElectronRuntime] = useState(() => typeof window !== 'undefined' && !!window.electronAPI);
 
-    const menuItems = [
-        { href: "/dashboard", icon: <DashboardIcon />, label: "Dashboard" },
-        { href: "/collections", icon: <CollectionsIcon />, label: "Collections" },
-        { href: "/", icon: <RequestBuilderIcon />, label: "Request Builder" },
-        { href: "/environments", icon: <EnvironmentsIcon />, label: "Environments" },
-        { href: "/teams", icon: <TeamIcon />, label: "Team" },
-        { href: "/database", icon: <Database />, label: "Data Pro"},
-        { href: "/terminal", icon: <TerminalIcon />, label: "SSH Manager"},
-        { href: "/settings", icon: <SettingsIcon />, label: "Settings" },
-    ];
+    const menuItems = useMemo(() => {
+        const baseItems = [
+            { href: "/dashboard", icon: <DashboardIcon />, label: "Dashboard" },
+            { href: "/collections", icon: <CollectionsIcon />, label: "Collections" },
+            { href: "/", icon: <RequestBuilderIcon />, label: "Request Builder" },
+            { href: "/environments", icon: <EnvironmentsIcon />, label: "Environments" },
+            { href: "/teams", icon: <TeamIcon />, label: "Team" },
+            { href: "/database", icon: <Database />, label: "Data Pro" },
+        ];
+
+        if (isElectronRuntime) {
+            baseItems.push({ href: "/terminal", icon: <TerminalIcon />, label: "SSH Manager" });
+        }
+
+        baseItems.push({ href: "/settings", icon: <SettingsIcon />, label: "Settings" });
+        return baseItems;
+    }, [isElectronRuntime]);
 
     const handleLogout = () => {
         localStorage.removeItem('currentUser');

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Environment } from '@/types/User'
 import EnvironmentMenu from './EnvironmentMenu'
 
@@ -22,6 +22,33 @@ export default function EnvironmentsList({
 }: EnvironmentsListProps) {
     const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
+
+    useEffect(() => {
+        if (!menuOpenFor) {
+            return;
+        }
+
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (!target) {
+                return;
+            }
+
+            if (
+                target.closest('[data-environment-menu]') ||
+                target.closest('[data-environment-menu-trigger]')
+            ) {
+                return;
+            }
+
+            setMenuOpenFor(null);
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [menuOpenFor]);
 
     const filteredEnvironments = environments.filter(env =>
         env.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -79,6 +106,7 @@ export default function EnvironmentsList({
                             <div className="relative">
                                 <button
                                     onClick={(e) => handleMenuClick(env.id, e)}
+                                    data-environment-menu-trigger
                                     className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -86,12 +114,14 @@ export default function EnvironmentsList({
                                     </svg>
                                 </button>
                                 {menuOpenFor === env.id && (
-                                    <EnvironmentMenu
-                                        environment={env}
-                                        onClose={() => setMenuOpenFor(null)}
-                                        onDelete={onEnvironmentDelete}
-                                        onUpdate={onEnvironmentUpdate}
-                                    />
+                                    <div data-environment-menu>
+                                        <EnvironmentMenu
+                                            environment={env}
+                                            onClose={() => setMenuOpenFor(null)}
+                                            onDelete={onEnvironmentDelete}
+                                            onUpdate={onEnvironmentUpdate}
+                                        />
+                                    </div>
                                 )}
                             </div>
                         </div>

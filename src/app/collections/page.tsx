@@ -1,29 +1,36 @@
-// components/Collections.tsx
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import CollectionsTree from '@/components/RequestBuilder/CollectionsTree';
 import CollectionDetails from '@/components/Collections/CollectionDetails';
 import RequestTabs from '@/components/RequestBuilder/RequestTabs';
-import NewCollectionModal from '@/components/Collections/NewCollectionModal';
-import { getUserData, cleanOldActivity } from '@/services/userService';
-import { Collection, Request, Folder } from '@/types/Collections';
-import { Team, User, UserData } from '@/types/User';
+import { Collection, Request } from '@/types/Collections';
+import { Team, User } from '@/types/User';
 import { getInitials, getUserDetails } from '@/lib/firebase/auth';
 import HeaderComponent from '@/components/Common/Header';
 import { savePersonalCollections } from '@/lib/firebase/collections';
-import { getTeamById, getTeamMode, getUserTeams } from '@/lib/firebase/teams';
+import { getTeamById, getTeamMode, getUserTeams, updateTeamCollections } from '@/lib/firebase/teams';
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+    buildCollectionShareUrl,
+    createDefaultCollection,
+    createDefaultFolder,
+    createDefaultRequest,
+    ensureCollectionDefaults,
+    ensureRequestDefaults,
+    findRequest,
+    normalizeCollections,
+    parseImportedCollections,
+    updateRequestInCollections,
+    withCollectionShareId,
+} from '@/lib/collections-utils';
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-const Collections: React.FC = () => {
+function CollectionsPageContent() {
     const [collections, setCollections] = useState<Collection[]>([]);
-    const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
-    const [showNewCollectionModal, setShowNewCollectionModal] = useState(false);
-    const [user, setUser] = useState<User | null>(null);
-    const [userData, setUserData] = useState<UserData | null>(null);
+    const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
     const [activeTabs, setActiveTabs] = useState<{ id: string; request: Request }[]>([]);
     const [activeTabId, setActiveTabId] = useState<string | null>(null);
-    const [userid, setUserid] = useState<string | undefined>(undefined);
+
+    const [user, setUser] = useState<User | null>(null);
     const [photoURL, setPhotoURL] = useState<string>('');
     const [autoSave, setAutoSave] = useState<boolean>(true);
     const [displayName, setDisplayName] = useState<string>('');
@@ -33,291 +40,416 @@ const Collections: React.FC = () => {
     const [teams, setTeams] = useState<Team[]>([]);
     const [teamMode, setTeamMode] = useState<Team | null>(null);
     const [showTeamsDropdown, setShowTeamsDropdown] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
-    // Add this useEffect to initialize team mode and environment from localStorage
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    const collectionIdFromQuery = searchParams.get('collectionId');
+
+    const selectedCollection = useMemo(
+        () => collections.find((collection) => collection.id === selectedCollectionId) || null,
+        [collections, selectedCollectionId]
+    );
+
     useEffect(() => {
         const savedTeamMode = localStorage.getItem('teamMode');
-
         if (savedTeamMode) {
-            setTeamMode(JSON.parse(savedTeamMode));
+            try {
+                const parsed = JSON.parse(savedTeamMode) as Team;
+                if (parsed.teamId) {
+                    setTeamMode(parsed);
+                }
+            } catch (error) {
+                console.error('Failed to parse team mode from localStorage:', error);
+            }
         }
     }, []);
 
-    // Fetch user data
     useEffect(() => {
-        const fetchUserData = async () => {
-            const { user, userData } = (await getUserDetails());
-            setUser(user);
-            const teams = await getUserTeams(user?.uid || '');
-            setUserid(user?.uid);
-            setEmail(user?.email || '');
+        const loadData = async () => {
+            const { user: currentUser, userData } = await getUserDetails();
+            if (!currentUser) {
+                router.push('/login');
+                return;
+            }
+
+            const userTeams = await getUserTeams(currentUser.uid);
+            setUser(currentUser);
+            setEmail(currentUser.email || '');
             setAutoSave(userData?.autoSave || true);
-            setDisplayName(user?.displayName || '');
-            setPhotoURL(user?.photoURL || '');
-            setUsername(user?.username || '');
-            setInitials(getInitials(user?.displayName || ''));
-            setTeams(teams);
+            setDisplayName(currentUser.displayName || '');
+            setPhotoURL(currentUser.photoURL || '');
+            setUsername(currentUser.username || '');
+            setInitials(getInitials(currentUser.displayName || ''));
+            setTeams(userTeams);
 
-            const intermediateTeamMode = getTeamMode();
-
-            if(intermediateTeamMode){              
-                const getTeamDetails = await getTeamById(intermediateTeamMode.teamId);  
-                setCollections(getTeamDetails.collections);
+            const persistedTeamMode = getTeamMode();
+            if (persistedTeamMode) {
+                const teamDetails = await getTeamById(persistedTeamMode.teamId);
+                setCollections(normalizeCollections(teamDetails.collections || [], persistedTeamMode.teamId));
+                return;
             }
 
-            if (user && !intermediateTeamMode) {
-                const data = await getUserData(user.uid);
-                if (data) {
-                    setUserData(data);
-                    console.log("The personal collections is: ", data.personalCollections);
-                    const allCollections = [
-                        ...(data.personalCollections || [])
-                    ];
-                    setCollections(allCollections);
-                    if (allCollections.length > 0) {
-                        setSelectedCollection(allCollections[0]);
-                    }
-                }
-                await cleanOldActivity(user.uid);
-            }
+            setCollections(normalizeCollections(userData?.personalCollections || []));
         };
-        fetchUserData();
-    }, []);
 
-    const handleAddCollection = (name: string) => {
-        const newCollection: Collection = {
-            id: `${Date.now()}`,
-            name,
-            description: '',
-            variables: [],
-            folders: [],
-            requests: []
-        };
-    
-        const updatedCollections = [...collections, newCollection];
-    
-        setCollections(updatedCollections);
-        setSelectedCollection(newCollection);
-    
-        console.log("The new collection is: ", newCollection, " and the user is: ", user, " and the collections is: ", updatedCollections);
-    
-        if (!user?.uid) throw new Error('No users logged in right now');
-    
-        savePersonalCollections(user.uid, updatedCollections); // ✅ now correct
-    };    
+        loadData();
+    }, [router]);
 
-    const handleAddFolder = (collectionId: string) => {
-        setCollections(prev => prev.map(collection => {
-            if (collection.id === collectionId) {
-                const newFolder: Folder = {
-                    id: `${collectionId}-${Date.now()}`, // collectionId-timestamp
-                    name: `New Folder ${collection.folders.length + 1}`,
-                    requests: []
-                };
-                return {
-                    ...collection,
-                    folders: [...collection.folders, newFolder]
-                };
-            }
-            return collection;
-        }));
-        if(user?.uid === undefined) throw new Error('No users logged in right now');
-        savePersonalCollections(user?.uid, collections);
-    };
+    useEffect(() => {
+        if (collectionIdFromQuery) {
+            setSelectedCollectionId(collectionIdFromQuery);
+        }
+    }, [collectionIdFromQuery]);
 
-    const handleAddRequest = (collectionId: string, folderId?: string) => {
-        if (!user?.uid) throw new Error('No users logged in right now');
-    
-        const newRequest: Request = {
-            id: `${folderId || collectionId}-${Date.now()}`,
-            method: 'GET',
-            name: 'New Request',
-            description: '',
-            url: '',
-            auth: {credentials: {}, type: 'none'},
-            body: '',
-            headers: [{enabled: false, key: '', value: ''}],
-            params: [{enabled: false, key: '', value: ''}],
-            preRequestScript: '',
-            tests: ''
-        };
-    
-        const updatedCollections = collections.map(collection => {
-            if (collection.id !== collectionId) return collection;
-    
-            if (folderId) {
-                // Add to a folder
-                return {
-                    ...collection,
-                    folders: collection.folders.map(folder =>
-                        folder.id === folderId
-                            ? { ...folder, requests: [...folder.requests, newRequest] }
-                            : folder
-                    )
-                };
+    useEffect(() => {
+        if (selectedCollectionId && !collections.some((collection) => collection.id === selectedCollectionId)) {
+            setSelectedCollectionId(null);
+        }
+    }, [collections, selectedCollectionId]);
+
+    const persistCollections = async (nextCollections: Collection[]) => {
+        if (!user?.uid) {
+            return;
+        }
+
+        const normalized = normalizeCollections(nextCollections, teamMode?.teamId);
+        setCollections(normalized);
+
+        setIsSaving(true);
+        try {
+            if (teamMode?.teamId) {
+                await updateTeamCollections(teamMode.teamId, normalized);
             } else {
-                // Add directly to collection
+                await savePersonalCollections(user.uid, normalized);
+            }
+        } catch (error) {
+            console.error('Failed to persist collections:', error);
+            alert('Failed to save collections. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleAddCollection = async (name: string) => {
+        const collectionName = name.trim() || 'New Collection';
+        const nextCollection = createDefaultCollection(collectionName, teamMode?.teamId);
+        const nextCollections = [...collections, nextCollection];
+
+        await persistCollections(nextCollections);
+        setSelectedCollectionId(nextCollection.id);
+    };
+
+    const handleAddFolder = async (collectionId: string) => {
+        const collection = collections.find((entry) => entry.id === collectionId);
+        const folder = createDefaultFolder(collectionId, (collection?.folders.length || 0) + 1);
+
+        const nextCollections = collections.map((entry) =>
+            entry.id === collectionId
+                ? {
+                      ...entry,
+                      folders: [...entry.folders, folder],
+                      updatedAt: new Date().toISOString(),
+                  }
+                : entry
+        );
+
+        await persistCollections(nextCollections);
+    };
+
+    const handleAddRequest = async (collectionId: string, folderId?: string) => {
+        const request = createDefaultRequest(folderId || collectionId, 'http');
+
+        const nextCollections = collections.map((collection) => {
+            if (collection.id !== collectionId) {
+                return collection;
+            }
+
+            if (folderId) {
                 return {
                     ...collection,
-                    requests: [...collection.requests, newRequest]
+                    folders: collection.folders.map((folder) =>
+                        folder.id === folderId
+                            ? {
+                                  ...folder,
+                                  requests: [...folder.requests, request],
+                              }
+                            : folder
+                    ),
+                    updatedAt: new Date().toISOString(),
                 };
             }
+
+            return {
+                ...collection,
+                requests: [...collection.requests, request],
+                updatedAt: new Date().toISOString(),
+            };
         });
-    
-        setCollections(updatedCollections);
-        openRequestInTab(newRequest);
-        savePersonalCollections(user.uid, updatedCollections); // ✅ Save the right state
+
+        await persistCollections(nextCollections);
+        openRequestInTab(request);
     };
-    
 
     const openRequestInTab = (request: Request) => {
-        setActiveTabs(prev => {
-            // Don't open duplicate tabs
-            if (prev.some(tab => tab.id === request.id)) {
-                return prev;
+        const normalizedRequest = ensureRequestDefaults(request);
+
+        setActiveTabs((previousTabs) => {
+            if (previousTabs.some((tab) => tab.id === normalizedRequest.id)) {
+                return previousTabs;
             }
-            return [...prev, { id: request.id, request }];
+            return [...previousTabs, { id: normalizedRequest.id, request: normalizedRequest }];
         });
-        setActiveTabId(request.id);
+
+        setActiveTabId(normalizedRequest.id);
+
+        const reference = findRequest(collections, normalizedRequest.id);
+        if (reference) {
+            setSelectedCollectionId(reference.collection.id);
+        }
     };
 
     const closeTab = (id: string) => {
-        setActiveTabs(prev => prev.filter(tab => tab.id !== id));
-        setActiveTabId(prev => prev === id ? null : prev);
-    };
-
-    const updateRequest = (id: string, updatedRequest: Request) => {
-        // Update in collections state
-        setCollections(prev => prev.map(collection => ({
-            ...collection,
-            folders: collection.folders.map(folder => ({
-                ...folder,
-                requests: folder.requests.map(req =>
-                    req.id === id ? updatedRequest : req
-                )
-            })),
-            requests: collection.requests.map(req =>
-                req.id === id ? updatedRequest : req
-            )
-        })));
-
-        // Update in active tabs
-        setActiveTabs(prev => prev.map(tab =>
-            tab.id === id ? { ...tab, request: updatedRequest } : tab
-        ));
-        if(user?.uid === undefined) throw new Error('No users logged in right now');
-        savePersonalCollections(user?.uid, collections);
-    };
-
-    const renameItem = (id: string, newName: string) => {
-        setCollections(prev => prev.map(collection => {
-            if (collection.id === id) {
-                return { ...collection, name: newName };
+        setActiveTabs((previousTabs) => {
+            const nextTabs = previousTabs.filter((tab) => tab.id !== id);
+            if (activeTabId === id) {
+                setActiveTabId(nextTabs.length > 0 ? nextTabs[nextTabs.length - 1].id : null);
             }
+            return nextTabs;
+        });
+    };
+
+    const updateRequest = async (id: string, updatedRequest: Request) => {
+        const normalizedRequest = ensureRequestDefaults(updatedRequest);
+
+        setActiveTabs((previousTabs) =>
+            previousTabs.map((tab) => (tab.id === id ? { ...tab, request: normalizedRequest } : tab))
+        );
+
+        const nextCollections = updateRequestInCollections(collections, id, () => ({
+            ...normalizedRequest,
+            updatedAt: new Date().toISOString(),
+        }));
+
+        await persistCollections(nextCollections);
+    };
+
+    const renameItem = async (id: string, newName: string) => {
+        if (!newName.trim()) {
+            return;
+        }
+
+        const nextCollections = collections.map((collection) => {
+            if (collection.id === id) {
+                return {
+                    ...collection,
+                    name: newName,
+                    updatedAt: new Date().toISOString(),
+                };
+            }
+
             return {
                 ...collection,
-                folders: collection.folders.map(folder =>
-                    folder.id === id ? { ...folder, name: newName } : folder
+                folders: collection.folders.map((folder) =>
+                    folder.id === id
+                        ? { ...folder, name: newName }
+                        : {
+                              ...folder,
+                              requests: folder.requests.map((request) =>
+                                  request.id === id
+                                      ? {
+                                            ...request,
+                                            name: newName,
+                                            updatedAt: new Date().toISOString(),
+                                        }
+                                      : request
+                              ),
+                          }
                 ),
-                requests: collection.requests.map(request =>
-                    request.id === id ? { ...request, name: newName } : request
-                )
+                requests: collection.requests.map((request) =>
+                    request.id === id
+                        ? {
+                              ...request,
+                              name: newName,
+                              updatedAt: new Date().toISOString(),
+                          }
+                        : request
+                ),
             };
-        }));
-        if(user?.uid === undefined) throw new Error('No users logged in right now');
-        savePersonalCollections(user?.uid, collections);
+        });
+
+        await persistCollections(nextCollections);
     };
 
-    const deleteItem = (id: string) => {
-        setCollections(prev =>
-            prev
-                // Remove collection if it matches ID
-                .filter(collection => collection.id !== id)
-                // Otherwise filter out folders/requests with matching ID
-                .map(collection => ({
-                    ...collection,
-                    folders: collection.folders.filter(folder => folder.id !== id),
-                    requests: collection.requests.filter(request => request.id !== id)
-                }))
-        );
-        if(user?.uid === undefined) throw new Error('No users logged in right now');
-        savePersonalCollections(user?.uid, collections);
+    const deleteItem = async (id: string) => {
+        const nextCollections = collections
+            .filter((collection) => collection.id !== id)
+            .map((collection) => ({
+                ...collection,
+                folders: collection.folders
+                    .filter((folder) => folder.id !== id)
+                    .map((folder) => ({
+                        ...folder,
+                        requests: folder.requests.filter((request) => request.id !== id),
+                    })),
+                requests: collection.requests.filter((request) => request.id !== id),
+            }));
 
-        // Close tab if the deleted item was open
-        closeTab(id);
+        setActiveTabs((previousTabs) => previousTabs.filter((tab) => tab.id !== id));
+        if (activeTabId === id) {
+            setActiveTabId(null);
+        }
+
+        await persistCollections(nextCollections);
+    };
+
+    const handleDuplicateRequest = async (request: Request) => {
+        const reference = findRequest(collections, request.id);
+        if (!reference) {
+            return;
+        }
+
+        const duplicatedRequest = ensureRequestDefaults({
+            ...request,
+            id: `${reference.folder?.id || reference.collection.id}-${Date.now()}`,
+            name: `${request.name} Copy`,
+            updatedAt: new Date().toISOString(),
+        });
+
+        const nextCollections = collections.map((collection) => {
+            if (collection.id !== reference.collection.id) {
+                return collection;
+            }
+
+            if (reference.folder) {
+                return {
+                    ...collection,
+                    folders: collection.folders.map((folder) =>
+                        folder.id === reference.folder?.id
+                            ? {
+                                  ...folder,
+                                  requests: [...folder.requests, duplicatedRequest],
+                              }
+                            : folder
+                    ),
+                    updatedAt: new Date().toISOString(),
+                };
+            }
+
+            return {
+                ...collection,
+                requests: [...collection.requests, duplicatedRequest],
+                updatedAt: new Date().toISOString(),
+            };
+        });
+
+        await persistCollections(nextCollections);
+        openRequestInTab(duplicatedRequest);
     };
 
     const handleExportCollections = () => {
-        // Convert collections to JSON string
         const dataStr = JSON.stringify(collections, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+        const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(dataStr)}`;
 
-        // Create download link
-        const exportFileDefaultName = 'collections-export.json';
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.setAttribute('download', 'collections-export.json');
         linkElement.click();
     };
 
     const handleImportCollections = () => {
-        // Create file input element
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.json';
 
-        input.onchange = (e: Event) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (!file) return;
+        input.onchange = async (event: Event) => {
+            const target = event.target as HTMLInputElement;
+            const file = target.files?.[0];
+            if (!file) {
+                return;
+            }
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const importedData = JSON.parse(event.target?.result as string);
+            try {
+                const importedCollections = parseImportedCollections(await file.text(), teamMode?.teamId);
+                const mergedCollections = normalizeCollections([
+                    ...collections,
+                    ...importedCollections,
+                ], teamMode?.teamId);
 
-                    // Validate the imported data structure
-                    if (Array.isArray(importedData) && importedData.every(isValidCollection)) {
-                        // Replace current collections with imported ones
-                        setCollections(importedData);
-                        if(user?.uid === undefined) throw new Error('No users logged in right now');
-                        savePersonalCollections(user?.uid, collections);
-                    } else {
-                        throw new Error('Invalid collections format');
-                    }
-                } catch (error) {
-                    alert('Error importing collections: Invalid file format');
-                    console.error('Import error:', error);
-                }
-            };
-            reader.readAsText(file);
+                await persistCollections(mergedCollections);
+                alert(`Imported ${importedCollections.length} collection(s).`);
+            } catch (error) {
+                console.error('Import error:', error);
+                alert(
+                    error instanceof Error
+                        ? error.message
+                        : 'Error importing collections: invalid file format.'
+                );
+            }
         };
 
         input.click();
     };
 
-    // Helper function to validate collection structure
-    const isValidCollection = (obj: Collection): obj is Collection => {
-        return obj &&
-            typeof obj.id === 'string' &&
-            typeof obj.name === 'string' &&
-            Array.isArray(obj.folders) &&
-            Array.isArray(obj.requests);
+    const handleShareCollection = async (collection: Collection) => {
+        const ownerTeamId = teamMode?.teamId || collection.teamId;
+        if (!ownerTeamId) {
+            alert('Sharing is available only for team collections.');
+            return;
+        }
+
+        const sharedCollection = withCollectionShareId({
+            ...ensureCollectionDefaults(collection, ownerTeamId),
+            teamId: ownerTeamId,
+        });
+
+        const nextCollections = collections.map((entry) =>
+            entry.id === collection.id ? sharedCollection : entry
+        );
+
+        await persistCollections(nextCollections);
+        const shareId = sharedCollection.shareId;
+        if (!shareId) {
+            alert('Unable to generate share link. Please try again.');
+            return;
+        }
+
+        const link = buildCollectionShareUrl(window.location.origin, shareId);
+        try {
+            await navigator.clipboard.writeText(link);
+        } catch (error) {
+            console.error('Clipboard write failed:', error);
+            alert(`Share link created: ${link}`);
+        }
+        router.push(`/collections/shared/${shareId}`);
     };
 
-    // Add this handler for exiting team mode
+    const handleDeleteCollection = async (collection: Collection) => {
+        if (!window.confirm(`Delete "${collection.name}"? This cannot be undone.`)) {
+            return;
+        }
+
+        await deleteItem(collection.id);
+        if (selectedCollectionId === collection.id) {
+            setSelectedCollectionId(null);
+        }
+    };
+
     const handleExitTeamMode = () => {
         setTeamMode(null);
         localStorage.removeItem('teamMode');
         localStorage.removeItem('activeEnvironmentId');
-
-        // Refresh the page to reset all states
         window.location.reload();
     };
 
-    // Add this handler for team selection
     const handleTeamSelect = (team: Team | null) => {
         setTeamMode(team);
-        localStorage.setItem('teamMode', JSON.stringify(team));
+        if (team) {
+            localStorage.setItem('teamMode', JSON.stringify(team));
+        } else {
+            localStorage.removeItem('teamMode');
+        }
         setShowTeamsDropdown(false);
         localStorage.removeItem('activeEnvironmentId');
     };
@@ -326,7 +458,9 @@ const Collections: React.FC = () => {
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
             <div className="flex-1 flex flex-col overflow-hidden">
                 <HeaderComponent
-                    onAddCollection={() => handleAddCollection('New Collection')}
+                    onAddCollection={() => {
+                        void handleAddCollection('New Collection');
+                    }}
                     toSearch={true}
                     parentComponent="Collections"
                     environments={[]}
@@ -350,17 +484,29 @@ const Collections: React.FC = () => {
                 <div className="flex-1 flex overflow-hidden">
                     <CollectionsTree
                         collections={collections}
-                        onAddRequest={handleAddRequest}
-                        onAddFolder={handleAddFolder}
-                        onRenameItem={renameItem}
-                        onDeleteItem={deleteItem}
+                        onAddRequest={(collectionId, folderId) => {
+                            void handleAddRequest(collectionId, folderId);
+                        }}
+                        onAddFolder={(collectionId) => {
+                            void handleAddFolder(collectionId);
+                        }}
+                        onRenameItem={(id, newName) => {
+                            void renameItem(id, newName);
+                        }}
+                        onDeleteItem={(id) => {
+                            void deleteItem(id);
+                        }}
                         onDuplicateRequest={(request) => {
-                            const [collectionId, folderId] = request.id.split('-');
-                            handleAddRequest(collectionId, folderId === 'root' ? undefined : folderId);
+                            void handleDuplicateRequest(request);
                         }}
                         onSelectRequest={openRequestInTab}
-                        onAddCollection={handleAddCollection}
+                        onAddCollection={(name) => {
+                            void handleAddCollection(name);
+                        }}
                         onExportCollections={handleExportCollections}
+                        onImportCollections={handleImportCollections}
+                        onSelectCollection={(collection) => setSelectedCollectionId(collection.id)}
+                        selectedCollectionId={selectedCollectionId}
                     />
 
                     <div className="flex-1 flex flex-col overflow-hidden">
@@ -370,42 +516,87 @@ const Collections: React.FC = () => {
                                 activeTabId={activeTabId}
                                 onTabChange={setActiveTabId}
                                 onCloseTab={closeTab}
-                                onSaveRequest={updateRequest}
+                                onSaveRequest={(id, request) => {
+                                    void updateRequest(id, request);
+                                }}
                             />
                         ) : selectedCollection ? (
                             <CollectionDetails
                                 collection={selectedCollection}
                                 onEditCollection={(updated) => {
                                     if ('variables' in updated) {
-                                        // This is a collection update
-                                        setSelectedCollection(updated);
-                                        setCollections(prev => prev.map(c =>
-                                            c.id === updated.id ? updated : c
-                                        ));
+                                        const nextCollections = collections.map((collection) =>
+                                            collection.id === updated.id
+                                                ? ensureCollectionDefaults({
+                                                      ...updated,
+                                                      updatedAt: new Date().toISOString(),
+                                                  }, teamMode?.teamId)
+                                                : collection
+                                        );
+                                        void persistCollections(nextCollections);
                                     } else {
-                                        // This is a request - open in tab
                                         openRequestInTab(updated as Request);
                                     }
                                 }}
+                                onShareCollection={(collection) => {
+                                    void handleShareCollection(collection);
+                                }}
+                                onDeleteCollection={(collection) => {
+                                    void handleDeleteCollection(collection);
+                                }}
                             />
                         ) : (
-                            <div className="flex items-center justify-center h-full">
-                                <p className="text-gray-500 dark:text-gray-400">
-                                    No collection selected
-                                </p>
+                            <div className="h-full grid place-items-center bg-gradient-to-br from-blue-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+                                <div className="max-w-xl rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-800/80 shadow p-8 space-y-4 text-center">
+                                    <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                                        {collections.length === 0 ? 'Start Your API Workspace' : 'Select A Collection'}
+                                    </h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                                        {collections.length === 0
+                                            ? 'Create a collection or import from Postman, Hoppscotch, or other tools to continue.'
+                                            : 'Pick a collection from the sidebar to view variables, requests, and sharing options.'}
+                                    </p>
+                                    <div className="flex flex-wrap justify-center gap-3 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                void handleAddCollection('New Collection');
+                                            }}
+                                            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                                        >
+                                            Create Collection
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleImportCollections}
+                                            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                        >
+                                            Import Collections
+                                        </button>
+                                    </div>
+                                    {isSaving ? (
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                            Saving changes...
+                                        </p>
+                                    ) : null}
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             </div>
-
-            <NewCollectionModal
-                isOpen={showNewCollectionModal}
-                onClose={() => setShowNewCollectionModal(false)}
-                onCreate={handleAddCollection}
-            />
         </div>
     );
-};
+}
 
-export default Collections;
+function CollectionsPageFallback() {
+    return <div className="h-screen bg-gray-50 dark:bg-gray-900" />;
+}
+
+export default function CollectionsPage() {
+    return (
+        <Suspense fallback={<CollectionsPageFallback />}>
+            <CollectionsPageContent />
+        </Suspense>
+    );
+}

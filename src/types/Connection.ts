@@ -50,11 +50,11 @@ export interface ColumnDefinition {
 export interface WindowTab {
     id: string;
     title: string;
-    type: 'table' | 'view' | 'function' | 'procedure' | 'query' | 'collection';
+    type: 'table' | 'view' | 'function' | 'procedure' | 'query' | 'collection' | 'schema';
     connection: string;
     database: string;
     schema?: string;
+    schemaObjects?: SchemaObject[];
 }
-
 
 

@@ -1,6 +1,5 @@
 // electron/main.js
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const pty = require('node-pty');
 const path = require('path');
 const isDev = require('electron-is-dev');
 const fs = require('fs');
@@ -10,6 +9,40 @@ let mainWindow;
 let ptyProcess = null;
 let sshConnection = null;
 let sshStream = null;
+let pty = null;
+
+function loadPtyModule() {
+    if (pty) return pty;
+
+    try {
+        pty = require('node-pty');
+        return pty;
+    } catch (error) {
+        console.error('node-pty is unavailable:', error);
+        return null;
+    }
+}
+
+function resolveShell() {
+    if (process.platform !== 'win32') {
+        return process.env.SHELL || '/bin/bash';
+    }
+
+    const systemRoot = process.env.SystemRoot || 'C:\\Windows';
+    const powershellPath = path.join(
+        systemRoot,
+        'System32',
+        'WindowsPowerShell',
+        'v1.0',
+        'powershell.exe'
+    );
+
+    if (fs.existsSync(powershellPath)) {
+        return powershellPath;
+    }
+
+    return process.env.ComSpec || 'cmd.exe';
+}
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -95,10 +128,21 @@ ipcMain.handle('change-theme', (event, theme) => {
 ipcMain.handle('request-pty', () => {
     cleanup();
 
-    const shell = process.platform === 'win32' ? 'powershell.exe' : (process.env.SHELL || '/bin/bash');
+    const ptyModule = loadPtyModule();
+    if (!ptyModule) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send(
+                'pty-data',
+                '\r\nError: Local terminal is unavailable because node-pty is not installed for this platform/runtime.\r\n'
+            );
+        }
+        return false;
+    }
+
+    const shell = resolveShell();
 
     try {
-        ptyProcess = pty.spawn(shell, [], {
+        ptyProcess = ptyModule.spawn(shell, [], {
             name: 'xterm-256color',
             cols: 80,
             rows: 24,

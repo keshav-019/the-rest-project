@@ -35,7 +35,10 @@ export const ConnectionDialog = ({ isOpen, onClose, onConnectionCreated }: Conne
         setIsTesting(true);
         try {
             const dbService = DatabaseService.getInstance();
-            const result = await dbService.testConnection(formData as ConnectionConfig);
+            const result = await dbService.testConnection({
+                ...formData,
+                databaseType: 'sql',
+            } as ConnectionConfig);
             
             toast({
                 title: "Connection successful",
@@ -57,7 +60,10 @@ export const ConnectionDialog = ({ isOpen, onClose, onConnectionCreated }: Conne
         setIsSaving(true);
         try {
             const dbService = DatabaseService.getInstance();
-            const connection = await dbService.saveConnection(formData as ConnectionConfig);
+            const connection = await dbService.saveConnection({
+                ...formData,
+                databaseType: 'sql',
+            } as ConnectionConfig);
             
             onConnectionCreated(connection);
             onClose();
@@ -80,34 +86,34 @@ export const ConnectionDialog = ({ isOpen, onClose, onConnectionCreated }: Conne
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-md bg-gray-800 border-0 rounded-lg">
+            <DialogContent className="max-w-md bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl">
                 <DialogHeader>
-                    <DialogTitle className="text-gray-100">New Database Connection</DialogTitle>
-                    <DialogDescription className="text-gray-400">
+                    <DialogTitle className="text-slate-900 dark:text-gray-100">New Database Connection</DialogTitle>
+                    <DialogDescription className="text-slate-500 dark:text-gray-400">
                         Enter your database connection details
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label className="text-gray-300">Connection Name</Label>
+                        <Label className="text-slate-700 dark:text-gray-300">Connection Name</Label>
                         <Input
                             value={formData.name}
                             onChange={(e) => setFormData({...formData, name: e.target.value})}
-                            className="bg-gray-700 border-0 text-gray-100"
+                            className="bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100"
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-gray-300">Database Type</Label>
+                        <Label className="text-slate-700 dark:text-gray-300">Database Type</Label>
                         <Select
                             value={formData.type}
                             onValueChange={(value) => setFormData({...formData, type: value})}
                         >
-                            <SelectTrigger className="bg-gray-700 border-0 text-gray-100">
+                            <SelectTrigger className="bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100">
                                 <SelectValue placeholder="Select database type" />
                             </SelectTrigger>
-                            <SelectContent className="bg-gray-800 border-0">
+                            <SelectContent className="bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700">
                                 <SelectItem value="postgresql">PostgreSQL</SelectItem>
                                 <SelectItem value="mysql">MySQL</SelectItem>
                                 <SelectItem value="sqlserver">SQL Server</SelectItem>
@@ -118,56 +124,56 @@ export const ConnectionDialog = ({ isOpen, onClose, onConnectionCreated }: Conne
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label className="text-gray-300">Host</Label>
+                            <Label className="text-slate-700 dark:text-gray-300">Host</Label>
                             <Input
                                 value={formData.host}
                                 onChange={(e) => setFormData({...formData, host: e.target.value})}
-                                className="bg-gray-700 border-0 text-gray-100"
+                                className="bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-gray-300">Port</Label>
+                            <Label className="text-slate-700 dark:text-gray-300">Port</Label>
                             <Input
                                 value={formData.port}
                                 onChange={(e) => setFormData({...formData, port: e.target.value})}
-                                className="bg-gray-700 border-0 text-gray-100"
+                                className="bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100"
                             />
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-gray-300">Username</Label>
+                        <Label className="text-slate-700 dark:text-gray-300">Username</Label>
                         <Input
                             value={formData.username}
                             onChange={(e) => setFormData({...formData, username: e.target.value})}
-                            className="bg-gray-700 border-0 text-gray-100"
+                            className="bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100"
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-gray-300">Password</Label>
+                        <Label className="text-slate-700 dark:text-gray-300">Password</Label>
                         <Input
                             type="password"
                             value={formData.password}
                             onChange={(e) => setFormData({...formData, password: e.target.value})}
-                            className="bg-gray-700 border-0 text-gray-100"
+                            className="bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100"
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-gray-300">Database (optional)</Label>
+                        <Label className="text-slate-700 dark:text-gray-300">Database (optional)</Label>
                         <Input
                             value={formData.database}
                             onChange={(e) => setFormData({...formData, database: e.target.value})}
-                            className="bg-gray-700 border-0 text-gray-100"
+                            className="bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-900 dark:text-gray-100"
                         />
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-4">
+                    <div className="flex justify-end gap-2 pt-2">
                         <Button
                             type="button"
                             variant="outline"
-                            className="bg-gray-700 border-0 text-gray-100 hover:bg-gray-600"
+                            className="border-slate-200 dark:border-gray-700"
                             onClick={handleTestConnection}
                             disabled={isTesting}
                         >

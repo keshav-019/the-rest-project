@@ -1,6 +1,5 @@
 import { getCurrentUser, getInitials } from "@/lib/firebase/auth";
-import { Team, User } from "@/types/User";
-import { useState } from "react";
+import { Team } from "@/types/User";
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
@@ -19,8 +18,8 @@ export default function TeamTile({handleViewTeamDetails, setSelectedTeamName, se
     // Get the first 3 members and calculate how many are remaining
     const displayedMembers = team.users.slice(0, 3);
     const remainingCount = team.users.length - displayedMembers.length;
-    const [user, setUser] = useState<User | null>(getCurrentUser());
-    const [isOwner, setIsOwner] = useState<boolean>(team.createdBy === user?.uid);
+    const currentUser = getCurrentUser();
+    const isOwner = team.createdBy === currentUser?.uid || team.isOwner;
     // console.log("The users are: ", team.users[0].name);
 
     return (

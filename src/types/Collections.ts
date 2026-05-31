@@ -7,6 +7,32 @@ export interface Variable {
     initialValue: string;
     currentValue: string;
 }
+
+export type RequestProtocol =
+    | 'http'
+    | 'graphql'
+    | 'grpc'
+    | 'mcp'
+    | 'websocket'
+    | 'socketio'
+    | 'mqtt';
+
+export type RequestTestAssertion =
+    | 'status_equals'
+    | 'body_contains'
+    | 'header_exists'
+    | 'max_response_time';
+
+export interface RequestTestCase {
+    id: string;
+    name: string;
+    assertion: RequestTestAssertion;
+    expected: string;
+    enabled: boolean;
+    lastResult?: 'pass' | 'fail' | 'skipped';
+    lastMessage?: string;
+    lastRunAt?: string;
+}
   
 export interface Request {
     id: string;
@@ -14,12 +40,23 @@ export interface Request {
     name: string;
     description: string;
     url: string;
+    protocol?: RequestProtocol;
     params: Param[];
     headers: Header[];
     body: string;
     auth: Auth;
     preRequestScript: string;
     tests: string;
+    testCases?: RequestTestCase[];
+    isFavorite?: boolean;
+    usageCount?: number;
+    successCount?: number;
+    failureCount?: number;
+    avgResponseTime?: number;
+    lastResponseTime?: number;
+    lastStatus?: number;
+    lastUsedAt?: string;
+    updatedAt?: string;
 }
 
 export interface Folder {
@@ -35,6 +72,10 @@ export interface Collection {
     variables: Variable[];
     folders: Folder[];
     requests: Request[];
+    createdAt?: string;
+    updatedAt?: string;
+    shareId?: string;
+    teamId?: string;
 }
 
 export type IconName = 

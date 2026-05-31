@@ -10,7 +10,7 @@ import HeaderComponent from '@/components/Common/Header';
 import { ErrorBoundary } from '@/components/Common/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConnectionDialog } from '@/components/Database/ConnectionDialog';
-import { WindowTab } from '@/types/Connection';
+import { ConnectionConfig, WindowTab } from '@/types/Connection';
 import { getCurrentUser, getInitials, getUserDetails } from '@/lib/firebase/auth';
 import { Team } from '@/types/User';
 import { getUserTeams } from '@/lib/firebase/teams';
@@ -31,6 +31,7 @@ const DatabaseScreen = () => {
     const [photoURL, setPhotoURL] = useState<string>('');
     const [displayName, setDisplayName] = useState<string>('');
     const [autoSave, setAutoSave] = useState<boolean>(true);
+    const [selectedConnection, setSelectedConnection] = useState<ConnectionConfig | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
@@ -52,10 +53,16 @@ const DatabaseScreen = () => {
     }, [])
 
     const handleOpenTab = (tab: WindowTab) => {
-        const existingTab = openTabs.find(t => t.id === tab.id);
-        if (!existingTab) {
-            setOpenTabs(prev => [...prev, tab]);
-        }
+        setOpenTabs((prev) => {
+            const existingIndex = prev.findIndex((entry) => entry.id === tab.id);
+            if (existingIndex === -1) {
+                return [...prev, tab];
+            }
+
+            const next = [...prev];
+            next[existingIndex] = { ...next[existingIndex], ...tab };
+            return next;
+        });
         setActiveTab(tab.id);
     };
 
@@ -106,10 +113,10 @@ const DatabaseScreen = () => {
     return (
         <ThemeProvider>
             <ErrorBoundary fallback={<div className="p-4 text-red-500">Database interface crashed. Please refresh.</div>}>
-                <div className="h-screen flex flex-col bg-gray-900 text-gray-100 w-full">
+                <div className="h-screen flex flex-col bg-slate-100 dark:bg-gray-900 text-slate-900 dark:text-gray-100 w-full">
                     <HeaderComponent
                         toSearch={false}
-                        parentComponent={'Request Builder'}
+                        parentComponent={'Database Pro'}
                         onAddCollection={() => { }}
                         environments={[]}
                         initials={initials}
@@ -130,11 +137,12 @@ const DatabaseScreen = () => {
                     />
                     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                         <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
-                            <ResizablePanel defaultSize={25} minSize={20} maxSize={40} className="bg-gray-800 min-h-0">
+                            <ResizablePanel defaultSize={25} minSize={20} maxSize={40} className="bg-white dark:bg-gray-800 border-r border-slate-200 dark:border-gray-700 min-h-0">
                                 <Suspense fallback={<Skeleton className="h-full w-full" />}>
                                     <DatabaseSidebar
                                         connections={connections}
                                         loading={loading}
+                                        onConnectionSelect={setSelectedConnection}
                                         onOpenTab={handleOpenTab}
                                         onShowDetails={handleShowDetails}
                                         onShowDependencyGraph={handleShowDependencyGraph}
@@ -144,8 +152,8 @@ const DatabaseScreen = () => {
                                     />
                                 </Suspense>
                             </ResizablePanel>
-                            <ResizableHandle withHandle className="bg-gray-700 hover:bg-gray-600" />
-                            <ResizablePanel defaultSize={75} className="bg-gray-900 min-h-0">
+                            <ResizableHandle withHandle className="bg-slate-200 hover:bg-slate-300 dark:bg-gray-700 dark:hover:bg-gray-600" />
+                            <ResizablePanel defaultSize={75} className="bg-white dark:bg-gray-900 min-h-0 flex flex-col">
                                 <MainContent
                                     activeTab={activeTab}
                                     openTabs={openTabs}
@@ -160,7 +168,7 @@ const DatabaseScreen = () => {
                             </ResizablePanel>
                         </ResizablePanelGroup>
                     </div>
-                    <StatusBar />
+                    <StatusBar selectedConnection={selectedConnection} />
                 </div>
                 {/* Add this ConnectionDialog component */}
                 <ConnectionDialog

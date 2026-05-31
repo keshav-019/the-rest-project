@@ -31,7 +31,7 @@ export default function CreateTeamModal({
             users: [],
             collections: [],
             environments: [],
-            isPrivate: false,
+            isPrivate: privacy === 'private',
             isOwner: true,
             userids: [], // Replace with actual user ID
             recentActivity: []

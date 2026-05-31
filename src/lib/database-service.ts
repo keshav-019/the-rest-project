@@ -36,9 +36,15 @@ class DatabaseService {
     async saveConnection(config: ConnectionConfig): Promise<ConnectionConfig> {
         const existingIndex = this.connections.findIndex(c => c.id === config.id);
 
+        const normalizedType = config.type?.toLowerCase?.() || '';
+        const inferredDatabaseType: ConnectionConfig['databaseType'] = ['mongodb', 'redis', 'cassandra', 'dynamodb'].includes(normalizedType)
+            ? 'nosql'
+            : 'sql';
+
         const newConnection = {
             ...config,
             id: config.id || `${Date.now()}`,
+            databaseType: config.databaseType || inferredDatabaseType,
             status: 'disconnected'
         } as ConnectionConfig;
 
@@ -106,7 +112,10 @@ class DatabaseService {
         return await response.json();
     }
 
-    async getDatabaseStructure(connectionId: string): Promise<{
+    async getDatabaseStructure(
+        connectionId: string,
+        options: { databaseOverride?: string; includeTables?: boolean } = {}
+    ): Promise<{
         databases: Array<{
             name: string;
             schemas: Array<{
@@ -121,6 +130,14 @@ class DatabaseService {
         const connection = this.connections.find(c => c.id === connectionId);
         if (!connection) throw new Error('Connection not found');
 
+        const includeTables = options.includeTables ?? false;
+        const database =
+            options.databaseOverride !== undefined
+                ? options.databaseOverride
+                : includeTables
+                    ? connection.database
+                    : undefined;
+
         const response = await fetch('/api/database-structure', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -130,7 +147,8 @@ class DatabaseService {
                 port: connection.port,
                 username: connection.username,
                 password: connection.password,
-                database: connection.database
+                database,
+                includeTables,
             }),
         });
 
@@ -145,7 +163,8 @@ class DatabaseService {
     async getTableDependencies(
         connectionId: string,
         schema: string,
-        table: string
+        table: string,
+        database?: string
     ): Promise<{
         nodes: Array<{
             id: string;
@@ -172,7 +191,7 @@ class DatabaseService {
                 port: connection.port,
                 username: connection.username,
                 password: connection.password,
-                database: connection.database,
+                database: database || connection.database,
                 schema,
                 table
             }),
@@ -181,6 +200,41 @@ class DatabaseService {
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Failed to get dependencies');
+        }
+
+        return await response.json();
+    }
+
+    async getSchemaCanvasMetadata(
+        connectionId: string,
+        database: string,
+        schema: string
+    ): Promise<{
+        tables: Array<{
+            name: string;
+            columns: ColumnDefinition[];
+        }>;
+    }> {
+        const connection = this.connections.find(c => c.id === connectionId);
+        if (!connection) throw new Error('Connection not found');
+
+        const response = await fetch('/api/schema-canvas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: connection.type,
+                host: connection.host,
+                port: connection.port,
+                username: connection.username,
+                password: connection.password,
+                database,
+                schema,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to load schema canvas metadata');
         }
 
         return await response.json();

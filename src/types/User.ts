@@ -30,11 +30,18 @@ export interface UserData {
     personalCollections: Collection[];
     personalEnvironments: Environment[];
     recentActivity: {
-        type: 'collection_created' | 'request_created' | 'folder_created';
+        type: 'collection_created' | 'request_created' | 'folder_created' | 'request_sent' | 'collections_updated';
         id: string;
         name: string;
         timestamp: Date;
         teamId?: string; // if it's a team activity
+        collectionId?: string;
+        requestId?: string;
+        method?: string;
+        url?: string;
+        status?: number;
+        duration?: number;
+        success?: boolean;
     }[];
     settings: {
         defaultEnvironment?: string;
@@ -61,10 +68,17 @@ export interface Team {
     isPrivate: boolean,
     isOwner: boolean,
     recentActivity: {
-        type: 'collection_created' | 'request_created' | 'folder_created';
+        type: 'collection_created' | 'request_created' | 'folder_created' | 'request_sent' | 'collections_updated';
         id: string;
         name: string;
         timestamp: Date;
+        collectionId?: string;
+        requestId?: string;
+        method?: string;
+        url?: string;
+        status?: number;
+        duration?: number;
+        success?: boolean;
     }[]
 }
   

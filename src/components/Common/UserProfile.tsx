@@ -15,6 +15,7 @@ export default function UserProfile({
     email,
     photoURL
 }: UserProfileProps) {
+    const trimmedUsername = username?.trim();
 
     return (
         <div className="px-4 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800 rounded-t-lg">
@@ -45,9 +46,11 @@ export default function UserProfile({
                         {displayName || 'Unknown User'}
                     </div>
 
-                    <div className="text-xs text-blue-600 dark:text-blue-400 truncate">
-                        @{username || 'no-username'}
-                    </div>
+                    {trimmedUsername && (
+                        <div className="text-xs text-blue-600 dark:text-blue-400 truncate">
+                            @{trimmedUsername}
+                        </div>
+                    )}
 
                     <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
                         {email}

@@ -37,7 +37,7 @@ export default function TeamsDropdown({
             </button>
             
             {showTeams && (
-                <div className="max-h-36 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-blue-500 dark:scrollbar-thumb-gray-500">
+                <div className="max-h-36 overflow-y-auto ui-scrollbar">
                     {teams.length !== 0 && teams.map((team) => (
                         <div
                             key={team.teamId}

@@ -6,7 +6,7 @@ import HeadersTab from "./HeadersTab";
 import ParamsTab from "./ParamsTab";
 import PreRequestTab from "./PreRequestTab";
 import TestTab from "./TestTab";
-import { Auth, Header, Param, TabType } from "@/types/Collections";
+import { Auth, Header, Param, RequestTestCase, TabType } from "@/types/Collections";
 import { Environment } from "@/types/User";
 
 export default function RequestTabContent({
@@ -27,6 +27,8 @@ export default function RequestTabContent({
     setPreRequestScript,
     setTests,
     tests,
+    testCases,
+    setTestCases,
     activeEnvironmentId,
     environments = [],
 }: {
@@ -47,6 +49,8 @@ export default function RequestTabContent({
     setPreRequestScript: React.Dispatch<React.SetStateAction<string>>,
     setTests: React.Dispatch<React.SetStateAction<string>>,
     tests: string,
+    testCases: RequestTestCase[],
+    setTestCases: React.Dispatch<React.SetStateAction<RequestTestCase[]>>,
     activeEnvironmentId: string | null,
     environments?: Environment[],
 }) {
@@ -101,6 +105,8 @@ export default function RequestTabContent({
                 <TestTab
                     setTests={setTests}
                     tests={tests}
+                    testCases={testCases}
+                    setTestCases={setTestCases}
                 />
             )}
         </div>
