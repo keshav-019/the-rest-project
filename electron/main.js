@@ -29,6 +29,13 @@ function resolveShell() {
     }
 
     const systemRoot = process.env.SystemRoot || 'C:\\Windows';
+    const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
+    const localAppData = process.env.LOCALAPPDATA || '';
+    const pwshCandidates = [
+        process.env.PWSH,
+        path.join(programFiles, 'PowerShell', '7', 'pwsh.exe'),
+        localAppData ? path.join(localAppData, 'Microsoft', 'WindowsApps', 'pwsh.exe') : '',
+    ].filter(Boolean);
     const powershellPath = path.join(
         systemRoot,
         'System32',
@@ -37,11 +44,27 @@ function resolveShell() {
         'powershell.exe'
     );
 
+    const pwshPath = pwshCandidates.find((candidate) => fs.existsSync(candidate));
+    if (pwshPath) {
+        return pwshPath;
+    }
+
     if (fs.existsSync(powershellPath)) {
         return powershellPath;
     }
 
     return process.env.ComSpec || 'cmd.exe';
+}
+
+function resolveHomeDirectory() {
+    if (process.platform === 'win32') {
+        const homeDrivePath = process.env.HOMEDRIVE && process.env.HOMEPATH
+            ? `${process.env.HOMEDRIVE}${process.env.HOMEPATH}`
+            : '';
+        return process.env.USERPROFILE || homeDrivePath || process.cwd();
+    }
+
+    return process.env.HOME || process.cwd();
 }
 
 function createWindow() {
@@ -146,7 +169,7 @@ ipcMain.handle('request-pty', () => {
             name: 'xterm-256color',
             cols: 80,
             rows: 24,
-            cwd: process.env.HOME || process.env.USERPROFILE || process.cwd(),
+            cwd: resolveHomeDirectory(),
             env: { ...process.env, TERM: 'xterm-256color', COLORTERM: 'truecolor' }
         });
 

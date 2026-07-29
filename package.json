@@ -21,6 +21,7 @@
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
+        "test:protocols": "node tests/protocols/request-protocols.test.mjs",
         "build:dev": "next build",
         "electron:dev": "concurrently \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
         "electron:build": "next build && electron-builder",
@@ -135,6 +136,6 @@
         "wait-on": "^8.0.3"
     },
     "optionalDependencies": {
-        "node-pty": "^1.1.0-beta33"
+        "node-pty": "1.1.0-beta9"
     }
 }

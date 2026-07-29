@@ -17,14 +17,17 @@ export const TableActions = ({
 }) => {
     return (
         <TooltipProvider>
-            <div className="flex gap-1">
+            <div className="grid w-[104px] grid-cols-4 justify-items-center gap-1">
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={onOpenQueryEditor}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onOpenQueryEditor();
+                            }}
                         >
                             <FileEdit className="h-3 w-3" />
                         </Button>
@@ -38,7 +41,10 @@ export const TableActions = ({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={onShowDescription}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onShowDescription();
+                            }}
                         >
                             <Table className="h-3 w-3" />
                         </Button>
@@ -52,7 +58,10 @@ export const TableActions = ({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={onShowDependencies}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onShowDependencies();
+                            }}
                         >
                             <DatabaseZap className="h-3 w-3" />
                         </Button>
@@ -66,7 +75,10 @@ export const TableActions = ({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0 text-red-500"
-                            onClick={onDeleteTable}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onDeleteTable();
+                            }}
                         >
                             <Trash2 className="h-3 w-3" />
                         </Button>

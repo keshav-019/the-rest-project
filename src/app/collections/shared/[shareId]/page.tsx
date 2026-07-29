@@ -6,6 +6,7 @@ import { Team } from '@/types/User';
 import { getCurrentUser } from '@/lib/firebase/auth';
 import { getUserTeams } from '@/lib/firebase/teams';
 import { ensureCollectionDefaults } from '@/lib/collections-utils';
+import { sanitizeRichText } from '@/lib/rich-text';
 
 export default function SharedCollectionPage() {
     const params = useParams<{ shareId: string }>();
@@ -15,6 +16,7 @@ export default function SharedCollectionPage() {
     const [ownerTeam, setOwnerTeam] = useState<Team | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [accessError, setAccessError] = useState<string | null>(null);
+    const [descriptionHtml, setDescriptionHtml] = useState('');
 
     const shareId = useMemo(() => params?.shareId, [params]);
 
@@ -66,6 +68,10 @@ export default function SharedCollectionPage() {
         loadSharedCollection();
     }, [router, shareId]);
 
+    useEffect(() => {
+        setDescriptionHtml(sanitizeRichText(collection?.description || ''));
+    }, [collection?.description]);
+
     return (
         <main className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
             <div className="max-w-5xl mx-auto">
@@ -97,9 +103,16 @@ export default function SharedCollectionPage() {
                                     Back To Collections
                                 </button>
                             </div>
-                            <p className="mt-4 text-sm text-gray-700 dark:text-gray-300">
-                                {collection.description || 'No description provided.'}
-                            </p>
+                            <div className="mt-4 text-sm text-gray-700 dark:text-gray-300">
+                                {descriptionHtml ? (
+                                    <div
+                                        className="rich-text-content"
+                                        dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                                    />
+                                ) : (
+                                    <p>No description provided.</p>
+                                )}
+                            </div>
                         </section>
 
                         <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">

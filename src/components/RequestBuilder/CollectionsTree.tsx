@@ -36,7 +36,7 @@ const CollectionsTree: React.FC<CollectionsTreeProps> = ({
     selectedCollectionId,
 }) => {
     return (
-        <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+        <aside className="w-64 shrink-0 overflow-y-auto border-r border-gray-200 bg-slate-50/70 dark:border-gray-700 dark:bg-gray-900">
             <div className="p-4">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-md font-semibold text-gray-800 dark:text-white">Collections</h2>
@@ -59,7 +59,7 @@ const CollectionsTree: React.FC<CollectionsTreeProps> = ({
                                     leaveFrom="transform opacity-100 scale-100"
                                     leaveTo="transform opacity-0 scale-95"
                                 >
-                                    <MenuItems className="absolute right-0 z-10 mt-2 w-56 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                <MenuItems className="absolute right-0 z-[90] mt-2 w-56 origin-top-right divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
                                         <div className="px-1 py-1">
                                             <MenuItem>
                                                 {({ active }) => (
@@ -118,7 +118,7 @@ const CollectionsTree: React.FC<CollectionsTreeProps> = ({
                 </div>
                 <div className="space-y-2 text-sm">
                     {collections.length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 p-4 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-xs text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
                             No collections yet. Use the + button to create or import one.
                         </div>
                     ) : (
@@ -139,7 +139,7 @@ const CollectionsTree: React.FC<CollectionsTreeProps> = ({
                     )}
                 </div>
             </div>
-        </div>
+        </aside>
     );
 };
 

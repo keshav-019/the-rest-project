@@ -15,14 +15,17 @@ export const SchemaActions = ({
 }) => {
     return (
         <TooltipProvider>
-            <div className="flex gap-1">
+            <div className="grid w-[84px] grid-cols-3 justify-items-center gap-1">
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={onAddTable}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onAddTable();
+                            }}
                         >
                             <Plus className="h-3 w-3" />
                         </Button>
@@ -36,7 +39,10 @@ export const SchemaActions = ({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={onShowDependencies}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onShowDependencies();
+                            }}
                         >
                             <DatabaseZap className="h-3 w-3" />
                         </Button>
@@ -50,7 +56,10 @@ export const SchemaActions = ({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0 text-red-500"
-                            onClick={onDeleteSchema}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onDeleteSchema();
+                            }}
                         >
                             <Trash2 className="h-3 w-3" />
                         </Button>
