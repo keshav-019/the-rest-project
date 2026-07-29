@@ -31,7 +31,7 @@ export default function RequestItem({
     };
 
     return (
-        <div className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+        <div className="flex items-center justify-between rounded-lg p-2 cursor-pointer hover:bg-white dark:hover:bg-gray-800">
             <div
                 className="flex items-center flex-1 min-w-0"
                 onClick={() => onSelectRequest(request)}
@@ -82,7 +82,7 @@ export default function RequestItem({
                 >
                     <EllipsisHorizontalIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                 </MenuButton>
-                <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <MenuItems className="absolute right-0 z-[90] mt-2 w-48 origin-top-right divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
                     <div className="py-1">
                         <MenuItem>
                             {({ active }) => (

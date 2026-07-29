@@ -2,7 +2,6 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import CollectionsTree from '@/components/RequestBuilder/CollectionsTree';
 import CollectionDetails from '@/components/Collections/CollectionDetails';
-import RequestTabs from '@/components/RequestBuilder/RequestTabs';
 import { Collection, Request } from '@/types/Collections';
 import { Team, User } from '@/types/User';
 import { getInitials, getUserDetails } from '@/lib/firebase/auth';
@@ -20,15 +19,12 @@ import {
     findRequest,
     normalizeCollections,
     parseImportedCollections,
-    updateRequestInCollections,
     withCollectionShareId,
 } from '@/lib/collections-utils';
 
 function CollectionsPageContent() {
     const [collections, setCollections] = useState<Collection[]>([]);
     const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
-    const [activeTabs, setActiveTabs] = useState<{ id: string; request: Request }[]>([]);
-    const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
     const [user, setUser] = useState<User | null>(null);
     const [photoURL, setPhotoURL] = useState<string>('');
@@ -77,7 +73,7 @@ function CollectionsPageContent() {
             const userTeams = await getUserTeams(currentUser.uid);
             setUser(currentUser);
             setEmail(currentUser.email || '');
-            setAutoSave(userData?.autoSave || true);
+            setAutoSave(userData?.autoSave ?? true);
             setDisplayName(currentUser.displayName || '');
             setPhotoURL(currentUser.photoURL || '');
             setUsername(currentUser.username || '');
@@ -195,44 +191,12 @@ function CollectionsPageContent() {
     const openRequestInTab = (request: Request) => {
         const normalizedRequest = ensureRequestDefaults(request);
 
-        setActiveTabs((previousTabs) => {
-            if (previousTabs.some((tab) => tab.id === normalizedRequest.id)) {
-                return previousTabs;
-            }
-            return [...previousTabs, { id: normalizedRequest.id, request: normalizedRequest }];
-        });
-
-        setActiveTabId(normalizedRequest.id);
-
         const reference = findRequest(collections, normalizedRequest.id);
         if (reference) {
             setSelectedCollectionId(reference.collection.id);
         }
-    };
 
-    const closeTab = (id: string) => {
-        setActiveTabs((previousTabs) => {
-            const nextTabs = previousTabs.filter((tab) => tab.id !== id);
-            if (activeTabId === id) {
-                setActiveTabId(nextTabs.length > 0 ? nextTabs[nextTabs.length - 1].id : null);
-            }
-            return nextTabs;
-        });
-    };
-
-    const updateRequest = async (id: string, updatedRequest: Request) => {
-        const normalizedRequest = ensureRequestDefaults(updatedRequest);
-
-        setActiveTabs((previousTabs) =>
-            previousTabs.map((tab) => (tab.id === id ? { ...tab, request: normalizedRequest } : tab))
-        );
-
-        const nextCollections = updateRequestInCollections(collections, id, () => ({
-            ...normalizedRequest,
-            updatedAt: new Date().toISOString(),
-        }));
-
-        await persistCollections(nextCollections);
+        router.push(`/?requestId=${encodeURIComponent(normalizedRequest.id)}`);
     };
 
     const renameItem = async (id: string, newName: string) => {
@@ -295,11 +259,6 @@ function CollectionsPageContent() {
                     })),
                 requests: collection.requests.filter((request) => request.id !== id),
             }));
-
-        setActiveTabs((previousTabs) => previousTabs.filter((tab) => tab.id !== id));
-        if (activeTabId === id) {
-            setActiveTabId(null);
-        }
 
         await persistCollections(nextCollections);
     };
@@ -510,17 +469,7 @@ function CollectionsPageContent() {
                     />
 
                     <div className="flex-1 flex flex-col overflow-hidden">
-                        {activeTabs.length > 0 ? (
-                            <RequestTabs
-                                tabs={activeTabs}
-                                activeTabId={activeTabId}
-                                onTabChange={setActiveTabId}
-                                onCloseTab={closeTab}
-                                onSaveRequest={(id, request) => {
-                                    void updateRequest(id, request);
-                                }}
-                            />
-                        ) : selectedCollection ? (
+                        {selectedCollection ? (
                             <CollectionDetails
                                 collection={selectedCollection}
                                 onEditCollection={(updated) => {
@@ -546,8 +495,8 @@ function CollectionsPageContent() {
                                 }}
                             />
                         ) : (
-                            <div className="h-full grid place-items-center bg-gradient-to-br from-blue-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-                                <div className="max-w-xl rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-800/80 shadow p-8 space-y-4 text-center">
+                            <div className="grid h-full place-items-center bg-slate-50 p-6 dark:bg-gray-900">
+                                <div className="max-w-xl space-y-4 rounded-lg border border-gray-200 bg-white p-8 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800">
                                     <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                                         {collections.length === 0 ? 'Start Your API Workspace' : 'Select A Collection'}
                                     </h3>

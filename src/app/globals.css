@@ -21,25 +21,10 @@
     --ui-scrollbar-thumb-hover: rgba(71, 85, 105, 0.86);
 }
 
-html,
-body {
-    min-height: 100%;
-    background: rgb(248 250 252);
-}
-
-body {
-    color: rgb(15 23 42);
-}
-
 .dark {
     --ui-scrollbar-track: rgba(30, 41, 59, 0.55);
     --ui-scrollbar-thumb: rgba(148, 163, 184, 0.44);
     --ui-scrollbar-thumb-hover: rgba(226, 232, 240, 0.56);
-}
-
-.dark body {
-    background: rgb(3 7 18);
-    color: rgb(243 244 246);
 }
 
 .dialog-overlay {

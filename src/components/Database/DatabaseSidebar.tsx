@@ -399,14 +399,14 @@ export const DatabaseSidebar = ({
 
     return (
         <TooltipProvider>
-            <div className="w-full min-w-[320px] h-full flex flex-col overflow-hidden bg-white dark:bg-gray-900">
+            <div className="flex h-full w-full min-w-[360px] flex-col overflow-hidden border-r border-slate-200 bg-white text-slate-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
                 {/* Header with search and actions */}
-                <div className="p-4 space-y-3 border-b border-slate-200 dark:border-gray-700 bg-slate-50/70 dark:bg-gray-800/80">
+                <div className="space-y-3 border-b border-slate-200 bg-slate-50/80 p-3 dark:border-gray-700 dark:bg-gray-800/80">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
                             placeholder="Filter connections..."
-                            className="pl-10 bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700"
+                            className="h-9 rounded-lg border-slate-200 bg-white pl-10 text-sm dark:border-gray-700 dark:bg-gray-900"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -414,7 +414,7 @@ export const DatabaseSidebar = ({
                     <div className="flex gap-2">
                         <Button
                             onClick={() => setShowConnectionDialog(true)}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                            className="h-9 flex-1 rounded-lg border-transparent bg-blue-600 text-white hover:bg-blue-700"
                             variant="outline"
                             size="sm"
                         >
@@ -425,7 +425,7 @@ export const DatabaseSidebar = ({
                 </div>
 
                 {/* Connection list */}
-                <div className="flex-1 min-h-0 relative"> {/* Add min-h-0 and overflow-hidden */}
+                <div className="relative min-h-0 flex-1">
                     <div className="absolute inset-0 overflow-y-auto overflow-x-hidden ui-scrollbar">
                         {loading ? (
                             <div className="flex items-center justify-center p-4">
@@ -438,9 +438,9 @@ export const DatabaseSidebar = ({
                                     <div key={connection.id} className="space-y-1">
                                         {/* Connection header with actions */}
                                         <div
-                                            className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${selectedConnectionId === connection.id
+                                            className={`grid min-h-11 grid-cols-[minmax(0,1fr)_112px] items-center gap-2 rounded-lg border px-2 py-1.5 cursor-pointer transition-colors ${selectedConnectionId === connection.id
                                                 ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700/40'
-                                                : 'bg-white border-slate-200 hover:bg-slate-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700/80'
+                                                : 'bg-white border-slate-200 hover:bg-slate-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-800/80'
                                                 }`}
                                             onClick={() => {
                                                 setSelectedConnectionId(connection.id);
@@ -448,7 +448,7 @@ export const DatabaseSidebar = ({
                                                 void toggleConnection(connection.id);
                                             }}
                                         >
-                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <div className="flex min-w-0 items-center gap-2">
                                                 {expandedConnections.includes(connection.id) ? (
                                                     <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 dark:text-gray-300" />
                                                 ) : (
@@ -460,7 +460,7 @@ export const DatabaseSidebar = ({
                                                 </span>
                                             </div>
 
-                                            <div className="flex items-center gap-1 shrink-0">
+                                            <div className="grid grid-cols-4 justify-items-center gap-1">
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
@@ -533,7 +533,7 @@ export const DatabaseSidebar = ({
 
                                         {/* Database content when expanded */}
                                         {expandedConnections.includes(connection.id) && (
-                                            <div className="ml-0 border-l border-slate-200/80 pl-3 dark:border-gray-700/80 space-y-1">
+                                            <div className="ml-3 space-y-1 border-l border-slate-200/80 pl-3 dark:border-gray-700/80">
                                                 {loadingStructures[connection.id] ? (
                                                     <div className="flex items-center p-2 text-sm text-muted-foreground">
                                                         <RefreshCw className="h-3 w-3 animate-spin mr-2" />
@@ -555,13 +555,13 @@ export const DatabaseSidebar = ({
                                                             <div key={databaseId} className="space-y-1">
                                                                 {/* Database header with actions */}
                                                                 <div
-                                                                    className="flex items-center gap-2 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-gray-700/60 cursor-pointer group/database border border-transparent hover:border-slate-200 dark:hover:border-gray-600"
+                                                                    className="grid min-h-10 grid-cols-[minmax(0,1fr)_56px] items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 cursor-pointer hover:border-slate-200 hover:bg-slate-100 dark:hover:border-gray-700 dark:hover:bg-gray-800"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         void toggleDatabase(connection.id, database.name);
                                                                     }}
                                                                 >
-                                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                                    <div className="flex min-w-0 items-center gap-2">
                                                                         {isDatabaseExpanded ? (
                                                                             <ChevronDown className="h-3 w-3 shrink-0" />
                                                                         ) : (
@@ -571,7 +571,7 @@ export const DatabaseSidebar = ({
                                                                         <span className="text-sm truncate min-w-0" title={database.name}>{database.name}</span>
                                                                     </div>
 
-                                                                    <div className="flex items-center justify-end gap-1 w-14 shrink-0">
+                                                                    <div className="grid grid-cols-2 justify-items-center gap-1">
                                                                         <Tooltip>
                                                                             <TooltipTrigger asChild>
                                                                                 <Button
@@ -615,7 +615,7 @@ export const DatabaseSidebar = ({
 
                                                                 {/* Schema content when expanded */}
                                                                 {isDatabaseExpanded && (
-                                                                    <div className="ml-0 border-l border-slate-200/80 pl-3 dark:border-gray-700/80 space-y-2">
+                                                                    <div className="ml-3 space-y-2 border-l border-slate-200/80 pl-3 dark:border-gray-700/80">
                                                                         {isDatabaseLoading ? (
                                                                             <div className="flex items-center p-2 text-sm text-muted-foreground">
                                                                                 <RefreshCw className="h-3 w-3 animate-spin mr-2" />
@@ -630,13 +630,13 @@ export const DatabaseSidebar = ({
                                                                                 return (
                                                                                     <div key={schemaId} className="space-y-1">
                                                                                         <div
-                                                                                            className="flex items-center justify-between gap-2 p-2 bg-slate-50 dark:bg-gray-800 rounded-md cursor-pointer group/schema"
+                                                                                            className="grid min-h-10 grid-cols-[minmax(0,1fr)_84px] items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 cursor-pointer dark:border-gray-700 dark:bg-gray-800"
                                                                                             onClick={(e) => {
                                                                                                 e.stopPropagation();
                                                                                                 toggleSchema(connection.id, database.name, schema.name);
                                                                                             }}
                                                                                         >
-                                                                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                                                            <div className="flex min-w-0 items-center gap-2">
                                                                                                 {isSchemaExpanded ? (
                                                                                                     <ChevronDown className="h-3 w-3 shrink-0" />
                                                                                                 ) : (
@@ -646,7 +646,7 @@ export const DatabaseSidebar = ({
                                                                                                     {schema.name}
                                                                                                 </span>
                                                                                             </div>
-                                                                                            <div className="shrink-0">
+                                                                                            <div className="w-[84px] shrink-0">
                                                                                                 <SchemaActions
                                                                                                     onAddTable={() => handleAddTable(connection.id, database.name, schema.name)}
                                                                                                     onDeleteSchema={() => handleDeleteSchema(connection.id, database.name, schema.name)}
@@ -662,10 +662,10 @@ export const DatabaseSidebar = ({
                                                                                         </div>
 
                                                                                         {isSchemaExpanded && (
-                                                                                            <div className="ml-0 border-l border-slate-200/80 pl-3 dark:border-gray-700/80 space-y-1">
+                                                                                            <div className="ml-3 space-y-1 border-l border-slate-200/80 pl-3 dark:border-gray-700/80">
                                                                                                 <button
                                                                                                     type="button"
-                                                                                                    className="w-full flex items-center gap-2 p-2 rounded-md border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:border-blue-700/40 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-300"
+                                                                                                    className="grid min-h-10 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-blue-700 hover:bg-blue-100 dark:border-blue-700/40 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
                                                                                                     onClick={(e) => {
                                                                                                         e.stopPropagation();
                                                                                                         handleOpenSchemaCanvas(
@@ -687,9 +687,9 @@ export const DatabaseSidebar = ({
                                                                                                 {schemaTables.map((table) => (
                                                                                                     <div
                                                                                                         key={table.name}
-                                                                                                        className="flex items-center gap-2 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-gray-800 group/table overflow-hidden"
+                                                                                                        className="grid min-h-10 grid-cols-[minmax(0,1fr)_104px] items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-gray-800"
                                                                                                     >
-                                                                                                        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                                                                                                        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                                                                                                             <TableIcon className="h-4 w-4 text-blue-400 flex-shrink-0" />
                                                                                                             <span
                                                                                                                 className="text-sm truncate min-w-0"
@@ -698,7 +698,7 @@ export const DatabaseSidebar = ({
                                                                                                                 {table.name}
                                                                                                             </span>
                                                                                                         </div>
-                                                                                                        <div className="ml-2 w-[92px] flex justify-end shrink-0">
+                                                                                                        <div className="w-[104px] shrink-0">
                                                                                                             <TableActions
                                                                                                                 onOpenQueryEditor={() => onOpenTab({
                                                                                                                     id: `${connection.id}-${database.name}-${schema.name}-${table.name}`,

@@ -17,7 +17,7 @@ export const TableActions = ({
 }) => {
     return (
         <TooltipProvider>
-            <div className="flex gap-1">
+            <div className="grid w-[104px] grid-cols-4 justify-items-center gap-1">
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button

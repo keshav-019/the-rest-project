@@ -15,7 +15,7 @@ export const SchemaActions = ({
 }) => {
     return (
         <TooltipProvider>
-            <div className="flex gap-1">
+            <div className="grid w-[84px] grid-cols-3 justify-items-center gap-1">
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button

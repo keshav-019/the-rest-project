@@ -136,8 +136,8 @@ const DatabaseScreen = () => {
                         photoURL={photoURL}
                     />
                     <div className="flex-1 flex flex-col min-h-0 overflow-hidden overflow-x-auto">
-                        <ResizablePanelGroup direction="horizontal" className="h-full min-h-0 min-w-[900px]">
-                            <ResizablePanel defaultSize={28} minSize={24} maxSize={45} className="bg-white dark:bg-gray-900 border-r border-slate-200 dark:border-gray-700 min-h-0 min-w-[320px]">
+                        <ResizablePanelGroup direction="horizontal" className="h-full min-h-0 min-w-[1040px]">
+                            <ResizablePanel defaultSize={32} minSize={28} maxSize={46} className="min-h-0 min-w-[360px] border-r border-slate-200 bg-white dark:border-gray-700 dark:bg-gray-900">
                                 <Suspense fallback={<Skeleton className="h-full w-full" />}>
                                     <DatabaseSidebar
                                         connections={connections}
@@ -153,7 +153,7 @@ const DatabaseScreen = () => {
                                 </Suspense>
                             </ResizablePanel>
                             <ResizableHandle withHandle className="bg-slate-200 hover:bg-slate-300 dark:bg-gray-700 dark:hover:bg-gray-600" />
-                            <ResizablePanel defaultSize={72} minSize={55} className="bg-white dark:bg-gray-900 min-h-0 flex min-w-[560px] flex-col">
+                            <ResizablePanel defaultSize={68} minSize={54} className="flex min-h-0 min-w-[640px] flex-col bg-white dark:bg-gray-900">
                                 <MainContent
                                     activeTab={activeTab}
                                     openTabs={openTabs}

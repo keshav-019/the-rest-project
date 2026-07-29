@@ -44,10 +44,10 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
     return (
         <div className="relative">
             <div
-                className={`flex items-center justify-between p-2 rounded cursor-pointer ${
+                className={`flex items-center justify-between rounded-lg border p-2 cursor-pointer ${
                     isSelected
                         ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/40'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                        : 'border-transparent bg-white hover:border-gray-200 hover:bg-white dark:bg-gray-800 dark:hover:border-gray-700 dark:hover:bg-gray-800'
                 }`}
             >
                 <div
@@ -90,7 +90,7 @@ const CollectionItem: React.FC<CollectionItemProps> = ({
                         <EllipsisHorizontalIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                     </MenuButton>
 
-                    <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <MenuItems className="absolute right-0 z-[90] mt-2 w-48 origin-top-right divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
                         <div className="py-1">
                             <MenuItem>
                                 {({ active }) => (

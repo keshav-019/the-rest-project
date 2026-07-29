@@ -82,7 +82,7 @@ const UserDropdown = ({ initials, email, username, displayName, autoSave, setAut
     }, []);
 
     return (
-        <Menu as="div" className="relative">
+        <Menu as="div" className="relative z-[110]">
             <MenuButton className="w-10 h-10 rounded-full overflow-hidden bg-blue-500 flex items-center justify-center text-white font-medium cursor-pointer hover:bg-blue-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
                 {photoURL && photoURL !== '' ? (
                     <img
@@ -104,7 +104,7 @@ const UserDropdown = ({ initials, email, username, displayName, autoSave, setAut
                 leaveFrom="transform opacity-100 scale-100"
                 leaveTo="transform opacity-0 scale-95"
             >
-                <MenuItems className="absolute right-0 mt-2 w-72 origin-top-right divide-y divide-gray-100 dark:divide-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none z-50 border border-gray-200 dark:border-gray-700">
+                <MenuItems className="absolute right-0 z-[120] mt-2 w-72 origin-top-right divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
                     {/* User Profile Section */}
                     <UserProfile displayName={displayName} email={email} initials={initials} username={username} photoURL={photoURL} />
 
