@@ -17,6 +17,8 @@ import { SchemaActions } from './SchemaActions';
 import { TableActions } from './TableActions';
 import { useToast } from '@/hooks/useToast';
 import { DependencyGraph } from './DependencyGraph';
+import { AddDatabaseDialog } from './AddDatabaseDialog';
+import { TableDescriptionDialog } from './TableDescriptionDialog';
 
 interface DatabaseSidebarProps {
     connections: ConnectionConfig[];
@@ -397,7 +399,7 @@ export const DatabaseSidebar = ({
 
     return (
         <TooltipProvider>
-            <div className="w-full h-full flex flex-col overflow-hidden">
+            <div className="w-full min-w-[320px] h-full flex flex-col overflow-hidden bg-white dark:bg-gray-900">
                 {/* Header with search and actions */}
                 <div className="p-4 space-y-3 border-b border-slate-200 dark:border-gray-700 bg-slate-50/70 dark:bg-gray-800/80">
                     <div className="relative">
@@ -482,6 +484,28 @@ export const DatabaseSidebar = ({
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
+                                                            className="h-7 w-7 p-0 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-300 dark:hover:text-blue-300 dark:hover:bg-blue-900/30"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setShowAddDatabaseDialog({
+                                                                    isOpen: true,
+                                                                    connectionId: connection.id,
+                                                                    connectionType: connection.databaseType,
+                                                                    connectionName: connection.name
+                                                                });
+                                                            }}
+                                                        >
+                                                            <Plus className="h-3 w-3" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Add Database</TooltipContent>
+                                                </Tooltip>
+
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
                                                             className="h-7 w-7 p-0 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-300 dark:hover:text-emerald-300 dark:hover:bg-emerald-900/30"
                                                             onClick={(e) => handleTestConnection(connection.id, e)}
                                                         >
@@ -509,7 +533,7 @@ export const DatabaseSidebar = ({
 
                                         {/* Database content when expanded */}
                                         {expandedConnections.includes(connection.id) && (
-                                            <div className="ml-4 space-y-1">
+                                            <div className="ml-0 border-l border-slate-200/80 pl-3 dark:border-gray-700/80 space-y-1">
                                                 {loadingStructures[connection.id] ? (
                                                     <div className="flex items-center p-2 text-sm text-muted-foreground">
                                                         <RefreshCw className="h-3 w-3 animate-spin mr-2" />
@@ -547,7 +571,7 @@ export const DatabaseSidebar = ({
                                                                         <span className="text-sm truncate min-w-0" title={database.name}>{database.name}</span>
                                                                     </div>
 
-                                                                    <div className="flex items-center justify-end gap-1 w-14 shrink-0 opacity-0 group-hover/database:opacity-100 transition-opacity">
+                                                                    <div className="flex items-center justify-end gap-1 w-14 shrink-0">
                                                                         <Tooltip>
                                                                             <TooltipTrigger asChild>
                                                                                 <Button
@@ -591,7 +615,7 @@ export const DatabaseSidebar = ({
 
                                                                 {/* Schema content when expanded */}
                                                                 {isDatabaseExpanded && (
-                                                                    <div className="ml-6 space-y-2">
+                                                                    <div className="ml-0 border-l border-slate-200/80 pl-3 dark:border-gray-700/80 space-y-2">
                                                                         {isDatabaseLoading ? (
                                                                             <div className="flex items-center p-2 text-sm text-muted-foreground">
                                                                                 <RefreshCw className="h-3 w-3 animate-spin mr-2" />
@@ -606,7 +630,7 @@ export const DatabaseSidebar = ({
                                                                                 return (
                                                                                     <div key={schemaId} className="space-y-1">
                                                                                         <div
-                                                                                            className="flex items-center justify-between gap-2 p-2 bg-muted/50 rounded-md cursor-pointer group/schema"
+                                                                                            className="flex items-center justify-between gap-2 p-2 bg-slate-50 dark:bg-gray-800 rounded-md cursor-pointer group/schema"
                                                                                             onClick={(e) => {
                                                                                                 e.stopPropagation();
                                                                                                 toggleSchema(connection.id, database.name, schema.name);
@@ -614,9 +638,9 @@ export const DatabaseSidebar = ({
                                                                                         >
                                                                                             <div className="flex items-center gap-2 min-w-0 flex-1">
                                                                                                 {isSchemaExpanded ? (
-                                                                                                    <ChevronDown className="h-3 w-3" />
+                                                                                                    <ChevronDown className="h-3 w-3 shrink-0" />
                                                                                                 ) : (
-                                                                                                    <ChevronRight className="h-3 w-3" />
+                                                                                                    <ChevronRight className="h-3 w-3 shrink-0" />
                                                                                                 )}
                                                                                                 <span className="font-medium truncate min-w-0" title={schema.name}>
                                                                                                     {schema.name}
@@ -638,7 +662,7 @@ export const DatabaseSidebar = ({
                                                                                         </div>
 
                                                                                         {isSchemaExpanded && (
-                                                                                            <div className="ml-4 space-y-1">
+                                                                                            <div className="ml-0 border-l border-slate-200/80 pl-3 dark:border-gray-700/80 space-y-1">
                                                                                                 <button
                                                                                                     type="button"
                                                                                                     className="w-full flex items-center gap-2 p-2 rounded-md border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:border-blue-700/40 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-300"
@@ -653,7 +677,7 @@ export const DatabaseSidebar = ({
                                                                                                     }}
                                                                                                 >
                                                                                                     <span className="min-w-0 flex-1 flex items-center gap-2 text-xs font-semibold">
-                                                                                                        <Workflow className="h-4 w-4" />
+                                                                                                        <Workflow className="h-4 w-4 shrink-0" />
                                                                                                         <span className="truncate">Schema Canvas</span>
                                                                                                     </span>
                                                                                                     <span className="text-[11px] opacity-80 shrink-0">
@@ -663,7 +687,7 @@ export const DatabaseSidebar = ({
                                                                                                 {schemaTables.map((table) => (
                                                                                                     <div
                                                                                                         key={table.name}
-                                                                                                        className="flex items-center gap-2 p-2 rounded-md hover:bg-accent/50 group/table overflow-hidden"
+                                                                                                        className="flex items-center gap-2 p-2 rounded-md hover:bg-slate-100 dark:hover:bg-gray-800 group/table overflow-hidden"
                                                                                                     >
                                                                                                         <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                                                                                                             <TableIcon className="h-4 w-4 text-blue-400 flex-shrink-0" />
@@ -674,7 +698,7 @@ export const DatabaseSidebar = ({
                                                                                                                 {table.name}
                                                                                                             </span>
                                                                                                         </div>
-                                                                                                        <div className="ml-2 w-[92px] flex justify-end shrink-0 opacity-0 group-hover/table:opacity-100 transition-opacity">
+                                                                                                        <div className="ml-2 w-[92px] flex justify-end shrink-0">
                                                                                                             <TableActions
                                                                                                                 onOpenQueryEditor={() => onOpenTab({
                                                                                                                     id: `${connection.id}-${database.name}-${schema.name}-${table.name}`,
@@ -728,7 +752,40 @@ export const DatabaseSidebar = ({
                     </div>
                 </div>
 
-                {/* Keep all dialog components the same as before */}
+                <AddDatabaseDialog
+                    isOpen={showAddDatabaseDialog.isOpen}
+                    onClose={() => setShowAddDatabaseDialog({
+                        isOpen: false,
+                        connectionId: '',
+                        connectionType: 'sql',
+                        connectionName: '',
+                    })}
+                    connectionId={showAddDatabaseDialog.connectionId}
+                    connectionType={showAddDatabaseDialog.connectionType}
+                    connectionName={showAddDatabaseDialog.connectionName}
+                    onCreated={() => {
+                        refreshConnections();
+                        if (showAddDatabaseDialog.connectionId) {
+                            void loadDatabaseStructure(showAddDatabaseDialog.connectionId, {
+                                force: true,
+                                showSpinner: true,
+                            });
+                        }
+                    }}
+                />
+
+                {showTableDescription.table ? (
+                    <TableDescriptionDialog
+                        isOpen={showTableDescription.isOpen}
+                        onClose={() => setShowTableDescription({
+                            isOpen: false,
+                            table: null,
+                        })}
+                        tableName={showTableDescription.table.name}
+                        columns={showTableDescription.table.columns || []}
+                    />
+                ) : null}
+
                 <DependencyGraph
                     isOpen={showDependencyGraph.isOpen}
                     onClose={() => setShowDependencyGraph({

@@ -1,4 +1,4 @@
-import {
+import type {
     Auth,
     Param,
     RequestProtocol,
@@ -145,11 +145,11 @@ export const executeProtocolRequest = async (
         };
     }
 
-    const outgoingMethod = input.protocol === 'graphql' ? RequestType.POST : input.method;
+    const outgoingMethod = input.protocol === 'graphql' ? 'POST' : input.method;
 
     const parsedBody = parseBody(input.body);
     const preparedBody =
-        outgoingMethod === RequestType.GET || outgoingMethod === RequestType.HEAD
+        outgoingMethod === 'GET' || outgoingMethod === 'HEAD'
             ? undefined
             : input.protocol === 'graphql'
               ? JSON.stringify(

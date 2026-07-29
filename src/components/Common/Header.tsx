@@ -38,22 +38,22 @@ interface HeaderProps {
 
 const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environments, initials, username, email, displayName, autoSave, setAutoSave, teamMode, teams, onTeamSelect, onExitTeamMode, showTeams, setShowTeams, activeEnvironmentId, onEnvironmentSelect, terminalProps, photoURL }: HeaderProps) => {
     return (
-        <header className="flex items-center justify-between h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6">
-            <div className="flex items-center space-x-8 w-full">
-                <div className="w-50"> {/* Matches CollectionsTree width */}
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white/95 px-5 shadow-sm shadow-slate-950/[0.03] backdrop-blur dark:border-gray-800 dark:bg-gray-950/90">
+            <div className="flex min-w-0 flex-1 items-center gap-6">
+                <div className="w-[220px] shrink-0">
                     <LogoDisplay />
                 </div>
 
                 {toSearch &&
                     (
-                        <div className="flex-1 max-w-2xl mx-4"> {/* Centered search */}
+                        <div className="min-w-[220px] max-w-2xl flex-1">
                             <div className="relative">
                                 <input
                                     type="text"
                                     placeholder={parentComponent === 'Environment' ? "Search environments..." : "Search collections..."}
-                                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:bg-gray-900"
                                 />
-                                <div className="absolute left-3 top-2.5 text-gray-400">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                                     <SearchIcon />
                                 </div>
                             </div>
@@ -67,10 +67,10 @@ const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environme
                 }
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex shrink-0 items-center gap-3">
                 {parentComponent === 'Collections' &&
                     <button
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors cursor-pointer flex items-center w-48"
+                        className="flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm shadow-blue-950/10 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                         onClick={(e) => {
                             e.preventDefault();
                             onAddCollection('New Collection');
@@ -94,7 +94,7 @@ const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environme
                     <>
                         <button
                             onClick={terminalProps.onNewLocalTerminal}
-                            className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors cursor-pointer"
+                            className="flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm shadow-blue-950/10 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                         >
                             <Monitor className="h-5 w-5 mr-2" />
                             <span>New Terminal</span>
@@ -104,7 +104,7 @@ const HeaderComponent = ({ toSearch, parentComponent, onAddCollection, environme
                             <select
                                 value={terminalProps.currentTheme}
                                 onChange={(e) => terminalProps.onChangeTheme(e.target.value)}
-                                className="appearance-none bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="h-10 appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                             >
                                 {terminalProps.themes.map(theme => (
                                     <option key={theme} value={theme}>{theme}</option>

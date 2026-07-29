@@ -1,5 +1,7 @@
 import { Collection, Request } from '@/types/Collections';
 import { useEffect, useState } from 'react';
+import RichTextEditor from '@/components/Common/RichTextEditor';
+import { sanitizeRichText } from '@/lib/rich-text';
 
 interface CollectionDetailsProps {
     collection: Collection;
@@ -16,9 +18,11 @@ export default function CollectionDetails({
 }: CollectionDetailsProps) {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editedCollection, setEditedCollection] = useState<Collection>({ ...collection });
+    const [descriptionHtml, setDescriptionHtml] = useState('');
 
     useEffect(() => {
         setEditedCollection({ ...collection });
+        setDescriptionHtml(sanitizeRichText(collection.description || ''));
     }, [collection]);
 
     const isShareEnabled = Boolean(collection.teamId);
@@ -108,7 +112,7 @@ export default function CollectionDetails({
 
                 {showEditModal ? (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96">
+                        <div className="w-[min(720px,92vw)] rounded-xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-800">
                             <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white">Edit Collection</h3>
                             <input
                                 type="text"
@@ -122,18 +126,16 @@ export default function CollectionDetails({
                                     })
                                 }
                             />
-                            <textarea
-                                placeholder="Description"
-                                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded mb-4 dark:bg-gray-700 dark:text-white"
+                            <RichTextEditor
                                 value={editedCollection.description}
-                                onChange={(e) =>
+                                onChange={(value) =>
                                     setEditedCollection({
                                         ...editedCollection,
-                                        description: e.target.value,
+                                        description: value,
                                     })
                                 }
                             />
-                            <div className="flex justify-end space-x-2">
+                            <div className="flex justify-end space-x-2 pt-4">
                                 <button
                                     onClick={() => setShowEditModal(false)}
                                     className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded"
@@ -144,6 +146,7 @@ export default function CollectionDetails({
                                     onClick={() => {
                                         onEditCollection({
                                             ...editedCollection,
+                                            description: sanitizeRichText(editedCollection.description),
                                             updatedAt: new Date().toISOString(),
                                         });
                                         setShowEditModal(false);
@@ -157,10 +160,15 @@ export default function CollectionDetails({
                     </div>
                 ) : null}
 
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 mb-6">
-                    <p className="text-gray-700 dark:text-gray-300">
-                        {collection.description || 'No description available.'}
-                    </p>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-6 dark:border-gray-700 dark:bg-gray-900">
+                    {descriptionHtml ? (
+                        <div
+                            className="rich-text-content text-gray-700 dark:text-gray-300"
+                            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                        />
+                    ) : (
+                        <p className="text-gray-500 dark:text-gray-400">No description available.</p>
+                    )}
                 </div>
 
                 <div className="mb-4">

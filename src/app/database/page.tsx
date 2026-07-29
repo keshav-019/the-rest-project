@@ -45,7 +45,7 @@ const DatabaseScreen = () => {
             setInitials(getInitials(currentUser?.displayName));
             setEmail(currentUser?.email || '');
             setDisplayName(currentUser?.displayName || '');
-            setAutoSave(userDetails.userData?.autoSave || true);
+            setAutoSave(userDetails.userData?.autoSave ?? true);
             setPhotoURL(currentUser?.photoURL || '');
         };
 
@@ -135,9 +135,9 @@ const DatabaseScreen = () => {
                         onEnvironmentSelect={() => {}}
                         photoURL={photoURL}
                     />
-                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                        <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
-                            <ResizablePanel defaultSize={25} minSize={20} maxSize={40} className="bg-white dark:bg-gray-800 border-r border-slate-200 dark:border-gray-700 min-h-0">
+                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden overflow-x-auto">
+                        <ResizablePanelGroup direction="horizontal" className="h-full min-h-0 min-w-[900px]">
+                            <ResizablePanel defaultSize={28} minSize={24} maxSize={45} className="bg-white dark:bg-gray-900 border-r border-slate-200 dark:border-gray-700 min-h-0 min-w-[320px]">
                                 <Suspense fallback={<Skeleton className="h-full w-full" />}>
                                     <DatabaseSidebar
                                         connections={connections}
@@ -153,7 +153,7 @@ const DatabaseScreen = () => {
                                 </Suspense>
                             </ResizablePanel>
                             <ResizableHandle withHandle className="bg-slate-200 hover:bg-slate-300 dark:bg-gray-700 dark:hover:bg-gray-600" />
-                            <ResizablePanel defaultSize={75} className="bg-white dark:bg-gray-900 min-h-0 flex flex-col">
+                            <ResizablePanel defaultSize={72} minSize={55} className="bg-white dark:bg-gray-900 min-h-0 flex min-w-[560px] flex-col">
                                 <MainContent
                                     activeTab={activeTab}
                                     openTabs={openTabs}

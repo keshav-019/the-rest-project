@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import DatabaseService from '@/lib/database-service';
+import { useToast } from '@/hooks/useToast';
 import {
     Dialog,
     DialogContent,
@@ -16,16 +18,41 @@ interface AddDatabaseDialogProps {
     connectionType: 'sql' | 'nosql';
     connectionName: string;
     connectionId?: string
+    onCreated?: () => void;
 }
 
-export const AddDatabaseDialog = ({ isOpen, onClose, connectionType, connectionName, connectionId }: AddDatabaseDialogProps) => {
+export const AddDatabaseDialog = ({ isOpen, onClose, connectionType, connectionName, connectionId, onCreated }: AddDatabaseDialogProps) => {
     const [databaseName, setDatabaseName] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
+    const { toast } = useToast();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Handle database/collection creation logic here
-        console.log(`Creating ${connectionType === 'sql' ? 'database' : 'collection'}:`, databaseName);
-        onClose();
+        if (!connectionId || !databaseName.trim()) {
+            return;
+        }
+
+        setIsCreating(true);
+        try {
+            const dbService = DatabaseService.getInstance();
+            await dbService.createDatabase(connectionId, databaseName.trim());
+            toast({
+                title: `${connectionType === 'sql' ? 'Database' : 'Collection'} created`,
+                description: `${databaseName.trim()} was created on ${connectionName}.`,
+                variant: 'default',
+            });
+            setDatabaseName('');
+            onCreated?.();
+            onClose();
+        } catch (error) {
+            toast({
+                title: `Failed to create ${connectionType === 'sql' ? 'database' : 'collection'}`,
+                description: error instanceof Error ? error.message : 'Unknown error',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsCreating(false);
+        }
     };
 
     return (
@@ -55,8 +82,8 @@ export const AddDatabaseDialog = ({ isOpen, onClose, connectionType, connectionN
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit">
-                            Create {connectionType === 'sql' ? 'Database' : 'Collection'}
+                        <Button type="submit" disabled={isCreating}>
+                            {isCreating ? 'Creating...' : `Create ${connectionType === 'sql' ? 'Database' : 'Collection'}`}
                         </Button>
                     </div>
                 </form>

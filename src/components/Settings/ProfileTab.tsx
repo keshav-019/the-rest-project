@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import Cropper from "react-easy-crop";
 import { checkUsernameAvailability, getInitials } from "@/lib/firebase/auth";
 import { updateUserProfileData } from "@/lib/firebase/profile";
+import { uploadImageToCloudinary } from "@/lib/cloudinary/upload-image";
 
 export default function ProfileTab({
     setName,
@@ -60,6 +61,9 @@ export default function ProfileTab({
     // ---------------- IMAGE STATE ----------------
     const [imageSrc, setImageSrc] = useState<string | null>(null);
     const [photoURL, setPhotoURL] = useState<string>("");
+    const [isUploading, setIsUploading] = useState(false);
+    const [profileError, setProfileError] = useState<string | null>(null);
+    const [profileMessage, setProfileMessage] = useState<string | null>(null);
 
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
@@ -79,8 +83,11 @@ export default function ProfileTab({
         const file = e.target.files[0];
         if (!file) return;
 
+        setProfileError(null);
+        setProfileMessage(null);
+
         if (!file.type.startsWith("image/")) {
-            alert("Please upload a valid image file.");
+            setProfileError("Please upload a valid image file.");
             e.target.value = "";
             return;
         }
@@ -123,20 +130,18 @@ export default function ProfileTab({
     };
 
     const uploadToCloudinary = async (blob: Blob) => {
-        const formData = new FormData();
-        formData.append("file", blob);
-        formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!);
-
-        const res = await fetch(
-            `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-            { method: "POST", body: formData }
-        );
-
-        const data = await res.json();
-        return data.secure_url;
+        return uploadImageToCloudinary(blob, "profile-picture.jpg");
     };
 
     const handleSave = async () => {
+        setProfileError(null);
+        setProfileMessage(null);
+
+        if (usernameStatus === "taken") {
+            setProfileError("Please choose an available username before saving.");
+            return;
+        }
+
         try {
             await updateUserProfileData({
                 name,
@@ -157,15 +162,30 @@ export default function ProfileTab({
                 photoURL
             }));
 
+            setProfileMessage("Profile saved.");
         } catch (e) {
             console.error("Failed to save profile:", e);
+            setProfileError(e instanceof Error ? e.message : "Failed to save profile.");
         }
     };
 
     const handleSaveCrop = async () => {
         if (!croppedAreaPixels) return;
 
-        const blob = await getCroppedImg();
+        setProfileError(null);
+        setProfileMessage(null);
+        setIsUploading(true);
+
+        let blob: Blob;
+        try {
+            blob = await getCroppedImg();
+        } catch (e) {
+            console.error(e);
+            setProfileError("Failed to crop profile picture.");
+            setIsUploading(false);
+            return;
+        }
+        const previousPhotoURL = photoURL;
 
         // ✅ CLOSE MODAL IMMEDIATELY
         setImageSrc(null);
@@ -193,12 +213,20 @@ export default function ProfileTab({
                 photoURL: cloudURL
             }));
 
+            setProfileMessage("Profile picture updated.");
         } catch (e) {
             console.error(e);
+            setPhotoURL(previousPhotoURL);
+            setProfileError(e instanceof Error ? e.message : "Failed to upload profile picture.");
+        } finally {
+            URL.revokeObjectURL(tempURL);
+            setIsUploading(false);
         }
     };
 
     const handleRemove = async () => {
+        setProfileError(null);
+        setProfileMessage(null);
         const existing = JSON.parse(localStorage.getItem("currentUser") || "{}");
 
         setPhotoURL("");
@@ -216,9 +244,11 @@ export default function ProfileTab({
                 email,
                 photoURL: ""
             });
+            setProfileMessage("Profile picture removed.");
         } catch (e) {
             console.error(e);
             setPhotoURL(existing.photoURL || "");
+            setProfileError(e instanceof Error ? e.message : "Failed to remove profile picture.");
         }
     };
 
@@ -252,17 +282,29 @@ export default function ProfileTab({
                 </div>
 
                 <div className="flex space-x-4">
-                    <button onClick={handleOpenFile} className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors">
-                        <span>Change avatar</span>
+                    <button onClick={handleOpenFile} disabled={isUploading} className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:opacity-60 transition-colors">
+                        <span>{isUploading ? "Uploading..." : "Change avatar"}</span>
                     </button>
 
-                    <button onClick={handleRemove} className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors">
+                    <button onClick={handleRemove} disabled={isUploading} className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-60 transition-colors">
                         <span>Remove</span>
                     </button>
                 </div>
 
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
             </div>
+
+            {profileError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                    {profileError}
+                </div>
+            ) : null}
+
+            {profileMessage ? (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+                    {profileMessage}
+                </div>
+            ) : null}
 
             {/* --- FORM unchanged --- */}
             {/* FORM */}
@@ -303,7 +345,8 @@ export default function ProfileTab({
             <div className="flex justify-end">
                 <button
                     onClick={handleSave}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-700 active:scale-95 transition-all duration-150"
+                    disabled={isUploading || usernameStatus === "taken" || usernameStatus === "checking"}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 transition-all duration-150"
                 >
                     Save changes
                 </button>
@@ -336,9 +379,10 @@ export default function ProfileTab({
 
                             <button
                                 onClick={handleSaveCrop}
-                                className="px-4 py-2 bg-blue-600 text-white rounded"
+                                disabled={isUploading}
+                                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-60"
                             >
-                                Save Crop
+                                {isUploading ? "Uploading..." : "Save Crop"}
                             </button>
                         </div>
 

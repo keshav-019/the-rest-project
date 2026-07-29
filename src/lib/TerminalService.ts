@@ -1,33 +1,6 @@
 // src/lib/TerminalService.ts
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-declare global {
-    interface Window {
-        electronapp?: {
-            requestPty: () => Promise<boolean>;
-            sendToPty: (data: string) => Promise<void>;
-            resizePty: (cols: number, rows: number) => Promise<void>;
-            cleanupPty: () => Promise<void>;
-            onPtyData: (callback: (data: string) => void) => void;
-        };
-        electronAPI?: {
-            requestPty: () => Promise<boolean>;
-            sendToPty: (data: string) => Promise<void>;
-            resizePty: (cols: number, rows: number) => Promise<void>;
-            cleanupPty: () => Promise<void>;
-            onPtyData: (callback: (data: string) => void) => void;
-            onSSHClose: () => any;
-            openFileDialog(): Promise<any>;
-            executeCommand: (command: string) => Promise<string>;
-            connectSSH: (server: any) => Promise<boolean>;
-            executeSSHCommand: (server: any, command: string) => Promise<string>;
-            removePtyListeners: () => any;
-            changeTheme: (theme: any) => Promise<any>;
-        };
-    }
-}
 
 export class TerminalService {
     static isElectron(): boolean {
@@ -41,10 +14,10 @@ export class TerminalService {
             return Promise.resolve('$ ' + command + '\n' + 'This would execute in a real terminal');
         }
         
-        if (window.electronAPI) {
+        if (window.electronAPI?.executeCommand) {
             return window.electronAPI.executeCommand(command);
         }
-        throw new Error('Electron API not available');
+        return Promise.resolve('$ ' + command + '\n' + 'Direct command execution is not exposed by this Electron preload.');
     }
 
     static async executeSSHCommand(server: any, command: string): Promise<string> {
@@ -52,10 +25,10 @@ export class TerminalService {
             return Promise.resolve(`${server.username}@${server.host}:~$ ${command}\nSSH output would appear here`);
         }
         
-        if (window.electronAPI) {
+        if (window.electronAPI?.executeSSHCommand) {
             return window.electronAPI.executeSSHCommand(server, command);
         }
-        throw new Error('Electron API not available');
+        return Promise.resolve(`${server.username}@${server.host}:~$ ${command}\nSSH command execution is not exposed by this Electron preload.`);
     }
 
     static async connectToSSH(server: any): Promise<boolean> {

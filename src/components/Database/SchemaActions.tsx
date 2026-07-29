@@ -22,7 +22,10 @@ export const SchemaActions = ({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={onAddTable}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onAddTable();
+                            }}
                         >
                             <Plus className="h-3 w-3" />
                         </Button>
@@ -36,7 +39,10 @@ export const SchemaActions = ({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={onShowDependencies}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onShowDependencies();
+                            }}
                         >
                             <DatabaseZap className="h-3 w-3" />
                         </Button>
@@ -50,7 +56,10 @@ export const SchemaActions = ({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0 text-red-500"
-                            onClick={onDeleteSchema}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onDeleteSchema();
+                            }}
                         >
                             <Trash2 className="h-3 w-3" />
                         </Button>
