@@ -665,7 +665,7 @@ export const DatabaseSidebar = ({
                                                                                             <div className="ml-3 space-y-1 border-l border-slate-200/80 pl-3 dark:border-gray-700/80">
                                                                                                 <button
                                                                                                     type="button"
-                                                                                                    className="grid min-h-10 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-blue-700 hover:bg-blue-100 dark:border-blue-700/40 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
+                                                                                                    className="grid min-h-10 w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-blue-700 transition-transform hover:bg-blue-100 active:scale-[0.99] dark:border-blue-700/40 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
                                                                                                     onClick={(e) => {
                                                                                                         e.stopPropagation();
                                                                                                         handleOpenSchemaCanvas(

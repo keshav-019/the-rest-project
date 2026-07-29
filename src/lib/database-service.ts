@@ -205,6 +205,41 @@ class DatabaseService {
         return await response.json();
     }
 
+    async getSchemaCanvasMetadata(
+        connectionId: string,
+        database: string,
+        schema: string
+    ): Promise<{
+        tables: Array<{
+            name: string;
+            columns: ColumnDefinition[];
+        }>;
+    }> {
+        const connection = this.connections.find(c => c.id === connectionId);
+        if (!connection) throw new Error('Connection not found');
+
+        const response = await fetch('/api/schema-canvas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: connection.type,
+                host: connection.host,
+                port: connection.port,
+                username: connection.username,
+                password: connection.password,
+                database,
+                schema,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to load schema canvas metadata');
+        }
+
+        return await response.json();
+    }
+
     // Add to DatabaseService class
     async createDatabase(connectionId: string, databaseName: string): Promise<void> {
         try {

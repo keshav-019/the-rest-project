@@ -55,8 +55,6 @@ interface TableRelation {
 interface TableMetadataState {
     columns: ColumnDefinition[];
     loaded: boolean;
-    loading: boolean;
-    error?: string;
 }
 
 const COMPONENT_GRID_WIDTH = 2200;
@@ -315,7 +313,7 @@ const TableNode = memo(({ id, data }: NodeProps<TableNodeData>) => {
                                     ? 'loading columns...'
                                     : data.columnsLoaded
                                       ? `${data.columns.length} cols`
-                                      : 'expand to load columns'}
+                                      : 'columns unavailable'}
                             </span>
                             <span>•</span>
                             <span>{data.relationCount} links</span>
@@ -446,38 +444,71 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
     const flowRef = useRef<ReactFlowInstance | null>(null);
     const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
     const [tableMetadataByName, setTableMetadataByName] = useState<Record<string, TableMetadataState>>({});
+    const [isDiagramLoading, setIsDiagramLoading] = useState(false);
+    const [diagramError, setDiagramError] = useState<string | null>(null);
 
     useEffect(() => {
-        setTableMetadataByName((previous) => {
-            const next: Record<string, TableMetadataState> = {};
+        const next: Record<string, TableMetadataState> = {};
+        for (const table of tables) {
+            const columns = table.columns || [];
+            next[table.name] = {
+                columns,
+                loaded: columns.length > 0,
+            };
+        }
+        setTableMetadataByName(next);
+    }, [tables]);
 
-            for (const table of tables) {
-                const previousEntry = previous[table.name];
-                const initialColumns = table.columns || [];
+    useEffect(() => {
+        if (!isActive || !connection || !database || !schema || tables.length === 0) {
+            return;
+        }
 
-                if (previousEntry?.loaded || previousEntry?.loading) {
-                    next[table.name] = previousEntry;
-                    continue;
+        let cancelled = false;
+        const dbService = DatabaseService.getInstance();
+
+        const loadSchemaCanvas = async () => {
+            setIsDiagramLoading(true);
+            setDiagramError(null);
+            try {
+                const metadata = await dbService.getSchemaCanvasMetadata(connection, database, schema);
+                if (cancelled) {
+                    return;
                 }
 
-                if (initialColumns.length > 0) {
-                    next[table.name] = {
-                        columns: initialColumns,
-                        loaded: true,
-                        loading: false,
-                    };
-                } else {
-                    next[table.name] = {
-                        columns: [],
-                        loaded: false,
-                        loading: false,
-                    };
+                const metadataMap = new Map(
+                    (metadata.tables || []).map((table) => [table.name, table.columns || []] as const)
+                );
+
+                setTableMetadataByName((previous) => {
+                    const next: Record<string, TableMetadataState> = {};
+                    for (const table of tables) {
+                        const columns = metadataMap.get(table.name) || previous[table.name]?.columns || table.columns || [];
+                        next[table.name] = {
+                            columns,
+                            loaded: true,
+                        };
+                    }
+                    return next;
+                });
+            } catch (error: any) {
+                if (cancelled) {
+                    return;
+                }
+                setDiagramError(error?.message || 'Unable to prepare schema diagram right now.');
+            } finally {
+                if (!cancelled) {
+                    setIsDiagramLoading(false);
                 }
             }
+        };
 
-            return next;
-        });
-    }, [tables]);
+        void loadSchemaCanvas();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isActive, connection, database, schema, tables]);
 
     const hydratedTables = useMemo(
         () =>
@@ -541,17 +572,14 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
         return map;
     }, [hydratedTables]);
 
+    const visibleRelations = useMemo(
+        () => relationships.filter((relation) => Boolean(expandedByTable.get(relation.sourceTable))),
+        [relationships, expandedByTable]
+    );
+
     const isolatedCount = useMemo(
         () => hydratedTables.filter((table) => (relationCountByTable.get(table.name) || 0) === 0).length,
         [hydratedTables, relationCountByTable]
-    );
-
-    const loadingTables = useMemo(
-        () =>
-            Object.entries(tableMetadataByName)
-                .filter(([, metadata]) => metadata.loading)
-                .map(([tableName]) => tableName),
-        [tableMetadataByName]
     );
 
     const fitGraph = useCallback(
@@ -577,88 +605,23 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
         setFocusedNodeId(null);
     }, []);
 
-    const loadTableMetadata = useCallback(
-        async (tableName: string) => {
-            let shouldFetch = false;
-
-            setTableMetadataByName((previous) => {
-                const current = previous[tableName];
-                if (!current || current.loaded || current.loading) {
-                    return previous;
-                }
-
-                shouldFetch = true;
-                return {
-                    ...previous,
-                    [tableName]: {
-                        ...current,
-                        loading: true,
-                        error: undefined,
-                    },
-                };
-            });
-
-            if (!shouldFetch) {
-                return;
-            }
-
-            try {
-                const dbService = DatabaseService.getInstance();
-                const description = await dbService.getTableDescription(
-                    connection,
-                    database,
-                    schema,
-                    tableName
-                );
-
-                setTableMetadataByName((previous) => ({
-                    ...previous,
-                    [tableName]: {
-                        columns: description.columns || [],
-                        loaded: true,
-                        loading: false,
-                        error: undefined,
-                    },
-                }));
-            } catch (error: any) {
-                setTableMetadataByName((previous) => ({
-                    ...previous,
-                    [tableName]: {
-                        columns: previous[tableName]?.columns || [],
-                        loaded: false,
-                        loading: false,
-                        error: error?.message || 'Failed to load table metadata.',
-                    },
-                }));
-            }
-        },
-        [connection, database, schema]
-    );
-
     const toggleNode = useCallback(
         (nodeId: string) => {
             setFocusedNodeId(nodeId);
-            let shouldExpand = false;
             setNodes((previousNodes) => previousNodes.map((node) => {
                 if (node.id !== nodeId) {
                     return node;
                 }
-
-                shouldExpand = !node.data.expanded;
                 return {
                     ...node,
                     data: {
                         ...node.data,
-                        expanded: shouldExpand,
+                        expanded: !node.data.expanded,
                     },
                 };
             }));
-
-            if (shouldExpand) {
-                void loadTableMetadata(nodeId);
-            }
         },
-        [setNodes, loadTableMetadata]
+        [setNodes]
     );
 
     useEffect(() => {
@@ -678,8 +641,8 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
                         columns: metadata?.columns || table.columns || [],
                         expanded: previousNode?.data?.expanded || false,
                         columnsLoaded: metadata?.loaded || false,
-                        loading: metadata?.loading || false,
-                        error: metadata?.error,
+                        loading: Boolean(isDiagramLoading && !(metadata?.loaded)),
+                        error: metadata?.loaded ? undefined : diagramError || undefined,
                         relationCount: relationCountByTable.get(table.name) || 0,
                         isIsolated: (relationCountByTable.get(table.name) || 0) === 0,
                         linkedPrimaryColumns: Array.from(linkedColumnsByTable.get(table.name)?.source || []),
@@ -699,29 +662,16 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
         relationCountByTable,
         linkedColumnsByTable,
         focusedNodeId,
+        isDiagramLoading,
+        diagramError,
         toggleNode,
         focusNode,
         setNodes,
     ]);
 
     useEffect(() => {
-        setEdges(buildEdges(relationships, expandedByTable, availableColumnsByTable));
-    }, [relationships, expandedByTable, availableColumnsByTable, setEdges]);
-
-    useEffect(() => {
-        for (const [tableName, isExpanded] of expandedByTable.entries()) {
-            if (!isExpanded) {
-                continue;
-            }
-
-            const metadata = tableMetadataByName[tableName];
-            if (!metadata || metadata.loaded || metadata.loading) {
-                continue;
-            }
-
-            void loadTableMetadata(tableName);
-        }
-    }, [expandedByTable, tableMetadataByName, loadTableMetadata]);
+        setEdges(buildEdges(visibleRelations, expandedByTable, availableColumnsByTable));
+    }, [visibleRelations, expandedByTable, availableColumnsByTable, setEdges]);
 
     useEffect(() => {
         if (!isActive) {
@@ -807,11 +757,18 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
                     zoomOnPinch={!focusedNodeId}
                     panOnScroll={!focusedNodeId}
                 >
-                    {loadingTables.length > 0 ? (
+                    {isDiagramLoading ? (
                         <Panel position="top-left">
                             <div className="rounded-lg border border-sky-200 dark:border-sky-700/50 bg-sky-50/95 dark:bg-sky-950/45 px-3 py-2 text-[11px] text-sky-800 dark:text-sky-200 shadow-sm backdrop-blur-sm flex items-center gap-2">
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                Loading links for {loadingTables.length === 1 ? loadingTables[0] : `${loadingTables.length} tables`}...
+                                Please wait while we get the schema diagram ready for you...
+                            </div>
+                        </Panel>
+                    ) : null}
+                    {diagramError ? (
+                        <Panel position="top-left">
+                            <div className="rounded-lg border border-rose-200 dark:border-rose-700/50 bg-rose-50/95 dark:bg-rose-950/45 px-3 py-2 text-[11px] text-rose-800 dark:text-rose-200 shadow-sm backdrop-blur-sm">
+                                {diagramError}
                             </div>
                         </Panel>
                     ) : null}
@@ -819,6 +776,7 @@ export const SchemaCanvas = ({ connection, database, schema, tables, isActive = 
                         <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 px-3 py-2 text-[11px] text-slate-600 dark:text-slate-300 shadow-sm backdrop-blur-sm">
                             <div>{tables.length} tables</div>
                             <div>{relationships.length} relationships</div>
+                            <div>{visibleRelations.length} visible links</div>
                             <div>{isolatedCount} isolated</div>
                             <div>{focusedNodeId ? `focus: ${focusedNodeId}` : 'focus: canvas'}</div>
                         </div>
